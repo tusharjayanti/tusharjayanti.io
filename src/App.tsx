@@ -7,6 +7,9 @@ import {
 } from 'react-router';
 import { Footer } from './components/Footer';
 import { ModeToggle } from './components/ModeToggle';
+import { Wordmark } from './components/Wordmark';
+import { CV } from './modes/cv/CV';
+import { Terminal } from './modes/terminal/Terminal';
 import { Privacy } from './pages/Privacy';
 
 function RootRedirect() {
@@ -21,34 +24,17 @@ function RootRedirect() {
 
 function AppShell() {
   const location = useLocation();
-  const showModeToggle =
+  const isMode =
     location.pathname === '/terminal' || location.pathname === '/cv';
   return (
-    <div className="app-shell">
-      {showModeToggle && <ModeToggle />}
+    <div className={`app-shell${isMode ? ' app-shell--mode' : ''}`}>
+      {isMode && <ModeToggle />}
       <main className="app-main">
+        {isMode && <Wordmark />}
         <Outlet />
       </main>
       <Footer />
     </div>
-  );
-}
-
-function TerminalPlaceholder() {
-  return (
-    <section>
-      <h1>terminal</h1>
-      <p className="comment">// placeholder — wired in Chunk 3</p>
-    </section>
-  );
-}
-
-function CVPlaceholder() {
-  return (
-    <section>
-      <h1>cv</h1>
-      <p className="comment">// placeholder — wired in Chunk 2</p>
-    </section>
   );
 }
 
@@ -57,8 +43,8 @@ export const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { path: '/', element: <RootRedirect /> },
-      { path: '/terminal', element: <TerminalPlaceholder /> },
-      { path: '/cv', element: <CVPlaceholder /> },
+      { path: '/terminal', element: <Terminal /> },
+      { path: '/cv', element: <CV /> },
       { path: '/privacy', element: <Privacy /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],

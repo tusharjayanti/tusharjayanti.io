@@ -32,6 +32,8 @@
   --fg-dim: var(--ctp-subtext0);
   --fg-comment: var(--ctp-overlay1);
   --fg-comment-strong: var(--ctp-subtext1);
+  --text-subtle: var(--ctp-subtext0);
+  --text-overlay: var(--ctp-overlay0);
   --accent: var(--ctp-green);
   --accent-2: var(--ctp-mauve);
   --link: var(--ctp-blue);
@@ -115,6 +117,58 @@ button:hover {
   padding: 2rem 1.25rem 4rem;
 }
 
+.app-shell--mode .app-main {
+  padding-top: 1rem;
+}
+
+.wordmark {
+  margin-bottom: 1.5rem;
+}
+
+.wordmark-text {
+  font-family: 'VT323', monospace;
+  font-size: 72px;
+  line-height: 1;
+  letter-spacing: 0;
+  color: transparent;
+  text-shadow:
+    /* 8-way outline for perfectly sharp pixel corners */
+    1px 1px 0 #a78bfa,
+    -1px -1px 0 #a78bfa,
+    1px -1px 0 #a78bfa,
+    -1px 1px 0 #a78bfa,
+    0 1px 0 #a78bfa,
+    1px 0 0 #a78bfa,
+    0 -1px 0 #a78bfa,
+    -1px 0 0 #a78bfa,
+    /* Solid 3D drop shadow */
+    6px 6px 0 #4c1d95;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .wordmark-text {
+    font-size: 36px;
+    text-shadow:
+      1px 1px 0 #a78bfa,
+      -1px -1px 0 #a78bfa,
+      1px -1px 0 #a78bfa,
+      -1px 1px 0 #a78bfa,
+      0 1px 0 #a78bfa,
+      1px 0 0 #a78bfa,
+      0 -1px 0 #a78bfa,
+      -1px 0 0 #a78bfa,
+      3px 3px 0 #4c1d95;
+  }
+}
+
+.wordmark-tagline {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-overlay);
+}
+
 .app-footer {
   border-top: 1px solid var(--border);
   padding: 1rem 1.25rem;
@@ -169,4 +223,509 @@ button:hover {
 .comment code {
   font-family: var(--font-mono);
   color: var(--fg-comment-strong);
+}
+
+/* === CV page === */
+
+.cv {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.cv-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.cv-meta {
+  margin: 0;
+  color: var(--fg-dim);
+  font-size: 0.9rem;
+}
+
+.cv-pitch {
+  margin: 0.5rem 0 0;
+  color: var(--fg);
+}
+
+.cv-available {
+  margin: 0;
+  color: var(--fg);
+}
+
+.cv-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--accent-2);
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+
+.section-title::before {
+  content: '## ';
+  color: var(--fg-comment);
+}
+
+.role {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--border);
+}
+
+.role-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.role-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.role-at {
+  color: var(--fg-comment);
+  font-weight: 400;
+}
+
+.role-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  color: var(--fg-dim);
+  font-size: 0.85rem;
+}
+
+.role-bullets {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.bullet {
+  color: var(--fg);
+}
+
+.bullet-todo {
+  color: var(--fg-comment);
+  font-style: italic;
+}
+
+.bullet-todo::marker {
+  color: var(--ctp-peach);
+}
+
+.project {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+}
+
+.project-highlight {
+  border-color: var(--accent);
+}
+
+.project-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.project-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.project-star {
+  color: var(--accent);
+}
+
+.status-pill {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--fg-dim);
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.status-pill.status-shipped {
+  color: var(--ctp-green);
+  border-color: var(--ctp-green);
+}
+
+.status-pill.status-in-progress {
+  color: var(--ctp-yellow);
+  border-color: var(--ctp-yellow);
+}
+
+.status-pill.status-archived {
+  color: var(--fg-dim);
+}
+
+.project-oneliner {
+  margin: 0;
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.project-description {
+  margin: 0;
+  color: var(--fg-dim);
+  font-size: 0.92rem;
+}
+
+.project-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.stack-chip {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 4px;
+  background: var(--ctp-surface0);
+  color: var(--fg-dim);
+  white-space: nowrap;
+}
+
+.project-roadmap {
+  margin: 0;
+  color: var(--fg);
+  font-size: 0.88rem;
+}
+
+.project-link {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.project-link a {
+  color: var(--link);
+}
+
+.skills-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.skill-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.skill-group-label {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--fg-dim);
+  text-transform: lowercase;
+  letter-spacing: 0.03em;
+}
+
+.skill-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* === Terminal mode === */
+
+.terminal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.term-scrollback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.term-line {
+  font-family: var(--font-mono);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.term-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-block: 0.25rem;
+}
+
+.term-output {
+  padding-block: 0.15rem;
+}
+
+.term-command-line {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+}
+
+.term-error {
+  color: var(--ctp-red);
+}
+
+.term-comment {
+  color: var(--fg-comment);
+}
+
+.term-comment-key {
+  color: var(--fg-comment-strong);
+  font-family: var(--font-mono);
+}
+
+.term-dim {
+  color: var(--fg-dim);
+}
+
+.term-cmd {
+  color: var(--accent);
+}
+
+.term-star {
+  color: var(--accent);
+}
+
+.term-status-shipped {
+  color: var(--ctp-green);
+}
+
+.term-status-in-progress {
+  color: var(--ctp-yellow);
+}
+
+.term-status-archived {
+  color: var(--fg-dim);
+}
+
+.term-bullet {
+  color: var(--fg);
+}
+
+.term-bullet-todo {
+  color: var(--fg-comment);
+  font-style: italic;
+}
+
+.term-ls {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.25rem 1rem;
+  padding-block: 0.15rem;
+}
+
+.term-prompt-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  position: relative;
+}
+
+/* Autoplay row — dedicated classes so the typing-time text cannot inherit
+   transparent color or absolute-positioned overlay logic from .term-prompt-input
+   used by the live <Prompt> component. */
+.term-autoplay-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.term-autoplay-text {
+  font-family: var(--font-mono);
+  color: var(--fg);
+  white-space: pre;
+}
+
+.term-prompt-prefix {
+  font-family: var(--font-mono);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.term-prompt-user {
+  color: var(--ctp-green);
+}
+
+.term-prompt-host {
+  color: var(--ctp-blue);
+}
+
+.term-prompt-path {
+  color: var(--ctp-peach);
+}
+
+.term-prompt-at,
+.term-prompt-colon,
+.term-prompt-dollar {
+  color: var(--text-subtle);
+}
+
+.term-prompt-content {
+  position: relative;
+  flex: 1;
+  font-family: var(--font-mono);
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.term-prompt-text {
+  font-family: var(--font-mono);
+  white-space: pre;
+}
+
+.term-prompt-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: transparent;
+  caret-color: transparent;
+  font: inherit;
+  padding: 0;
+  margin: 0;
+}
+
+.term-prompt-input:focus {
+  outline: none;
+}
+
+.term-cursor {
+  display: inline-block;
+  width: 0.55ch;
+  height: 1em;
+  margin-left: 1px;
+  background: var(--fg);
+  vertical-align: text-bottom;
+  animation: term-blink 1s steps(2, start) infinite;
+}
+
+@keyframes term-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+.term-prompt-row--mobile {
+  align-items: baseline;
+}
+
+.term-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.term-chip {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  color: var(--fg);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.term-chip:hover,
+.term-chip:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+
+.contact-comment {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-subtle);
+  text-transform: lowercase;
+}
+
+.contact-icons {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 32px;
+  margin-top: 0.5rem;
+}
+
+.contact-icons a {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-subtle);
+  border-bottom: none;
+  text-decoration: none;
+  transition: color 120ms ease;
+}
+
+.contact-icons a:hover,
+.contact-icons a:focus-visible {
+  color: var(--ctp-mauve);
+}
+
+.contact-icons a svg {
+  width: 22px;
+  height: 22px;
+}
+
+.contact-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-overlay);
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  transition: color 120ms ease;
+}
+
+.contact-icons a:hover .contact-label,
+.contact-icons a:focus-visible .contact-label {
+  color: var(--ctp-mauve);
+}
+
+@media (max-width: 767px) {
+  .contact-icons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem 0.5rem;
+    justify-items: center;
+  }
 }
