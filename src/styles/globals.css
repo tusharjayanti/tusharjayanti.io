@@ -1,0 +1,172 @@
+/* Catppuccin Mocha palette (https://catppuccin.com) */
+:root {
+  --ctp-base: #1e1e2e;
+  --ctp-mantle: #181825;
+  --ctp-crust: #11111b;
+  --ctp-text: #cdd6f4;
+  --ctp-subtext0: #a6adc8;
+  --ctp-subtext1: #bac2de;
+  --ctp-surface0: #313244;
+  --ctp-surface1: #45475a;
+  --ctp-surface2: #585b70;
+  --ctp-overlay0: #6c7086;
+  --ctp-overlay1: #7f849c;
+  --ctp-overlay2: #9399b2;
+  --ctp-blue: #89b4fa;
+  --ctp-lavender: #b4befe;
+  --ctp-sapphire: #74c7ec;
+  --ctp-sky: #89dceb;
+  --ctp-teal: #94e2d5;
+  --ctp-green: #a6e3a1;
+  --ctp-yellow: #f9e2af;
+  --ctp-peach: #fab387;
+  --ctp-maroon: #eba0ac;
+  --ctp-red: #f38ba8;
+  --ctp-mauve: #cba6f7;
+  --ctp-pink: #f5c2e7;
+
+  /* semantic tokens */
+  --bg: var(--ctp-base);
+  --bg-elevated: var(--ctp-mantle);
+  --fg: var(--ctp-text);
+  --fg-dim: var(--ctp-subtext0);
+  --fg-comment: var(--ctp-overlay1);
+  --fg-comment-strong: var(--ctp-subtext1);
+  --accent: var(--ctp-green);
+  --accent-2: var(--ctp-mauve);
+  --link: var(--ctp-blue);
+  --border: var(--ctp-surface0);
+
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, 'Liberation Mono', 'Courier New', monospace;
+
+  --radius: 6px;
+  --max-width: 760px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--link);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 120ms ease;
+}
+
+a:hover {
+  border-bottom-color: var(--link);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+::selection {
+  background: var(--ctp-surface2);
+  color: var(--fg);
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+.app-footer {
+  border-top: 1px solid var(--border);
+  padding: 1rem 1.25rem;
+  font-size: 0.85rem;
+  color: var(--fg-dim);
+  text-align: center;
+}
+
+.app-footer a {
+  color: var(--fg-dim);
+}
+
+.app-footer a:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.mode-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  gap: 0.25rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.2rem;
+  font-size: 0.8rem;
+  z-index: 10;
+}
+
+.mode-toggle a {
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  color: var(--fg-dim);
+  border-bottom: none;
+}
+
+.mode-toggle a.active {
+  background: var(--ctp-surface0);
+  color: var(--accent);
+}
+
+.mode-toggle a:hover:not(.active) {
+  color: var(--fg);
+}
+
+.comment {
+  color: var(--fg-comment);
+}
+
+.comment code {
+  font-family: var(--font-mono);
+  color: var(--fg-comment-strong);
+}
