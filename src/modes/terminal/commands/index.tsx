@@ -131,43 +131,38 @@ const help: Command = {
       kind: 'output',
       node: (
         <div className="term-block">
-          <div className="term-line">commands:</div>
+          <div className="term-line">Commands:</div>
           <div className="term-line">
             <span className="term-cmd">whoami</span>
-            <span className="term-dim">{'         '}— short bio</span>
+            <span className="term-dim">         show identity</span>
           </div>
           <div className="term-line">
-            <span className="term-cmd">ls</span>
-            <span className="term-dim">{'             '}— list available files</span>
+            <span className="term-cmd">ls [section]</span>
+            <span className="term-dim">   list bio / experience / projects / skills / contact</span>
           </div>
           <div className="term-line">
-            <span className="term-cmd">ls projects</span>
-            <span className="term-dim">{'    '}— list project slugs</span>
-          </div>
-          <div className="term-line">
-            <span className="term-cmd">ls experience</span>
-            <span className="term-dim">{'  '}— list role slugs</span>
-          </div>
-          <div className="term-line">
-            <span className="term-cmd">cat &lt;file&gt;</span>
-            <span className="term-dim">{'     '}— print a file (try cat bio, cat vox-agent)</span>
-          </div>
-          <div className="term-line">
-            <span className="term-cmd">status</span>
-            <span className="term-dim">{'         '}— system info</span>
+            <span className="term-cmd">cat &lt;thing&gt;</span>
+            <span className="term-dim">    print a section or item (e.g. cat bio, cat disco)</span>
           </div>
           <div className="term-line">
             <span className="term-cmd">help</span>
-            <span className="term-dim">{'           '}— this</span>
+            <span className="term-dim">           this message</span>
           </div>
           <div className="term-line">
             <span className="term-cmd">clear</span>
-            <span className="term-dim">{'          '}— clear the screen</span>
+            <span className="term-dim">          clear the screen</span>
+          </div>
+          <div className="term-line">
+            <span className="term-cmd">status</span>
+            <span className="term-dim">         current status</span>
           </div>
           <div className="term-line">&nbsp;</div>
-          <div className="term-line term-comment">
-            // coming next: ask &lt;your question&gt; — chat with me (chunk 5)
-          </div>
+          <div className="term-line">Or just type a question — I'll answer it.</div>
+          <div className="term-line">&nbsp;</div>
+          <div className="term-line term-comment">// examples:</div>
+          <div className="term-line term-comment">//   what did you do at DISCO?</div>
+          <div className="term-line term-comment">//   tell me about vox-agent</div>
+          <div className="term-line term-comment">//   are you available for senior roles?</div>
         </div>
       ),
     });
@@ -210,17 +205,6 @@ const status: Command = {
   },
 };
 
-const ask: Command = {
-  name: 'ask',
-  summary: 'chat with me',
-  run: ({ append }) => {
-    append({
-      kind: 'comment',
-      node: '// ask: wired in chunk 5 — try again then.',
-    });
-  },
-};
-
 export const commands: Record<string, Command> = {
   whoami,
   ls,
@@ -228,7 +212,6 @@ export const commands: Record<string, Command> = {
   help,
   clear,
   status,
-  ask,
 };
 
 export const commandNames = Object.keys(commands);

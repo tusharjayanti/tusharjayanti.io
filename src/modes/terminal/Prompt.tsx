@@ -1,7 +1,12 @@
 import {
   forwardRef,
-  type KeyboardEvent,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
   type ChangeEvent,
+  type KeyboardEvent,
+  type SyntheticEvent,
 } from 'react';
 
 export function PromptPrefix() {
@@ -40,8 +45,43 @@ export const Prompt = forwardRef<HTMLInputElement, PromptProps>(
       readOnly = false,
       showCursor = true,
     },
-    ref,
+    externalRef,
   ) {
+    const localRef = useRef<HTMLInputElement | null>(null);
+    const [cursorPosition, setCursorPosition] = useState(value.length);
+
+    // Merge external forwarded ref + internal ref so we can read
+    // selectionStart while still letting Terminal call .focus() on the input.
+    const setRefs = useCallback(
+      (node: HTMLInputElement | null) => {
+        localRef.current = node;
+        if (typeof externalRef === 'function') externalRef(node);
+        else if (externalRef) externalRef.current = node;
+      },
+      [externalRef],
+    );
+
+    // Sync cursor on every `value` change (covers programmatic setInput from
+    // history nav / tab completion). When focused, use the real selectionStart;
+    // otherwise jump to end-of-value (matches browser default).
+    useLayoutEffect(() => {
+      const el = localRef.current;
+      if (!el) return;
+      if (document.activeElement === el && el.selectionStart != null) {
+        setCursorPosition(el.selectionStart);
+      } else {
+        setCursorPosition(value.length);
+      }
+    }, [value]);
+
+    const updateCursor = useCallback(
+      (e: SyntheticEvent<HTMLInputElement>) => {
+        const pos = e.currentTarget.selectionStart;
+        if (pos != null) setCursorPosition(pos);
+      },
+      [],
+    );
+
     function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
       if (readOnly) {
         e.preventDefault();
@@ -67,18 +107,26 @@ export const Prompt = forwardRef<HTMLInputElement, PromptProps>(
       onChange(e.target.value);
     }
 
+    const before = value.slice(0, cursorPosition);
+    const after = value.slice(cursorPosition);
+
     return (
       <div className="term-prompt-row">
         <PromptPrefix />
         <span className="term-prompt-content">
-          <span className="term-prompt-text">{value}</span>
+          <span className="term-prompt-text">{before}</span>
           {showCursor && <span className="term-cursor" aria-hidden />}
+          <span className="term-prompt-text">{after}</span>
           <input
-            ref={ref}
+            ref={setRefs}
             className="term-prompt-input"
             value={value}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
+            onKeyUp={updateCursor}
+            onClick={updateCursor}
+            onSelect={updateCursor}
+            onInput={updateCursor}
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
