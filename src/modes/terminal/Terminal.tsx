@@ -25,7 +25,7 @@ function MobileHint() {
   return <span className="term-comment">// tap to explore:</span>;
 }
 
-const mobileChips = ['help', 'ls experience', 'ls projects', 'ask'] as const;
+const mobileChips = ['help', 'ls experience', 'ls projects'] as const;
 
 export function Terminal() {
   const isMobile = useIsMobile();
@@ -57,16 +57,21 @@ export function Terminal() {
     }
     const [name, ...args] = trimmed.split(/\s+/);
     const cmd = commands[name];
-    if (!cmd) {
-      append({ kind: 'error', text: `command not found: ${name}` });
+    if (cmd) {
+      cmd.run({
+        args,
+        raw: trimmed,
+        append,
+        clear: clearScrollback,
+        startedAt: startedAtRef.current,
+      });
       return;
     }
-    cmd.run({
-      args,
-      raw: trimmed,
-      append,
-      clear: clearScrollback,
-      startedAt: startedAtRef.current,
+    // Not a known command — treat the whole input as a chat question.
+    // (Chunk 5 wires /api/chat streaming here; stub for now.)
+    append({
+      kind: 'comment',
+      node: '// chat: wired in chunk 5 — try again then.',
     });
   }
 
@@ -110,6 +115,46 @@ export function Terminal() {
     }
   }, [autoplayDone, scrollback.length, isMobile]);
 
+  // Refocus when autoplay finishes — queueMicrotask defers past React's
+  // commit phase so the input is settled in the DOM before .focus() runs.
+  useEffect(() => {
+    if (autoplayDone) {
+      queueMicrotask(() => inputRef.current?.focus());
+    }
+  }, [autoplayDone]);
+
+  // Tab visibility change — restore focus when the page comes back.
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        inputRef.current?.focus();
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () =>
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
+
+  // Document-level click listener — keeps the input focused regardless of
+  // where the user clicks on the /terminal page (wordmark, tagline, footer,
+  // blank space). Interactive elements still get their click first (mode
+  // toggle, privacy link); this listener just ensures focus returns to the
+  // input afterward. Active text selection is preserved (no refocus while
+  // the user is highlighting for copy).
+  useEffect(() => {
+    if (isMobile) return; // mobile uses chips, no input to focus
+    if (!autoplayDone) return; // input doesn't exist during autoplay
+
+    function onDocumentClick() {
+      const sel = window.getSelection();
+      if (sel && sel.toString().length > 0) return;
+      inputRef.current?.focus();
+    }
+
+    document.addEventListener('click', onDocumentClick);
+    return () => document.removeEventListener('click', onDocumentClick);
+  }, [autoplayDone, isMobile]);
+
   // Scroll to bottom on scrollback change
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -123,6 +168,9 @@ export function Terminal() {
     setInput('');
     setHistoryIndex(-1);
     dispatch(v);
+    // Explicit refocus after submit — queueMicrotask defers until after
+    // React's commit so the input element is settled.
+    queueMicrotask(() => inputRef.current?.focus());
   }
 
   function handleHistoryPrev() {
