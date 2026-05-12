@@ -5,9 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:edge": "npm run sync:prompt && dotenv -e .env.local -- vercel dev",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "sync:prompt": "node scripts/sync-prompt.mjs",
+    "predev": "npm run sync:prompt",
+    "prebuild": "npm run sync:prompt"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
@@ -22,6 +26,7 @@
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
+    "dotenv-cli": "^11.0.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.5"
   }
