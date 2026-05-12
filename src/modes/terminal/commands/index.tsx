@@ -137,12 +137,12 @@ const help: Command = {
             <span className="term-dim">         show identity</span>
           </div>
           <div className="term-line">
-            <span className="term-cmd">ls [section]</span>
-            <span className="term-dim">   list bio / experience / projects / skills / contact</span>
+            <span className="term-cmd">ls &lt;dir&gt;</span>
+            <span className="term-dim">       list bio experience/ projects/ skills contact</span>
           </div>
           <div className="term-line">
             <span className="term-cmd">cat &lt;thing&gt;</span>
-            <span className="term-dim">    print a section or item (e.g. cat bio, cat disco)</span>
+            <span className="term-dim">    print a section (bio skills contact) or item (cat disco cat vox-agent)</span>
           </div>
           <div className="term-line">
             <span className="term-cmd">help</span>
@@ -157,12 +157,12 @@ const help: Command = {
             <span className="term-dim">         current status</span>
           </div>
           <div className="term-line">&nbsp;</div>
-          <div className="term-line">Or just type a question — I'll answer it.</div>
+          <div className="term-line">for anything else, just ask. I am trained well, and can answer Tushar-ish!</div>
           <div className="term-line">&nbsp;</div>
-          <div className="term-line term-comment">// examples:</div>
-          <div className="term-line term-comment">//   what did you do at DISCO?</div>
-          <div className="term-line term-comment">//   tell me about vox-agent</div>
-          <div className="term-line term-comment">//   are you available for senior roles?</div>
+          <div className="term-line term-comment"># examples:</div>
+          <div className="term-line term-comment">#   what did you do at DISCO?</div>
+          <div className="term-line term-comment">#   tell me about vox-agent</div>
+          <div className="term-line term-comment">#   are you available for senior roles?</div>
         </div>
       ),
     });
@@ -194,7 +194,7 @@ const status: Command = {
           </div>
           <div className="term-line">
             <span className="term-dim">chat:</span>{'   '}claude-sonnet-4-6
-            <span className="term-comment">{'  '}// wired in chunk 5</span>
+            <span className="term-comment">{'  '}# wired in chunk 5</span>
           </div>
           <div className="term-line">
             <span className="term-dim">uptime:</span> {uptimeSec}s

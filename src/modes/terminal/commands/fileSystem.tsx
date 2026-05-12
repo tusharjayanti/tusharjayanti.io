@@ -67,7 +67,7 @@ export function renderBio(): ReactNode {
       <Line>{bio.pitch}</Line>
       <Line>&nbsp;</Line>
       <Line>
-        <span className="term-comment">// available for:</span>{' '}
+        <span className="term-comment"># available for:</span>{' '}
         {bio.availableFor}
       </Line>
     </div>
@@ -128,7 +128,7 @@ export function renderProject(project: Project): ReactNode {
       </Line>
       {project.roadmap && (
         <Line>
-          <span className="term-comment">// roadmap:</span> {project.roadmap}
+          <span className="term-comment"># roadmap:</span> {project.roadmap}
         </Line>
       )}
       {project.github && (

@@ -7,22 +7,22 @@ import {
   type ScrollbackEntry,
 } from './commands';
 
-const TYPING_DELAY_MS = 45;
+const TYPING_DELAY_MS = 80;
 const POST_TYPING_PAUSE_MS = 200;
 const AUTOPLAY_TARGET = 'whoami';
 
 function Hint() {
   return (
     <span className="term-comment">
-      // <code className="term-comment-key">help</code> for the menu.{' '}
-      <code className="term-comment-key">ask &lt;your question&gt;</code> to
-      chat with me.
+      # `<code className="term-comment-key">help</code>` for commands. for
+      everything else, ask away: i'm Jarvis to Tushar's
+      slightly-less-Stark engineering.
     </span>
   );
 }
 
 function MobileHint() {
-  return <span className="term-comment">// tap to explore:</span>;
+  return <span className="term-comment"># tap to explore:</span>;
 }
 
 const mobileChips = ['help', 'ls experience', 'ls projects'] as const;
@@ -71,7 +71,7 @@ export function Terminal() {
     // (Chunk 5 wires /api/chat streaming here; stub for now.)
     append({
       kind: 'comment',
-      node: '// chat: wired in chunk 5 — try again then.',
+      node: '# chat: wired in chunk 5 — try again then.',
     });
   }
 
