@@ -1,4 +1,4 @@
-import { CANARY_TOKEN } from './_systemPrompt';
+import { CANARY_TOKEN } from './_systemPrompt.js';
 
 export type InjectionResult = { hit: boolean; reason?: string };
 

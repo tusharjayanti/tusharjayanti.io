@@ -1,7 +1,7 @@
 import { Redis } from '@upstash/redis';
 import Anthropic from '@anthropic-ai/sdk';
-import { sendEmail } from '../_resend';
-import { getHeader, writeResponse } from '../_compat';
+import { sendEmail } from '../_resend.js';
+import { getHeader, writeResponse } from '../_compat.js';
 
 export const runtime = 'edge';
 

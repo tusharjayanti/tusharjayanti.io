@@ -26,3 +26,7 @@ pnpm-debug.log*
 # misc
 *.tsbuildinfo
 .vercel
+
+# vercel env pull artifact
+.env.production
+.env.development

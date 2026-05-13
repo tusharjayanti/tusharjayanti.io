@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { systemPrompt } from './_systemPrompt';
-import { detectInjection } from './_injection';
+import { systemPrompt } from './_systemPrompt.js';
+import { detectInjection } from './_injection.js';
 import {
   checkRateLimit,
   getHourlyErrorCount,
@@ -8,12 +8,12 @@ import {
   logChatError,
   logChatTurn,
   shouldSendSpikeAlert,
-} from './_kv';
+} from './_kv.js';
 import {
   parseBody,
   writeResponse,
   type CompatRequest,
-} from './_compat';
+} from './_compat.js';
 
 export const runtime = 'edge';
 

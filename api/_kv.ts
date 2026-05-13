@@ -1,5 +1,5 @@
 import { Redis } from '@upstash/redis';
-import { getHeader } from './_compat';
+import { getHeader } from './_compat.js';
 
 const redis = Redis.fromEnv();
 
