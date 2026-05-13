@@ -16,7 +16,7 @@ function Hint() {
   return (
     <span className="term-comment">
       # `<code className="term-comment-key">help</code>` for commands. for
-      everything else, ask away: i'm Jarvis to Tushar's
+      everything else, ask Tarvis: i'm Jarvis to Tushar's
       slightly-less-Stark engineering.
     </span>
   );
