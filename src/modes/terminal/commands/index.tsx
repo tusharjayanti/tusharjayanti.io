@@ -101,7 +101,7 @@ const ls: Command = {
     }
     append({
       kind: 'error',
-      text: `ls: ${target}: No such file or directory`,
+      text: `ls: ¯\\_(ツ)_/¯ I don't see anything called ${target}`,
     });
   },
 };
@@ -129,7 +129,7 @@ const cat: Command = {
       case 'not-found':
         append({
           kind: 'error',
-          text: `cat: ${target}: No such file or directory`,
+          text: `cat: ¯\\_(ツ)_/¯ I don't see anything called ${target}`,
         });
     }
   },

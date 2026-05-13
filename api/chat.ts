@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { systemPrompt } from './_systemPrompt';
 import { detectInjection } from './_injection';
-import { checkRateLimit, hashIp, logChatTurn } from './_kv';
+import { checkRateLimit, hashIp, logChatError, logChatTurn } from './_kv';
 
 export const runtime = 'edge';
 
@@ -169,6 +169,15 @@ export default async function handler(
   const parsed = (await parseBody(req)) as { q?: unknown } | null;
   const q = typeof parsed?.q === 'string' ? parsed.q : '';
   if (q.length === 0 || q.length > MAX_Q_LENGTH) {
+    fireAndForget(
+      resOrCtx,
+      logChatError({
+        ipHash: 'unhashed',
+        q,
+        category: 'validation',
+        detail: `q length: ${q.length}, parsed: ${JSON.stringify(parsed).slice(0, 100)}`,
+      }),
+    );
     return writeResponse(
       resOrCtx,
       new Response(
@@ -191,6 +200,15 @@ export default async function handler(
       ipHash.slice(0, 8),
       'count:',
       count,
+    );
+    fireAndForget(
+      resOrCtx,
+      logChatError({
+        ipHash,
+        q,
+        category: 'rate-limit',
+        detail: `count: ${count}, window: 1 hour, limit: 15`,
+      }),
     );
     const body =
       JSON.stringify({ type: 'error', message: RATE_LIMIT_TEXT }) +
@@ -261,6 +279,15 @@ export default async function handler(
         emit(controller, { type: 'done' });
       } catch (err) {
         console.error('[chat] anthropic stream error:', err);
+        fireAndForget(
+          resOrCtx,
+          logChatError({
+            ipHash,
+            q,
+            category: 'anthropic',
+            detail: err instanceof Error ? err.message : String(err),
+          }),
+        );
         emit(controller, {
           type: 'error',
           message: err instanceof Error ? err.message : String(err),

@@ -33,7 +33,7 @@ export async function runChat(
           if (entry.kind !== 'chat-streaming') return entry;
           return {
             ...entry,
-            text: `# error: ${event.message}`,
+            text: event.message,
             done: true,
             isError: true,
           };
@@ -57,7 +57,7 @@ export async function runChat(
         if (entry.kind !== 'chat-streaming') return entry;
         return {
           ...entry,
-          text: `# error: ${(err as Error).message}`,
+          text: '# something broke on my end. give me a moment and try again.',
           done: true,
           isError: true,
         };

@@ -69,3 +69,31 @@ export async function logChatTurn(args: LogTurnArgs): Promise<void> {
     await redis.expire(key, LOG_TTL_SECONDS);
   }
 }
+
+// Error log: separate key namespace, 30-day TTL (errors are rarer and more
+// important to retain than routine chat turns).
+const ERROR_LOG_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
+const ERROR_Q_MAX_CHARS = 200;
+const ERROR_DETAIL_MAX_CHARS = 500;
+
+export type LogErrorArgs = {
+  ipHash: string;
+  q: string;
+  category: 'validation' | 'rate-limit' | 'server' | 'anthropic';
+  detail: string;
+};
+
+export async function logChatError(args: LogErrorArgs): Promise<void> {
+  const key = `chat:errors:${todayUtc()}`;
+  const payload = JSON.stringify({
+    ts: new Date().toISOString(),
+    ip_hash: args.ipHash,
+    q: args.q.slice(0, ERROR_Q_MAX_CHARS),
+    category: args.category,
+    detail: args.detail.slice(0, ERROR_DETAIL_MAX_CHARS),
+  });
+  const newLength = await redis.lpush(key, payload);
+  if (newLength === 1) {
+    await redis.expire(key, ERROR_LOG_TTL_SECONDS);
+  }
+}
