@@ -1,115 +1,21 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { systemPrompt } from './_systemPrompt';
 import { detectInjection } from './_injection';
-import { checkRateLimit, hashIp, logChatError, logChatTurn } from './_kv';
+import {
+  checkRateLimit,
+  getHourlyErrorCount,
+  hashIp,
+  logChatError,
+  logChatTurn,
+  shouldSendSpikeAlert,
+} from './_kv';
+import {
+  parseBody,
+  writeResponse,
+  type CompatRequest,
+} from './_compat';
 
 export const runtime = 'edge';
-
-// `vercel dev` passes a Node IncomingMessage; production Edge passes a Web
-// `Request`. parseBody handles both so the same handler works in both worlds.
-type CompatRequest =
-  | Request
-  | { method?: string; headers: unknown; on?: unknown; setEncoding?: unknown };
-
-type CompatNodeRes = {
-  setHeader: (k: string, v: string) => void;
-  write: (chunk: string | Uint8Array) => void;
-  end: () => void;
-  statusCode: number;
-  flushHeaders?: () => void;
-};
-
-// `vercel dev` invokes handlers with a Node http.ServerResponse as the second
-// arg and expects bytes written to it; production Edge passes a context with
-// `waitUntil` and consumes the returned `Response`. writeResponse picks the
-// right path per environment.
-async function writeResponse(
-  resOrCtx: unknown,
-  response: Response,
-): Promise<Response | void> {
-  const maybe = resOrCtx as Partial<CompatNodeRes> | undefined;
-  const isNodeRes =
-    typeof maybe?.setHeader === 'function' &&
-    typeof maybe?.end === 'function';
-
-  if (!isNodeRes) {
-    // Production Edge runtime — return the Response unchanged.
-    return response;
-  }
-
-  const nodeRes = maybe as CompatNodeRes;
-  nodeRes.statusCode = response.status;
-  response.headers.forEach((value, key) => {
-    nodeRes.setHeader(key, value);
-  });
-  nodeRes.flushHeaders?.();
-
-  if (response.body) {
-    const reader = response.body.getReader();
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value) nodeRes.write(value);
-      }
-    } finally {
-      reader.releaseLock();
-    }
-  }
-
-  nodeRes.end();
-  // void — bytes already written to the Node response
-}
-
-async function parseBody(req: CompatRequest): Promise<unknown> {
-  // Path 1: Web standard Request (production Edge runtime).
-  if (typeof (req as Request).json === 'function') {
-    return (req as Request).json().catch(() => null);
-  }
-
-  const nodeReq = req as {
-    body?: unknown;
-    setEncoding?: (e: string) => void;
-    on: (
-      ev: 'data' | 'end' | 'error',
-      cb: (chunk?: string) => void,
-    ) => void;
-  };
-
-  // Path 2: vercel dev's @vercel/node wrapper pre-buffers the body onto
-  // `req.body` before invoking the handler — by the time we'd attach
-  // 'data'/'end' listeners, the stream has already ended and our listeners
-  // would wait forever. Check this first.
-  if (nodeReq.body !== undefined && nodeReq.body !== null) {
-    if (typeof nodeReq.body === 'string') {
-      try {
-        return JSON.parse(nodeReq.body);
-      } catch {
-        return null;
-      }
-    }
-    // @vercel/node may auto-parse JSON content-type into an object already.
-    return nodeReq.body;
-  }
-
-  // Path 3: true Node IncomingMessage stream — fallback for cases where the
-  // body wasn't pre-buffered. Rare in vercel dev, but safe to keep.
-  return new Promise((resolve) => {
-    let body = '';
-    nodeReq.setEncoding?.('utf-8');
-    nodeReq.on('data', (chunk) => {
-      body += chunk;
-    });
-    nodeReq.on('end', () => {
-      try {
-        resolve(JSON.parse(body));
-      } catch {
-        resolve(null);
-      }
-    });
-    nodeReq.on('error', () => resolve(null));
-  });
-}
 
 const MAX_Q_LENGTH = 500;
 const MODEL_ID = 'claude-sonnet-4-6';
@@ -151,6 +57,30 @@ async function fireAndForget(
   await promise.catch(() => undefined);
 }
 
+// After any chat error: bump the hourly counter and — if we've crossed the
+// threshold AND no alert has fired this hour — send a real-time spike alert
+// via Resend. Dynamic-imports `_resend` so the cold-start path doesn't pay
+// the cost when no errors occur.
+function checkAndSendSpike(resOrCtx: unknown): void {
+  fireAndForget(
+    resOrCtx,
+    (async () => {
+      const errorCount = await getHourlyErrorCount();
+      if (errorCount < 10) return;
+      if (!(await shouldSendSpikeAlert())) return;
+      const { sendEmail } = await import('./_resend');
+      await sendEmail({
+        subject: `tusharjayanti.io ALERT — error spike (${errorCount} errors this hour)`,
+        text:
+          `Error count for the current hour has exceeded 10 (currently at ${errorCount}).\n\n` +
+          `Check Upstash chat:errors:${new Date().toISOString().slice(0, 10)} for details.\n\n` +
+          `Check Vercel logs for context.\n\n` +
+          `This is the first alert this hour — cooldown active for 2 hours.`,
+      });
+    })(),
+  );
+}
+
 export default async function handler(
   req: CompatRequest,
   resOrCtx?: unknown,
@@ -178,6 +108,7 @@ export default async function handler(
         detail: `q length: ${q.length}, parsed: ${JSON.stringify(parsed).slice(0, 100)}`,
       }),
     );
+    checkAndSendSpike(resOrCtx);
     return writeResponse(
       resOrCtx,
       new Response(
@@ -210,6 +141,7 @@ export default async function handler(
         detail: `count: ${count}, window: 1 hour, limit: 15`,
       }),
     );
+    checkAndSendSpike(resOrCtx);
     const body =
       JSON.stringify({ type: 'error', message: RATE_LIMIT_TEXT }) +
       '\n' +
@@ -288,6 +220,7 @@ export default async function handler(
             detail: err instanceof Error ? err.message : String(err),
           }),
         );
+        checkAndSendSpike(resOrCtx);
         emit(controller, {
           type: 'error',
           message: err instanceof Error ? err.message : String(err),

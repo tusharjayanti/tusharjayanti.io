@@ -1,4 +1,5 @@
 import { Redis } from '@upstash/redis';
+import { getHeader } from './_compat';
 
 const redis = Redis.fromEnv();
 
@@ -10,21 +11,6 @@ const A_PREVIEW_MAX_CHARS = 280;
 
 function todayUtc(): string {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-}
-
-// Web `Request.headers` has `.get(name)`; Node IncomingMessage (vercel dev)
-// exposes `.headers` as a plain object with lowercase keys. Accept both.
-function getHeader(req: unknown, name: string): string | undefined {
-  const headers = (req as { headers?: unknown }).headers;
-  if (headers && typeof (headers as Headers).get === 'function') {
-    return (headers as Headers).get(name) ?? undefined;
-  }
-  const nodeHeaders = headers as
-    | Record<string, string | string[] | undefined>
-    | undefined;
-  const value = nodeHeaders?.[name.toLowerCase()];
-  if (Array.isArray(value)) return value[0];
-  return value ?? undefined;
 }
 
 export async function hashIp(req: unknown): Promise<string> {
@@ -96,4 +82,30 @@ export async function logChatError(args: LogErrorArgs): Promise<void> {
   if (newLength === 1) {
     await redis.expire(key, ERROR_LOG_TTL_SECONDS);
   }
+}
+
+// Hourly error counter — incremented on every chat error so spike detection
+// can compare against a threshold. Key TTL is 2h so the previous hour's count
+// briefly overlaps but doesn't bleed into the next hour's bucket.
+export async function getHourlyErrorCount(): Promise<number> {
+  const hourKey = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH
+  const key = `chat:errors:hourly:${hourKey}`;
+  const count = await redis.incr(key);
+  if (count === 1) {
+    await redis.expire(key, 60 * 60 * 2);
+  }
+  return count;
+}
+
+// Atomic test-and-set on the alert-sent flag for the current hour. Returns
+// true only on the caller that successfully claims the slot — NX makes this
+// safe across concurrent error logs in the same hour.
+export async function shouldSendSpikeAlert(): Promise<boolean> {
+  const hourKey = new Date().toISOString().slice(0, 13);
+  const alertKey = `chat:errors:alert-sent:${hourKey}`;
+  const wasSet = await redis.set(alertKey, '1', {
+    ex: 60 * 60 * 2,
+    nx: true,
+  });
+  return wasSet === 'OK';
 }
