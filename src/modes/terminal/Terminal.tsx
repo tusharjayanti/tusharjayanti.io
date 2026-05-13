@@ -6,6 +6,7 @@ import {
   tabComplete,
   type ScrollbackEntry,
 } from './commands';
+import { runChat } from './commands/chat';
 
 const TYPING_DELAY_MS = 80;
 const POST_TYPING_PAUSE_MS = 200;
@@ -39,6 +40,7 @@ export function Terminal() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const startedAtRef = useRef<number>(Date.now());
+  const chatAbortRef = useRef<AbortController | null>(null);
 
   function append(entry: ScrollbackEntry) {
     setScrollback((prev) => [...prev, entry]);
@@ -48,13 +50,37 @@ export function Terminal() {
     setScrollback([]);
   }
 
-  function dispatch(raw: string, opts: { addToHistory: boolean } = { addToHistory: true }) {
+  function updateById(
+    id: string,
+    updater: (entry: ScrollbackEntry) => ScrollbackEntry,
+  ): void {
+    setScrollback((prev) => {
+      const idx = prev.findIndex(
+        (e) => e.kind === 'chat-streaming' && e.id === id,
+      );
+      if (idx === -1) return prev;
+      const next = [...prev];
+      next[idx] = updater(next[idx]);
+      return next;
+    });
+  }
+
+  function dispatch(
+    raw: string,
+    opts: { addToHistory: boolean; chatSignal?: AbortSignal } = {
+      addToHistory: true,
+    },
+  ) {
     const trimmed = raw.trim();
     if (!trimmed) return;
     append({ kind: 'command', text: trimmed });
     if (opts.addToHistory) {
       setHistory((prev) => [...prev, trimmed]);
     }
+    // Known commands ignore chatSignal; for the chat fallback we need a real
+    // signal. Callers that omit it (autoplay's whoami, mobile chip taps) get a
+    // throwaway controller that never aborts.
+    const signal = opts.chatSignal ?? new AbortController().signal;
     const [name, ...args] = trimmed.split(/\s+/);
     const cmd = commands[name];
     if (cmd) {
@@ -62,17 +88,15 @@ export function Terminal() {
         args,
         raw: trimmed,
         append,
+        updateById,
         clear: clearScrollback,
         startedAt: startedAtRef.current,
+        chatSignal: signal,
       });
       return;
     }
-    // Not a known command — treat the whole input as a chat question.
-    // (Chunk 5 wires /api/chat streaming here; stub for now.)
-    append({
-      kind: 'comment',
-      node: '# chat: wired in chunk 5 — try again then.',
-    });
+    // Not a known command — route the whole input to the chat backend.
+    void runChat(trimmed, append, updateById, signal);
   }
 
   // Autoplay: type one char per interval tick, then pause, then submit.
@@ -163,11 +187,29 @@ export function Terminal() {
     });
   }, [scrollback.length]);
 
+  // Abort any in-flight chat stream when Terminal unmounts.
+  useEffect(() => {
+    return () => {
+      if (chatAbortRef.current) {
+        chatAbortRef.current.abort();
+        chatAbortRef.current = null;
+      }
+    };
+  }, []);
+
   function handleSubmit(v: string) {
     if (!autoplayDone) return;
+    // Abort any in-flight chat from a previous command.
+    if (chatAbortRef.current) {
+      chatAbortRef.current.abort();
+      chatAbortRef.current = null;
+    }
+    // Fresh controller for this dispatch (used only if it routes to chat).
+    const controller = new AbortController();
+    chatAbortRef.current = controller;
     setInput('');
     setHistoryIndex(-1);
-    dispatch(v);
+    dispatch(v, { addToHistory: true, chatSignal: controller.signal });
     // Explicit refocus after submit — queueMicrotask defers until after
     // React's commit so the input element is settled.
     queueMicrotask(() => inputRef.current?.focus());
@@ -244,6 +286,29 @@ export function Terminal() {
                   {entry.text}
                 </div>
               );
+            case 'chat-streaming': {
+              const isLoader = !entry.done && entry.text.length === 0;
+              const containerClass = entry.isError
+                ? 'term-chat-streaming term-comment'
+                : 'term-chat-streaming';
+              return (
+                <div key={i} className={containerClass}>
+                  {isLoader ? (
+                    <span>
+                      <span className="term-cursor" aria-hidden />
+                      <span className="term-dim"> thinking</span>
+                    </span>
+                  ) : (
+                    <>
+                      <span>{entry.text}</span>
+                      {!entry.done && (
+                        <span className="term-cursor" aria-hidden />
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            }
           }
         })}
       </div>

@@ -670,6 +670,15 @@ button:hover {
   outline: none;
 }
 
+/* === Chat streaming entry === */
+
+.term-chat-streaming {
+  color: var(--fg);
+  white-space: pre-wrap;
+  line-height: 1.5;
+  margin-bottom: 0.5em;
+}
+
 .contact-comment {
   margin: 0;
   font-family: var(--font-mono);

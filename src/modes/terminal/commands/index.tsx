@@ -16,14 +16,26 @@ export type ScrollbackEntry =
   | { kind: 'command'; text: string }
   | { kind: 'output'; node: ReactNode }
   | { kind: 'comment'; node: ReactNode }
-  | { kind: 'error'; text: string };
+  | { kind: 'error'; text: string }
+  | {
+      kind: 'chat-streaming';
+      id: string;
+      text: string;
+      done: boolean;
+      isError: boolean;
+    };
 
 export type CommandContext = {
   args: string[];
   raw: string;
   append: (entry: ScrollbackEntry) => void;
+  updateById: (
+    id: string,
+    updater: (entry: ScrollbackEntry) => ScrollbackEntry,
+  ) => void;
   clear: () => void;
   startedAt: number;
+  chatSignal: AbortSignal;
 };
 
 export type Command = {
