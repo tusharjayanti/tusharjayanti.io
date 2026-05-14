@@ -68,7 +68,7 @@ function checkAndSendSpike(resOrCtx: unknown): void {
       const errorCount = await getHourlyErrorCount();
       if (errorCount < 10) return;
       if (!(await shouldSendSpikeAlert())) return;
-      const { sendEmail } = await import('./_resend');
+      const { sendEmail } = await import('./_resend.js');
       await sendEmail({
         subject: `tusharjayanti.io ALERT — error spike (${errorCount} errors this hour)`,
         text:
