@@ -7,7 +7,6 @@
     "dev": "vite",
     "dev:edge": "npm run sync:prompt && dotenv -e .env.local -- vercel dev",
     "build": "tsc -b && vite build",
-    "vercel-build": "node scripts/inject-rewrite.mjs && npm run build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "sync:prompt": "node scripts/sync-prompt.mjs",
