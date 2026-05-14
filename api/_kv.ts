@@ -3,8 +3,8 @@ import { getHeader } from './_compat.js';
 
 const redis = Redis.fromEnv();
 
-const RATE_WINDOW_SECONDS = 60 * 60; // 1 hour
-const RATE_MAX = 15;
+const RATE_MAX = 40;
+const RATE_WINDOW_SECONDS = 60 * 60 * 2; // 2h TTL — garbage-collects old hour-buckets
 const LOG_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const Q_MAX_LOG_CHARS = 500;
 const A_PREVIEW_MAX_CHARS = 280;
@@ -28,11 +28,10 @@ export async function hashIp(req: unknown): Promise<string> {
 export async function checkRateLimit(
   ipHash: string,
 ): Promise<{ ok: boolean; count: number }> {
-  const key = `rl:chat:${ipHash}`;
+  const hour = new Date().toISOString().slice(0, 13); // "YYYY-MM-DDTHH"
+  const key = `rl:chat:${ipHash}:${hour}`;
   const count = await redis.incr(key);
-  if (count === 1) {
-    await redis.expire(key, RATE_WINDOW_SECONDS);
-  }
+  await redis.expire(key, RATE_WINDOW_SECONDS);
   return { ok: count <= RATE_MAX, count };
 }
 

@@ -138,7 +138,7 @@ export default async function handler(
         ipHash,
         q,
         category: 'rate-limit',
-        detail: `count: ${count}, window: 1 hour, limit: 15`,
+        detail: `count: ${count}, window: 1 hour, limit: 40`,
       }),
     );
     checkAndSendSpike(resOrCtx);
@@ -152,6 +152,7 @@ export default async function handler(
       new Response(body, { status: 429, headers: NDJSON_HEADERS }),
     );
   }
+  console.log('[chat] rate ok ip:', ipHash.slice(0, 8), 'count:', count);
 
   // (d) injection guard
   const inj = detectInjection(q);
