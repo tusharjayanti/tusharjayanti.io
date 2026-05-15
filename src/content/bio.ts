@@ -13,3 +13,9 @@ export const bio = {
 } as const;
 
 export type Bio = typeof bio;
+
+export const whoami: string = `Senior engineer, seven years on distributed backend systems in production. Language-agnostic by training, Java/Kotlin/Python in practice.
+
+Now building agentic systems on top of that foundation. The ML and AI work isn't entirely new ground, coursework and projects during my masters, but the application to production systems is where the recent energy is going.
+
+What I actually like: scale, ML, and product engineering. Roughly in that order.`;

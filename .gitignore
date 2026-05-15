@@ -30,3 +30,4 @@ pnpm-debug.log*
 # vercel env pull artifact
 .env.production
 .env.development
+followups.md

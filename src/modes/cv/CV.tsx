@@ -6,6 +6,14 @@ import { experience, type Role } from '../../content/experience';
 import { projects, type Project } from '../../content/projects';
 import { skills } from '../../content/skills';
 
+function renderBullet(text: string) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith('**')
+      ? <strong key={i}>{part.slice(2, -2)}</strong>
+      : part,
+  );
+}
+
 function Hero() {
   return (
     <header className="cv-hero">
@@ -25,7 +33,7 @@ function Hero() {
 }
 
 function ExperienceItem({ role }: { role: Role }) {
-  const dates = `${role.startYear} — ${role.endYear}`;
+  const dates = `${role.startDate} - ${role.endDate}`;
   return (
     <article className="role">
       <header className="role-header">
@@ -40,16 +48,18 @@ function ExperienceItem({ role }: { role: Role }) {
           <span>{dates}</span>
         </div>
       </header>
-      <ul className="role-bullets">
-        {role.bullets.map((b, i) => (
-          <li
-            key={i}
-            className={b.includes('TODO') ? 'bullet bullet-todo' : 'bullet'}
-          >
-            {b}
-          </li>
-        ))}
-      </ul>
+      {role.groups.map((g, gi) => (
+        <div key={gi} className="role-group">
+          {g.heading && <h4 className="role-group-heading">{g.heading}</h4>}
+          <ul className="role-bullets">
+            {g.bullets.map((b, i) => (
+              <li key={i} className="bullet">
+                {renderBullet(b)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </article>
   );
 }

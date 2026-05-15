@@ -535,6 +535,15 @@ button:hover {
   color: var(--fg);
 }
 
+.term-bold {
+  color: var(--fg);
+  font-weight: 700;
+}
+
+.bullet strong {
+  font-weight: 800;
+}
+
 .term-bullet-todo {
   color: var(--fg-comment);
   font-style: italic;

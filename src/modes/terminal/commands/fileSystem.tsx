@@ -4,6 +4,14 @@ import { experience, type Role } from '../../../content/experience';
 import { projects, type Project } from '../../../content/projects';
 import { skills } from '../../../content/skills';
 
+function renderBoldText(text: string) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith('**')
+      ? <span key={i} className="term-bold">{part.slice(2, -2)}</span>
+      : part,
+  );
+}
+
 export type SectionKey =
   | 'bio'
   | 'experience'
@@ -82,17 +90,22 @@ export function renderRole(role: Role): ReactNode {
       </Line>
       <Line>
         <span className="term-dim">
-          {role.domain} · {role.location} · {role.startYear} — {role.endYear}
+          {role.domain} · {role.location} · {role.startDate} - {role.endDate}
         </span>
       </Line>
-      {role.bullets.map((b, i) => (
-        <Line key={i}>
-          <span
-            className={b.includes('TODO') ? 'term-bullet-todo' : 'term-bullet'}
-          >
-            - {b}
-          </span>
-        </Line>
+      {role.groups.map((g, gi) => (
+        <div key={gi}>
+          {g.heading && (
+            <Line>
+              <span className="term-comment"># {g.heading}</span>
+            </Line>
+          )}
+          {g.bullets.map((b, i) => (
+            <Line key={i}>
+              <span className="term-bullet">- {renderBoldText(b)}</span>
+            </Line>
+          ))}
+        </div>
       ))}
     </div>
   );
