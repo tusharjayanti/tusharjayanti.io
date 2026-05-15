@@ -9,6 +9,7 @@ import {
   resolveCatTarget,
   sections,
 } from './fileSystem';
+import { whoami as whoamiText } from '../../../content/bio';
 import { experience } from '../../../content/experience';
 import { projects } from '../../../content/projects';
 
@@ -48,9 +49,29 @@ const whoami: Command = {
   name: 'whoami',
   summary: 'short bio',
   run: ({ append }) => {
+    const paragraphs = whoamiText.split('\n\n');
     append({
       kind: 'output',
-      node: 'Senior backend engineer building agentic systems. 7+ yrs · Bengaluru.',
+      node: (
+        <div className="term-block">
+          {paragraphs.flatMap((para, i) =>
+            i < paragraphs.length - 1
+              ? [
+                  <div key={i} className="term-line">
+                    {para}
+                  </div>,
+                  <div key={`b${i}`} className="term-line">
+                    &nbsp;
+                  </div>,
+                ]
+              : [
+                  <div key={i} className="term-line">
+                    {para}
+                  </div>,
+                ],
+          )}
+        </div>
+      ),
     });
   },
 };
