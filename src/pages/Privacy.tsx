@@ -30,8 +30,7 @@ export function Privacy() {
       </ul>
       <h2>Contact</h2>
       <p>
-        Email <a href="mailto:tj@tusharjayanti.io">tj@tusharjayanti.io</a> if
-        you want anything removed.
+        Email <a href="mailto:tj@tusharjayanti.io">tj@tusharjayanti.io</a> for any concerns.
       </p>
     </article>
   );
