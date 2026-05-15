@@ -28,7 +28,7 @@ export const projects: Project[] = [
     name: 'vox-agent',
     oneLiner: 'Text customer support agent + inline hallucination evals.',
     description:
-      'Customer support AI with an inline hallucination-detection eval loop. Claude Sonnet generates responses, Claude Haiku acts as LLM judge. FastAPI + asyncpg + pgvector. Designed to be a production-grade LLMOps reference.',
+      'Customer support AI with an inline hallucination-detection eval loop. Claude Sonnet generates responses, Claude Haiku acts as LLM judge. FastAPI + asyncpg + pgvector. Built as my LLMOps reference project.',
     stack: [
       'Python',
       'FastAPI',
@@ -47,7 +47,7 @@ export const projects: Project[] = [
     name: 'shortlist',
     oneLiner: 'Multi-agent job search copilot I use weekly.',
     description:
-      'Six AI agents score jobs across 8 dimensions and tailor LaTeX resumes from a career corpus. Corpus-grounded — no hallucinated experience. I use it weekly.',
+      'Six AI agents score jobs across 8 dimensions and tailor LaTeX resumes from a career corpus. Corpus-grounded. No hallucinated experience. I use it weekly.',
     stack: ['Python', 'Pydantic', 'Claude API', 'PostgreSQL', 'LaTeX'],
     github: 'https://github.com/tusharjayanti/shortlist',
     status: 'shipped',

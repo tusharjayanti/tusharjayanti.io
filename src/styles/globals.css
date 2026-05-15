@@ -312,10 +312,15 @@ button:hover {
 
 .role-bullets {
   margin: 0.25rem 0 0;
-  padding-left: 1.25rem;
+  padding-left: 0;
+  list-style: none;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+}
+
+.role-bullets > li.bullet::before {
+  content: "- ";
 }
 
 .bullet {
