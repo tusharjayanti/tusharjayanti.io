@@ -5,6 +5,14 @@
 
 > A terminal-style portfolio with an AI chat assistant, doubling as an LLMOps testbed.
 
+---
+
+<p align="center">
+  <img src="docs/demo.gif" alt="tusharjayanti.io terminal autoplay" width="100%" />
+</p>
+
+---
+
 [![React](https://img.shields.io/badge/React_19-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)](https://vitejs.dev/)
