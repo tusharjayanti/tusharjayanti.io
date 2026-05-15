@@ -4,7 +4,7 @@ export type InjectionResult = { hit: boolean; reason?: string };
 
 const PATTERNS: { regex: RegExp; reason: string }[] = [
   {
-    regex: /ignore (all|previous|prior) (instructions|prompts|context)/i,
+    regex: /ignore ((all|previous|prior)\s+){1,3}(instructions|prompts|context)/i,
     reason: 'override-instructions',
   },
   {
@@ -12,7 +12,7 @@ const PATTERNS: { regex: RegExp; reason: string }[] = [
     reason: 'disregard-prior',
   },
   {
-    regex: /reveal (the )?(system|hidden) prompt/i,
+    regex: /reveal (the |your |my |its |our )?(system|hidden) prompt/i,
     reason: 'prompt-extraction',
   },
   { regex: /\bDAN\b/i, reason: 'dan-roleplay' },
