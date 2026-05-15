@@ -190,6 +190,12 @@ export default async function handler(
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let accumulated = '';
+      let tokensIn: number | undefined;
+      let tokensOut: number | undefined;
+      let cacheCreationTokens: number | undefined;
+      let cacheReadTokens: number | undefined;
+      let model: string | undefined;
+      const startMs = Date.now();
       try {
         const anthropicStream = await anthropic.messages.create({
           model: MODEL_ID,
@@ -200,13 +206,41 @@ export default async function handler(
         });
 
         for await (const event of anthropicStream) {
-          if (
+          if (event.type === 'message_start') {
+            // SDK Usage type doesn't yet expose cache fields in the pinned
+            // version. Widen locally. Remove once SDK types catch up — tracked
+            // in followups.md as the SDK bump item.
+            const u = event.message?.usage as
+              | (NonNullable<typeof event.message.usage> & {
+                  cache_creation_input_tokens?: number | null;
+                  cache_read_input_tokens?: number | null;
+                })
+              | undefined;
+            if (u?.input_tokens !== undefined) tokensIn = u.input_tokens;
+            // Truthy guard: drops null, undefined, and zero. Pre-caching the SDK
+            // returns 0 for both fields; we want them absent from the log. Post-
+            // caching, a real zero would also be dropped, but that case doesn't
+            // arise — caching either writes >= cache minimum tokens or doesn't
+            // run at all.
+            if (u?.cache_creation_input_tokens) {
+              cacheCreationTokens = u.cache_creation_input_tokens;
+            }
+            if (u?.cache_read_input_tokens) {
+              cacheReadTokens = u.cache_read_input_tokens;
+            }
+            if (event.message?.model) model = event.message.model;
+          } else if (
             event.type === 'content_block_delta' &&
             event.delta.type === 'text_delta'
           ) {
             const text = event.delta.text;
             accumulated += text;
             emit(controller, { type: 'delta', text });
+          } else if (event.type === 'message_delta') {
+            // Cumulative output token count; last value wins.
+            if (event.usage?.output_tokens !== undefined) {
+              tokensOut = event.usage.output_tokens;
+            }
           }
         }
         emit(controller, { type: 'done' });
@@ -228,6 +262,7 @@ export default async function handler(
         });
         emit(controller, { type: 'done' });
       } finally {
+        const latencyMs = Date.now() - startMs;
         // (f) log turn — await BEFORE close so dev-mode inline wait holds the
         // stream open until the log completes; Edge prod uses waitUntil and
         // returns immediately so the order is harmless there.
@@ -237,6 +272,12 @@ export default async function handler(
             ipHash,
             q,
             aPreview: accumulated.slice(0, 280),
+            tokensIn,
+            tokensOut,
+            cacheCreationTokens,
+            cacheReadTokens,
+            model,
+            latencyMs,
           }).catch((err) => {
             console.error('[chat] chat log write failed:', err);
           }),

@@ -39,6 +39,12 @@ export type LogTurnArgs = {
   ipHash: string;
   q: string;
   aPreview: string;
+  tokensIn?: number;
+  tokensOut?: number;
+  cacheCreationTokens?: number;
+  cacheReadTokens?: number;
+  model?: string;
+  latencyMs?: number;
 };
 
 export async function logChatTurn(args: LogTurnArgs): Promise<void> {
@@ -48,6 +54,16 @@ export async function logChatTurn(args: LogTurnArgs): Promise<void> {
     ip_hash: args.ipHash,
     q: args.q.slice(0, Q_MAX_LOG_CHARS),
     a_preview: args.aPreview.slice(0, A_PREVIEW_MAX_CHARS),
+    ...(args.tokensIn !== undefined && { tokens_in: args.tokensIn }),
+    ...(args.tokensOut !== undefined && { tokens_out: args.tokensOut }),
+    ...(args.cacheCreationTokens !== undefined && {
+      cache_creation_tokens: args.cacheCreationTokens,
+    }),
+    ...(args.cacheReadTokens !== undefined && {
+      cache_read_tokens: args.cacheReadTokens,
+    }),
+    ...(args.model !== undefined && { model: args.model }),
+    ...(args.latencyMs !== undefined && { latency_ms: args.latencyMs }),
   });
   const newLength = await redis.lpush(key, payload);
   if (newLength === 1) {
