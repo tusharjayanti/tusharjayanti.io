@@ -42,7 +42,8 @@ function ExperienceItem({ role }: { role: Role }) {
     <article className="role">
       <header className="role-header">
         <h3 className="role-title">
-          {role.title} <span className="role-at">@</span> {role.company}
+          {role.title} <span className="role-at">@</span>{' '}
+          <span className="role-company">{role.company}</span>
         </h3>
         <div className="role-meta">
           <span>{role.domain}</span>

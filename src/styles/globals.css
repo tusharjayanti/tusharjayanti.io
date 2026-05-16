@@ -303,6 +303,9 @@ button:hover {
   color: var(--fg-comment);
   font-weight: 400;
 }
+.role-company {
+  color: var(--ctp-mauve);
+}
 
 .role-meta {
   display: flex;
