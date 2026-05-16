@@ -222,12 +222,9 @@ Status legend: `[ ]` queued, `[~]` in progress, `[x]` shipped.
 
 ### Chat / LLM
 
-- `[~]` **Anthropic prompt caching on the system prompt.** The current
-  system prompt is ~3,775 tokens and rides on every chat call. At Sonnet
-  4.6 pricing that's roughly $34/month per 100 chats/day on the
-  cacheable portion. Caching cuts that by ~80% once a hit rate
-  stabilizes. The savings are nominal at current traffic but the
-  engineering pattern is worth shipping.
+- `[x]` **Anthropic prompt caching on the system prompt.** Shipped — see
+  [Cost optimization](#cost-optimization) for the mechanism, the
+  three-bucket token breakdown, and measured numbers from production.
 
 - `[ ]` **Agentic RAG over resume, project docs, and GitHub READMEs.**
   Tarvis currently answers from a static system prompt with role facts
