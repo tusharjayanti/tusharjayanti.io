@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
     "dev": "vite",
     "dev:edge": "npm run sync:prompt && dotenv -e .env.local -- vercel dev",

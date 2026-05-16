@@ -1,0 +1,18 @@
+# Build output and dependencies
+node_modules
+dist
+
+# Lockfiles — managed by npm
+package-lock.json
+
+# TypeScript incremental cache
+*.tsbuildinfo
+
+# Vercel local state
+.vercel
+
+# Minified files
+*.min.*
+
+# Generated from _systemPrompt.txt
+api/_systemPrompt.ts
