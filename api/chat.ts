@@ -195,7 +195,13 @@ export default async function handler(
         const anthropicStream = await anthropic.messages.create({
           model: MODEL_ID,
           max_tokens: MAX_TOKENS,
-          system: systemPrompt,
+          system: [
+            {
+              type: 'text',
+              text: systemPrompt,
+              cache_control: { type: 'ephemeral' },
+            },
+          ],
           messages: [{ role: 'user', content: q }],
           stream: true,
         });
