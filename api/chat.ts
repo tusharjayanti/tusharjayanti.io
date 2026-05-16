@@ -207,21 +207,10 @@ export default async function handler(
 
         for await (const event of anthropicStream) {
           if (event.type === 'message_start') {
-            // SDK Usage type doesn't yet expose cache fields in the pinned
-            // version. Widen locally. Remove once SDK types catch up — tracked
-            // in followups.md as the SDK bump item.
-            const u = event.message?.usage as
-              | (NonNullable<typeof event.message.usage> & {
-                  cache_creation_input_tokens?: number | null;
-                  cache_read_input_tokens?: number | null;
-                })
-              | undefined;
+            const u = event.message?.usage;
             if (u?.input_tokens !== undefined) tokensIn = u.input_tokens;
-            // Truthy guard: drops null, undefined, and zero. Pre-caching the SDK
-            // returns 0 for both fields; we want them absent from the log. Post-
-            // caching, a real zero would also be dropped, but that case doesn't
-            // arise — caching either writes >= cache minimum tokens or doesn't
-            // run at all.
+            // Truthy guard: drops null and zero. Cache fields are only
+            // present in the log when there's actual caching activity.
             if (u?.cache_creation_input_tokens) {
               cacheCreationTokens = u.cache_creation_input_tokens;
             }
