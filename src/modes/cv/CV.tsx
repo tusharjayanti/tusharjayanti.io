@@ -7,19 +7,22 @@ import { projects, type Project } from '../../content/projects';
 import { skills } from '../../content/skills';
 
 function renderBullet(text: string) {
-  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-    part.startsWith('**')
-      ? <strong key={i}>{part.slice(2, -2)}</strong>
-      : part,
-  );
+  return text
+    .split(/(\*\*[^*]+\*\*)/g)
+    .map((part, i) =>
+      part.startsWith('**') ? (
+        <strong key={i}>{part.slice(2, -2)}</strong>
+      ) : (
+        part
+      ),
+    );
 }
 
 function Hero() {
   return (
     <header className="cv-hero">
       <p className="cv-meta">
-        {bio.location} ·{' '}
-        <a href={`mailto:${bio.email}`}>{bio.email}</a> ·{' '}
+        {bio.location} · <a href={`mailto:${bio.email}`}>{bio.email}</a> ·{' '}
         <a href={bio.github} target="_blank" rel="noreferrer">
           github
         </a>
@@ -160,7 +163,12 @@ const contactLinks: ContactLink[] = [
   { label: 'linkedin', href: bio.linkedin, icon: FaLinkedin, external: true },
   { label: 'twitter', href: bio.twitter, icon: SiX, external: true },
   { label: 'resume', href: bio.resume, icon: LuFileText, external: false },
-  { label: 'email', href: `mailto:${bio.email}`, icon: LuMail, external: false },
+  {
+    label: 'email',
+    href: `mailto:${bio.email}`,
+    icon: LuMail,
+    external: false,
+  },
 ];
 
 function ContactSection() {
@@ -174,9 +182,7 @@ function ContactSection() {
             key={label}
             href={href}
             aria-label={label}
-            {...(external
-              ? { target: '_blank', rel: 'noreferrer' }
-              : {})}
+            {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
           >
             <Icon aria-hidden />
             <span className="contact-label">{label}</span>

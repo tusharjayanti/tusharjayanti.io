@@ -31,11 +31,7 @@ export async function sendEmail(args: SendEmailArgs): Promise<void> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(
-      '[email] resend send failed:',
-      response.status,
-      errorText,
-    );
+    console.error('[email] resend send failed:', response.status, errorText);
     throw new Error(`Resend send failed: ${response.status}`);
   }
 }

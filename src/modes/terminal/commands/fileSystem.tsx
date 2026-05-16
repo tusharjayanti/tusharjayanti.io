@@ -6,9 +6,13 @@ import { skills } from '../../../content/skills';
 
 function renderBoldText(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-    part.startsWith('**')
-      ? <span key={i} className="term-bold">{part.slice(2, -2)}</span>
-      : part,
+    part.startsWith('**') ? (
+      <span key={i} className="term-bold">
+        {part.slice(2, -2)}
+      </span>
+    ) : (
+      part
+    ),
   );
 }
 

@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useIsMobile } from '../../lib/viewMode';
 import { Prompt, PromptPrefix } from './Prompt';
-import {
-  commands,
-  tabComplete,
-  type ScrollbackEntry,
-} from './commands';
+import { commands, tabComplete, type ScrollbackEntry } from './commands';
 import { runChat } from './commands/chat';
 
 const TYPING_DELAY_MS = 80;
@@ -16,8 +12,8 @@ function Hint() {
   return (
     <span className="term-comment">
       # `<code className="term-comment-key">help</code>` for commands. for
-      everything else, ask Tarvis: i'm Jarvis to Tushar's
-      slightly-less-Stark engineering.
+      everything else, ask Tarvis: i'm Jarvis to Tushar's slightly-less-Stark
+      engineering.
     </span>
   );
 }
@@ -217,7 +213,8 @@ export function Terminal() {
 
   function handleHistoryPrev() {
     if (history.length === 0) return;
-    const next = historyIndex < 0 ? history.length - 1 : Math.max(0, historyIndex - 1);
+    const next =
+      historyIndex < 0 ? history.length - 1 : Math.max(0, historyIndex - 1);
     setHistoryIndex(next);
     setInput(history[next]);
   }

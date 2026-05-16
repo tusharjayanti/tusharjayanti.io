@@ -23,14 +23,18 @@ export function Privacy() {
       </p>
       <h2>Third parties</h2>
       <ul>
-        <li>Anthropic (Claude API): the messages are sent here to generate responses.</li>
+        <li>
+          Anthropic (Claude API): the messages are sent here to generate
+          responses.
+        </li>
         <li>Vercel: hosting and Edge functions.</li>
         <li>Upstash Redis: short-term storage for rate limit and log.</li>
         <li>Resend: sends the daily summary email.</li>
       </ul>
       <h2>Contact</h2>
       <p>
-        Email <a href="mailto:tj@tusharjayanti.io">tj@tusharjayanti.io</a> for any concerns.
+        Email <a href="mailto:tj@tusharjayanti.io">tj@tusharjayanti.io</a> for
+        any concerns.
       </p>
     </article>
   );

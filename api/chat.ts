@@ -9,11 +9,7 @@ import {
   logChatTurn,
   shouldSendSpikeAlert,
 } from './_kv.js';
-import {
-  parseBody,
-  writeResponse,
-  type CompatRequest,
-} from './_compat.js';
+import { parseBody, writeResponse, type CompatRequest } from './_compat.js';
 
 export const runtime = 'edge';
 
@@ -21,8 +17,7 @@ const MAX_Q_LENGTH = 500;
 const MODEL_ID = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
 
-const REFUSAL_TEXT =
-  'Not how this works. Want to know what I built at DISCO?';
+const REFUSAL_TEXT = 'Not how this works. Want to know what I built at DISCO?';
 const RATE_LIMIT_TEXT =
   "You've hit the chat limit for this hour. Try again in a bit, or drop me an email at tj@tusharjayanti.io.";
 

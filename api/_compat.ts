@@ -43,10 +43,7 @@ export async function parseBody(req: CompatRequest): Promise<unknown> {
   const nodeReq = req as {
     body?: unknown;
     setEncoding?: (e: string) => void;
-    on: (
-      ev: 'data' | 'end' | 'error',
-      cb: (chunk?: string) => void,
-    ) => void;
+    on: (ev: 'data' | 'end' | 'error', cb: (chunk?: string) => void) => void;
   };
 
   // Path 2: vercel dev's @vercel/node wrapper pre-buffers the body onto
@@ -91,8 +88,7 @@ export async function writeResponse(
 ): Promise<Response | void> {
   const maybe = resOrCtx as Partial<CompatNodeRes> | undefined;
   const isNodeRes =
-    typeof maybe?.setHeader === 'function' &&
-    typeof maybe?.end === 'function';
+    typeof maybe?.setHeader === 'function' && typeof maybe?.end === 'function';
 
   if (!isNodeRes) {
     // Production Edge runtime — return the Response unchanged.

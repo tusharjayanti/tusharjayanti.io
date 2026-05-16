@@ -86,7 +86,9 @@ const ls: Command = {
         node: (
           <div className="term-ls">
             {sections.map((s) => (
-              <span key={s}>{s === 'experience' || s === 'projects' ? `${s}/` : s}</span>
+              <span key={s}>
+                {s === 'experience' || s === 'projects' ? `${s}/` : s}
+              </span>
             ))}
           </div>
         ),
@@ -167,35 +169,51 @@ const help: Command = {
           <div className="term-line">Commands:</div>
           <div className="term-line">
             <span className="term-cmd">whoami</span>
-            <span className="term-dim">         show identity</span>
+            <span className="term-dim"> show identity</span>
           </div>
           <div className="term-line">
             <span className="term-cmd">ls &lt;dir&gt;</span>
-            <span className="term-dim">       list bio experience/ projects/ skills contact</span>
+            <span className="term-dim">
+              {' '}
+              list bio experience/ projects/ skills contact
+            </span>
           </div>
           <div className="term-line">
             <span className="term-cmd">cat &lt;thing&gt;</span>
-            <span className="term-dim">    print a section (bio skills contact) or item (cat disco cat vox-agent)</span>
+            <span className="term-dim">
+              {' '}
+              print a section (bio skills contact) or item (cat disco cat
+              vox-agent)
+            </span>
           </div>
           <div className="term-line">
             <span className="term-cmd">help</span>
-            <span className="term-dim">           this message</span>
+            <span className="term-dim"> this message</span>
           </div>
           <div className="term-line">
             <span className="term-cmd">clear</span>
-            <span className="term-dim">          clear the screen</span>
+            <span className="term-dim"> clear the screen</span>
           </div>
           <div className="term-line">
             <span className="term-cmd">status</span>
-            <span className="term-dim">         current status</span>
+            <span className="term-dim"> current status</span>
           </div>
           <div className="term-line">&nbsp;</div>
-          <div className="term-line">for anything else, just ask. I am trained well, and can answer Tushar-ish!</div>
+          <div className="term-line">
+            for anything else, just ask. I am trained well, and can answer
+            Tushar-ish!
+          </div>
           <div className="term-line">&nbsp;</div>
           <div className="term-line term-comment"># examples:</div>
-          <div className="term-line term-comment">#   what did you do at DISCO?</div>
-          <div className="term-line term-comment">#   tell me about vox-agent</div>
-          <div className="term-line term-comment">#   are you available for senior roles?</div>
+          <div className="term-line term-comment">
+            # what did you do at DISCO?
+          </div>
+          <div className="term-line term-comment">
+            # tell me about vox-agent
+          </div>
+          <div className="term-line term-comment">
+            # are you available for senior roles?
+          </div>
         </div>
       ),
     });
@@ -223,10 +241,12 @@ const status: Command = {
             <span className="term-dim">status:</span> ok
           </div>
           <div className="term-line">
-            <span className="term-dim">build:</span>{'  '}v0.1.0
+            <span className="term-dim">build:</span>
+            {'  '}v0.1.0
           </div>
           <div className="term-line">
-            <span className="term-dim">chat:</span>{'   '}claude-sonnet-4-6
+            <span className="term-dim">chat:</span>
+            {'   '}claude-sonnet-4-6
             <span className="term-comment">{'  '}# wired in chunk 5</span>
           </div>
           <div className="term-line">

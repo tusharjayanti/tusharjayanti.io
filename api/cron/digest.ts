@@ -129,10 +129,9 @@ export default async function handler(
       });
       return writeResponse(
         resOrCtx,
-        new Response(
-          JSON.stringify({ ok: true, chats: 0, errors: 0 }),
-          { headers: { 'content-type': 'application/json' } },
-        ),
+        new Response(JSON.stringify({ ok: true, chats: 0, errors: 0 }), {
+          headers: { 'content-type': 'application/json' },
+        }),
       );
     }
 

@@ -41,7 +41,8 @@ export async function* streamChat(
   if (!response.ok) {
     const status = response.status;
     let category: 'server' | 'rate-limit' | 'validation' = 'server';
-    let message = "# surprisingly something's wrong with my engineering. !! ¯\\_(ツ)_/¯ !!";
+    let message =
+      "# surprisingly something's wrong with my engineering. !! ¯\\_(ツ)_/¯ !!";
     if (status === 429) {
       category = 'rate-limit';
       message =
@@ -58,7 +59,8 @@ export async function* streamChat(
   if (!response.body) {
     yield {
       type: 'error',
-      message: "# surprisingly something's wrong with my engineering. !! ¯\\_(ツ)_/¯ !!",
+      message:
+        "# surprisingly something's wrong with my engineering. !! ¯\\_(ツ)_/¯ !!",
       category: 'server',
     };
     yield { type: 'done' };

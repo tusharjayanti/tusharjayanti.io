@@ -4,7 +4,8 @@ export type InjectionResult = { hit: boolean; reason?: string };
 
 const PATTERNS: { regex: RegExp; reason: string }[] = [
   {
-    regex: /ignore ((all|previous|prior)\s+){1,3}(instructions|prompts|context)/i,
+    regex:
+      /ignore ((all|previous|prior)\s+){1,3}(instructions|prompts|context)/i,
     reason: 'override-instructions',
   },
   {
