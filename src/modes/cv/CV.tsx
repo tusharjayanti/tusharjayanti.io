@@ -1,6 +1,6 @@
 import { SiGithub, SiX } from 'react-icons/si';
 import { FaLinkedin } from 'react-icons/fa6';
-import { LuFileText, LuMail } from 'react-icons/lu';
+import { LuMail } from 'react-icons/lu';
 import { bio } from '../../content/bio';
 import { experience, type Role } from '../../content/experience';
 import { projects, type Project } from '../../content/projects';
@@ -25,7 +25,8 @@ function Hero() {
         {bio.location} · <a href={`mailto:${bio.email}`}>{bio.email}</a> ·{' '}
         <a href={bio.github} target="_blank" rel="noreferrer">
           github
-        </a>
+        </a>{' '}
+        · <a href={bio.resume}>resume</a>
       </p>
       <p className="cv-pitch">{bio.pitch}</p>
       <p className="cv-available">
@@ -162,7 +163,6 @@ const contactLinks: ContactLink[] = [
   { label: 'github', href: bio.github, icon: SiGithub, external: true },
   { label: 'linkedin', href: bio.linkedin, icon: FaLinkedin, external: true },
   { label: 'twitter', href: bio.twitter, icon: SiX, external: true },
-  { label: 'resume', href: bio.resume, icon: LuFileText, external: false },
   {
     label: 'email',
     href: `mailto:${bio.email}`,
@@ -175,7 +175,7 @@ function ContactSection() {
   return (
     <section className="cv-section">
       <h2 className="section-title">contact</h2>
-      <p className="contact-comment">// five doors. email is the fast one.</p>
+      <p className="contact-comment">// four doors. email is the fast one.</p>
       <nav className="contact-icons" aria-label="Contact links">
         {contactLinks.map(({ label, href, icon: Icon, external }) => (
           <a
