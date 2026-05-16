@@ -138,6 +138,79 @@ Five layers in the request path, in order of execution:
 
 ---
 
+## Cost optimization
+
+### Prompt caching
+
+Tarvis sends the same ~3,800 token system prompt on every chat turn.
+Without caching, every turn pays full input price on those tokens.
+With prompt caching, Anthropic holds the precomputed K/V matrices for
+the system prompt in memory for 5 minutes and reuses them. Same
+output, lower price.
+
+The mechanism is one line: `cache_control: { type: 'ephemeral' }` on
+the system content block. Token instrumentation captures the
+behavior in the Redis log.
+
+#### Three input-token buckets
+
+| Bucket                        | What it means                           | Rate (per MTok) |
+| ----------------------------- | --------------------------------------- | --------------- |
+| `input_tokens`                | Tokens processed fresh, not cached      | $3.00           |
+| `cache_creation_input_tokens` | Tokens written to cache (1.25x premium) | $3.75           |
+| `cache_read_input_tokens`     | Tokens read from cache (10x discount)   | $0.30           |
+
+Sonnet 4.6 pricing at the time of writing.
+
+#### What the log shows
+
+Two consecutive chat turns from local verification, 2:41 apart:
+
+**Turn 1 — `"Tell me about vox-agent."`** — cache miss, write:
+
+```
+"tokens_in": 14, "cache_creation_tokens": 3848, "latency_ms": 6661
+```
+
+**Turn 2 — `"What was the DISCO authn migration about?"`** — cache hit, read:
+
+```
+"tokens_in": 16, "cache_read_tokens": 3848, "latency_ms": 7073
+```
+
+Turn 1 wrote the system prompt to cache. Turn 2 read it back.
+`tokens_in` stays tiny on both turns because the system prompt is
+no longer in the "uncached" bucket — it's been sorted into one of
+the cache buckets.
+
+#### Cost numbers
+
+|                 | Turn 1   | Turn 2   | Total    |
+| --------------- | -------- | -------- | -------- |
+| Without caching | $0.01159 | $0.01159 | $0.02318 |
+| With caching    | $0.01447 | $0.00120 | $0.01567 |
+| Delta           | +24.8%   | −89.6%   | −32.4%   |
+
+Turn 1 costs slightly more — the 25% write premium. Turn 2 costs
+~90% less. Breakeven is one third of a single cache reuse; any
+chatty visitor puts caching net-positive immediately. For a
+visitor asking 5 questions in 2 minutes (the modal pattern):
+$0.058 → $0.019, ~67% saved on input cost.
+
+#### What this doesn't do
+
+- **Output tokens unchanged.** Caching only discounts input.
+- **5-minute TTL is deliberate.** Anthropic also offers 1-hour TTL
+  at 2x base input on writes (vs. 1.25x). Tarvis's bursty pattern —
+  a visitor asks several questions in 2 minutes, then nothing for
+  hours — fits 5-minute well. Re-examine once production traffic
+  shows whether visitors return within the 6-60 minute window.
+- **One cache breakpoint.** Larger context (tools, RAG, conversation
+  history) would have more layers to cache. Tarvis is single-turn,
+  no tools today.
+
+---
+
 ## Roadmap
 
 This portfolio is also a working LLMOps demo. The chat assistant (Tarvis)
