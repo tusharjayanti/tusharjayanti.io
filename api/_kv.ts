@@ -101,6 +101,56 @@ export async function logChatError(args: LogErrorArgs): Promise<void> {
   }
 }
 
+// Canary leak events: each detection LPUSHes a LeakEvent to the `leak:events`
+// list. The list holds both active (canary === current) and stale entries;
+// stale entries are filtered at read time and lazily LREMed by the cron.
+export type LeakEvent = {
+  ts: number;
+  canary: string;
+  ipHash: string;
+  userAgent: string;
+  geoCountry: string | null;
+  lastAlertedAt: number;
+};
+
+export async function recordLeakEvent(
+  event: Pick<LeakEvent, 'canary' | 'ipHash' | 'userAgent' | 'geoCountry'>,
+): Promise<LeakEvent> {
+  const ts = Date.now();
+  const payload: LeakEvent = { ...event, ts, lastAlertedAt: ts };
+  await redis.lpush('leak:events', JSON.stringify(payload));
+  return payload;
+}
+
+export async function getActiveLeaks(
+  currentCanary: string,
+): Promise<LeakEvent[]> {
+  const entries = (await redis.lrange('leak:events', 0, -1)) as unknown[];
+  return entries
+    .map((raw) => {
+      try {
+        return typeof raw === 'string'
+          ? (JSON.parse(raw) as LeakEvent)
+          : (raw as LeakEvent);
+      } catch {
+        return null;
+      }
+    })
+    .filter((e): e is LeakEvent => e !== null && e.canary === currentCanary);
+}
+
+// LREM the original entry + LPUSH a copy with lastAlertedAt set to the new
+// value. Redis lists don't support in-place updates so this two-step is the
+// canonical pattern. Match-by-JSON relies on consistent key order at write
+// time, which V8 preserves for object literals.
+export async function updateLeakLastAlertedAt(
+  entry: LeakEvent,
+  lastAlertedAt: number,
+): Promise<void> {
+  await redis.lrem('leak:events', 1, JSON.stringify(entry));
+  await redis.lpush('leak:events', JSON.stringify({ ...entry, lastAlertedAt }));
+}
+
 // Hourly error counter — incremented on every chat error so spike detection
 // can compare against a threshold. Key TTL is 2h so the previous hour's count
 // briefly overlaps but doesn't bleed into the next hour's bucket.

@@ -7,9 +7,16 @@ import {
   hashIp,
   logChatError,
   logChatTurn,
+  recordLeakEvent,
   shouldSendSpikeAlert,
+  updateLeakLastAlertedAt,
 } from './_kv.js';
-import { parseBody, writeResponse, type CompatRequest } from './_compat.js';
+import {
+  getHeader,
+  parseBody,
+  writeResponse,
+  type CompatRequest,
+} from './_compat.js';
 
 export const runtime = 'edge';
 
@@ -50,6 +57,39 @@ async function fireAndForget(
   // No waitUntil (vercel dev) — await inline so the log write completes before
   // the handler exits and the function process is reaped.
   await promise.catch(() => undefined);
+}
+
+// Record a canary leak to Redis and fire the first alert email. On Resend
+// failure, reset the entry's lastAlertedAt to 0 so the next cron tick re-
+// alerts instead of waiting 60min from the (failed) initial send.
+async function recordAndAlertLeak(
+  req: CompatRequest,
+  ipHash: string,
+): Promise<void> {
+  const event = {
+    canary: CANARY_TOKEN,
+    ipHash,
+    userAgent: (getHeader(req, 'user-agent') ?? '').slice(0, 200),
+    geoCountry: getHeader(req, 'x-vercel-ip-country') ?? null,
+  };
+  const entry = await recordLeakEvent(event);
+  try {
+    const { sendLeakAlert } = await import('./_resend.js');
+    await sendLeakAlert({
+      ts: entry.ts,
+      leakedCanary: entry.canary,
+      currentCanary: CANARY_TOKEN,
+      ipHash: entry.ipHash,
+      userAgent: entry.userAgent,
+      geoCountry: entry.geoCountry,
+    });
+  } catch (err) {
+    console.error(
+      '[chat] leak alert send failed; queuing for cron retry:',
+      err,
+    );
+    await updateLeakLastAlertedAt(entry, 0);
+  }
 }
 
 // After any chat error: bump the hourly counter and — if we've crossed the
@@ -263,6 +303,7 @@ export default async function handler(
             ipHash.slice(0, 8),
           );
           accumulated = accumulated.split(CANARY_TOKEN).join('[REDACTED]');
+          fireAndForget(resOrCtx, recordAndAlertLeak(req, ipHash));
         }
         // (g) log turn — await BEFORE close so dev-mode inline wait holds the
         // stream open until the log completes; Edge prod uses waitUntil and

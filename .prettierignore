@@ -12,6 +12,9 @@ package-lock.json
 # Vercel local state
 .vercel
 
+# Claude Code local config (also gitignored globally for the user)
+.claude
+
 # Minified files
 *.min.*
 
