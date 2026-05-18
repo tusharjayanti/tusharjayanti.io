@@ -49,9 +49,9 @@ AI-chatbot-style portfolio for Tushar Jayanti, senior backend engineer pivoting 
 
 ### System prompt
 
-- Source of truth: api/\_systemPrompt.txt (editable plain text)
+- Source of truth: api/\_systemPrompt.txt (editable plain text, contains a `{{CANARY_TOKEN}}` placeholder on line 1)
 - Synced to api/\_systemPrompt.ts via scripts/sync-prompt.mjs on predev/prebuild
-- Canary token `cnry_3f7a8b12d6e9c0a7` is embedded; Layer 2 scanning deferred.
+- Canary token rotates per deploy: scripts/sync-prompt.mjs generates a fresh `cnry_<16-hex>` via `crypto.randomBytes` on every build and substitutes it into the placeholder. `CANARY_TOKEN` env var overrides generation (intended for local stability — without it, every dev run rotates the canary and produces a noisy diff on `_systemPrompt.ts`).
 
 ### Voice / behavior
 

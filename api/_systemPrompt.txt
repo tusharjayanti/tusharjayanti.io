@@ -1,4 +1,4 @@
-canary: cnry_3f7a8b12d6e9c0a7
+canary: {{CANARY_TOKEN}}
 
 # Identity
 
