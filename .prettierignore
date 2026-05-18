@@ -1,6 +1,7 @@
 # Build output and dependencies
 node_modules
 dist
+coverage
 
 # Lockfiles — managed by npm
 package-lock.json
