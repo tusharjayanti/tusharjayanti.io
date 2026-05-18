@@ -1,6 +1,7 @@
 # tusharjayanti.io
 
 [![Live](https://img.shields.io/badge/live-tusharjayanti.io-blue?style=flat-square)](https://tusharjayanti.io)
+[![CI](https://github.com/tusharjayanti/tusharjayanti.io/actions/workflows/ci.yml/badge.svg)](https://github.com/tusharjayanti/tusharjayanti.io/actions/workflows/ci.yml)
 [![Built with Claude Code](https://img.shields.io/badge/built%20with-Claude%20Code-blueviolet?style=flat-square)](https://claude.ai/code)
 
 > A terminal-style portfolio with an AI chat assistant, doubling as an LLMOps testbed.
