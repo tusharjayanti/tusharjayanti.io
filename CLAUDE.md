@@ -68,6 +68,11 @@ AI-chatbot-style portfolio for Tushar Jayanti, senior backend engineer pivoting 
 - Daily digest cron at 00:00 UTC summarizes the day, emails via Resend
 - Spike alert: > 10 errors/hour → immediate email, 2-hour cooldown
 
+### Commit conventions
+
+- Conventional commits: `type(scope): subject` (e.g. `feat(canary):`, `chore:`, `fix(test):`). Body explains the why and any known limitations.
+- Never include `Co-Authored-By: Claude` or any AI co-author trailer. Trailers are human-only — applies on this repo and any other.
+
 ## Guiding principle
 
 Solve the problem, keep it simple. Right-size infrastructure to actual load. Over-engineering reads as a senior anti-pattern. The portfolio must demonstrate engineering judgment — including the judgment of NOT building elaborate machinery for traffic that doesn't exist.
