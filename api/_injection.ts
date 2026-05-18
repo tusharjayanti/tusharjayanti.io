@@ -1,3 +1,4 @@
+// Known limitation: canary is static; rotation not implemented.
 import { CANARY_TOKEN } from './_systemPrompt.js';
 
 export type InjectionResult = { hit: boolean; reason?: string };
@@ -30,6 +31,13 @@ export function detectInjection(text: string): InjectionResult {
   }
   for (const { regex, reason } of PATTERNS) {
     if (regex.test(text)) return { hit: true, reason };
+  }
+  return { hit: false };
+}
+
+export function detectOutputLeak(text: string): InjectionResult {
+  if (text.includes(CANARY_TOKEN)) {
+    return { hit: true, reason: 'canary-leak' };
   }
   return { hit: false };
 }

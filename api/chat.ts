@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { systemPrompt } from './_systemPrompt.js';
-import { detectInjection } from './_injection.js';
+import { CANARY_TOKEN, systemPrompt } from './_systemPrompt.js';
+import { detectInjection, detectOutputLeak } from './_injection.js';
 import {
   checkRateLimit,
   getHourlyErrorCount,
@@ -253,7 +253,18 @@ export default async function handler(
         emit(controller, { type: 'done' });
       } finally {
         const latencyMs = Date.now() - startMs;
-        // (f) log turn — await BEFORE close so dev-mode inline wait holds the
+        // (f) output canary leak check — post-stream, server-side. The canary
+        // has already been flushed to the client in deltas if it leaked; we
+        // redact here only for the log preview and flag the turn for review.
+        const leak = detectOutputLeak(accumulated);
+        if (leak.hit) {
+          console.error(
+            '[chat] output canary leak detected for ip:',
+            ipHash.slice(0, 8),
+          );
+          accumulated = accumulated.split(CANARY_TOKEN).join('[REDACTED]');
+        }
+        // (g) log turn — await BEFORE close so dev-mode inline wait holds the
         // stream open until the log completes; Edge prod uses waitUntil and
         // returns immediately so the order is harmless there.
         await fireAndForget(
@@ -268,6 +279,7 @@ export default async function handler(
             cacheReadTokens,
             model,
             latencyMs,
+            ...(leak.hit && { canary_leak: true }),
           }).catch((err) => {
             console.error('[chat] chat log write failed:', err);
           }),

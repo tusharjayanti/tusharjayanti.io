@@ -45,6 +45,7 @@ export type LogTurnArgs = {
   cacheReadTokens?: number;
   model?: string;
   latencyMs?: number;
+  canary_leak?: boolean;
 };
 
 export async function logChatTurn(args: LogTurnArgs): Promise<void> {
@@ -64,6 +65,7 @@ export async function logChatTurn(args: LogTurnArgs): Promise<void> {
     }),
     ...(args.model !== undefined && { model: args.model }),
     ...(args.latencyMs !== undefined && { latency_ms: args.latencyMs }),
+    ...(args.canary_leak !== undefined && { canary_leak: args.canary_leak }),
   });
   const newLength = await redis.lpush(key, payload);
   if (newLength === 1) {
