@@ -54,6 +54,7 @@ AI-chatbot-style portfolio for Tushar Jayanti, senior backend engineer pivoting 
 - Source of truth: api/\_systemPrompt.txt (editable plain text, contains a `{{CANARY_TOKEN}}` placeholder on line 1)
 - Synced to api/\_systemPrompt.ts via scripts/sync-prompt.mjs on predev/prebuild
 - Canary token rotates per deploy: scripts/sync-prompt.mjs generates a fresh `cnry_<16-hex>` via `crypto.randomBytes` on every build and substitutes it into the placeholder. `CANARY_TOKEN` env var overrides generation (intended for local stability — without it, every dev run rotates the canary and produces a noisy diff on `_systemPrompt.ts`).
+- Prompt versioning: sync-prompt also computes a SHA-256 prefix (12 hex chars) over the canary-substituted body and pushes the prompt to Langfuse under name `tarvis-system-prompt` with that hash as the label. The integer version returned by Langfuse is stored in `PROMPT_VERSION_NUMBER` (the hash itself in `PROMPT_VERSION`). chat.ts builds a minimal prompt handle from these constants and attaches it to every generation observation — no runtime Langfuse API call. Push skips silently if `LANGFUSE_*` env vars are missing (`PROMPT_VERSION_NUMBER` falls back to 0, prompt linkage is omitted), and any push error is non-fatal.
 
 ### Voice / behavior
 
@@ -64,7 +65,7 @@ AI-chatbot-style portfolio for Tushar Jayanti, senior backend engineer pivoting 
 
 ### Observability
 
-- Langfuse Cloud (Tokyo / jp.cloud.langfuse.com) is the primary trace destination as of M1.1. Every `/api/chat` request emits one trace (`chat-turn`) with input, output, userId (ipHash), and tags (`rate-limited`, `injection-detected`, `canary-leak`). The Sonnet streaming call inside is one `generation` observation capturing model, input messages, output, token counts (input/output/total + cache_creation/cache_read), latency, and time-to-first-token.
+- Langfuse Cloud (Tokyo / jp.cloud.langfuse.com) is the primary trace destination as of M1.1. Every `/api/chat` request emits one trace (`chat-turn`) with input, output, userId (ipHash), and tags (`rate-limited`, `injection-detected`, `canary-leak`). The Sonnet streaming call inside is one `generation` observation capturing model, input messages, output, token counts (input/output/total + cache_creation/cache_read), latency, time-to-first-token, and a prompt linkage to the Langfuse-registered version (M1.2 — see "System prompt" above).
 - Edge runtime: `flushAt: 1` on the Langfuse client and an explicit `flushAsync()` at end of request — Edge has no persistent process to batch for. Langfuse failures are caught and logged; they never break user-facing chat.
 - Existing Redis chat log continues in parallel — every chat still writes to chat:log:YYYY-MM-DD (rolling list, 30-day TTL). Cutover decision deferred to M3 when the /ops dashboard reads from Langfuse.
 - Every error → chat:errors:YYYY-MM-DD with category and detail

@@ -46,9 +46,28 @@ vi.mock('./_resend.js', () => ({
   sendEmail: mocks.sendEmail,
 }));
 
-vi.mock('./_langfuse.js', () => ({
-  getLangfuse: () => lf.client,
+// Mock _systemPrompt.js with deterministic values so the prompt-linkage
+// test is independent of whatever sync-prompt.mjs last wrote. The mock
+// is shared by chat.ts (system prompt + canary detection) and the test
+// (assertions on canary value + prompt version), so symmetry holds.
+const TEST_CANARY = 'cnry_test1234567890';
+const TEST_PROMPT_VERSION_NUMBER = 42;
+vi.mock('./_systemPrompt.js', () => ({
+  CANARY_TOKEN: TEST_CANARY,
+  PROMPT_NAME: 'tarvis-system-prompt',
+  PROMPT_VERSION: 'a1b2c3d4e5f6',
+  PROMPT_VERSION_NUMBER: TEST_PROMPT_VERSION_NUMBER,
+  systemPrompt: 'test system prompt',
 }));
+
+vi.mock('./_langfuse.js', async () => {
+  const actual =
+    await vi.importActual<typeof import('./_langfuse.js')>('./_langfuse.js');
+  return {
+    getLangfuse: () => lf.client,
+    makeSystemPromptHandle: actual.makeSystemPromptHandle,
+  };
+});
 
 const { default: handler } = await import('./chat.js');
 const { CANARY_TOKEN } = await import('./_systemPrompt.js');
@@ -266,6 +285,23 @@ describe('chat handler — Langfuse tracing', () => {
     );
     expect(finalUpdate.tags).toEqual(['injection-detected']);
     expect(lf.client.flushAsync).toHaveBeenCalled();
+  });
+
+  it('on a successful chat, the generation includes the prompt linkage', async () => {
+    mocks.messagesCreate.mockResolvedValue(fakeAnthropicStream('hi back'));
+    const res = (await handler(makeRequest('hi'), ctx)) as Response;
+    await drainStream(res);
+    await Promise.all(captured);
+
+    expect(lf.trace.generation).toHaveBeenCalledTimes(1);
+    const genArg = lastCallArg<{
+      prompt: { name: string; version: number; isFallback: boolean };
+    }>(lf.trace.generation);
+    expect(genArg.prompt).toEqual({
+      name: 'tarvis-system-prompt',
+      version: TEST_PROMPT_VERSION_NUMBER,
+      isFallback: false,
+    });
   });
 
   it('on a canary leak, appends the canary-leak tag to the final update', async () => {

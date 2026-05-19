@@ -4,7 +4,12 @@ import type {
   LangfuseGenerationClient,
   LangfuseTraceClient,
 } from 'langfuse';
-import { CANARY_TOKEN, systemPrompt } from './_systemPrompt.js';
+import {
+  CANARY_TOKEN,
+  PROMPT_NAME,
+  PROMPT_VERSION_NUMBER,
+  systemPrompt,
+} from './_systemPrompt.js';
 import { detectInjection, detectOutputLeak } from './_injection.js';
 import {
   checkRateLimit,
@@ -22,7 +27,7 @@ import {
   writeResponse,
   type CompatRequest,
 } from './_compat.js';
-import { getLangfuse } from './_langfuse.js';
+import { getLangfuse, makeSystemPromptHandle } from './_langfuse.js';
 
 export const runtime = 'edge';
 
@@ -283,12 +288,17 @@ export default async function handler(
   ];
   let generation: LangfuseGenerationClient | null = null;
   try {
+    const promptHandle = makeSystemPromptHandle(
+      PROMPT_NAME,
+      PROMPT_VERSION_NUMBER,
+    );
     generation =
       trace?.generation({
         name: 'sonnet-response',
         model: MODEL_ID,
         input: messages,
         startTime: new Date(),
+        ...(promptHandle ? { prompt: promptHandle } : {}),
       }) ?? null;
   } catch (err) {
     console.error('[langfuse] generation create failed:', err);

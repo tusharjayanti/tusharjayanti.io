@@ -4,6 +4,8 @@ import {
   substituteCanary,
   getCanary,
   renderTs,
+  computePromptHash,
+  PROMPT_NAME,
 } from './sync-prompt.mjs';
 
 describe('generateCanary', () => {
@@ -40,8 +42,29 @@ describe('getCanary', () => {
 
 describe('renderTs', () => {
   it('produces a file with the expected TypeScript export shape', () => {
-    const out = renderTs('cnry_abc', 'body text');
+    const out = renderTs('cnry_abc', 'body text', 'a1b2c3d4e5f6', 7);
     expect(out).toContain('export const CANARY_TOKEN: string =');
     expect(out).toContain('"cnry_abc"');
+    expect(out).toContain('export const PROMPT_NAME: string =');
+    expect(out).toContain(`"${PROMPT_NAME}"`);
+    expect(out).toContain('export const PROMPT_VERSION: string =');
+    expect(out).toContain('"a1b2c3d4e5f6"');
+    expect(out).toContain('export const PROMPT_VERSION_NUMBER: number = 7');
+  });
+});
+
+describe('computePromptHash', () => {
+  it('is deterministic — same input produces same hash', () => {
+    const a = computePromptHash('some prompt body');
+    const b = computePromptHash('some prompt body');
+    expect(a).toBe(b);
+  });
+
+  it('differs across different inputs', () => {
+    expect(computePromptHash('a')).not.toBe(computePromptHash('b'));
+  });
+
+  it('matches the [a-f0-9]{12} format', () => {
+    expect(computePromptHash('anything')).toMatch(/^[a-f0-9]{12}$/);
   });
 });
