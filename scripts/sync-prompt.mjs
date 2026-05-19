@@ -29,10 +29,22 @@ export function getCanary() {
   return process.env.CANARY_TOKEN || generateCanary();
 }
 
-// SHA-256 prefix, 12 hex chars. Deterministic: same input ⇒ same hash.
-// Used as the Langfuse label and as PROMPT_VERSION in the generated TS.
+// Replace the canary line with a stable placeholder so the hash tracks
+// actual prompt evolution and not per-deploy canary rotation. Works on
+// both the raw template (canary: {{CANARY_TOKEN}}) and the substituted
+// body (canary: cnry_<hex>) — either normalizes to the same form.
+function normalizeForHash(text) {
+  return text.replace(/^canary:.*$/m, 'canary: <PLACEHOLDER>');
+}
+
+// SHA-256 prefix, 12 hex chars. Deterministic: same canary-normalized
+// content ⇒ same hash. Used as the Langfuse label and as PROMPT_VERSION
+// in the generated TS.
 export function computePromptHash(text) {
-  return createHash('sha256').update(text, 'utf-8').digest('hex').slice(0, 12);
+  return createHash('sha256')
+    .update(normalizeForHash(text), 'utf-8')
+    .digest('hex')
+    .slice(0, 12);
 }
 
 export function renderTs(canary, raw, promptVersion, promptVersionNumber) {
@@ -130,9 +142,10 @@ async function main() {
     process.exit(1);
   }
 
-  // Hash the canary-substituted body so each per-deploy canary produces
-  // a fresh version in Langfuse. (Without substitution, a canary rotation
-  // would silently keep the old version's content out of sync.)
+  // The hash is canary-normalized (see computePromptHash) so per-deploy
+  // canary rotation does not spawn a new Langfuse version. The push body
+  // still carries the real substituted canary so the registry mirrors
+  // production content.
   const promptVersion = computePromptHash(substituted);
   const promptVersionNumber = await pushToLangfuse(substituted, promptVersion);
 

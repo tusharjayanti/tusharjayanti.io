@@ -67,4 +67,16 @@ describe('computePromptHash', () => {
   it('matches the [a-f0-9]{12} format', () => {
     expect(computePromptHash('anything')).toMatch(/^[a-f0-9]{12}$/);
   });
+
+  it('produces the same hash for the same content under different canaries', () => {
+    const a = 'canary: cnry_aaaaaaaaaaaaaaaa\n\nrest of prompt';
+    const b = 'canary: cnry_bbbbbbbbbbbbbbbb\n\nrest of prompt';
+    expect(computePromptHash(a)).toBe(computePromptHash(b));
+  });
+
+  it('produces different hashes for different content under the same canary', () => {
+    const a = 'canary: cnry_same1234567890\n\nfirst body';
+    const b = 'canary: cnry_same1234567890\n\nsecond body';
+    expect(computePromptHash(a)).not.toBe(computePromptHash(b));
+  });
 });
