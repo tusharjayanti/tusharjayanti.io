@@ -11,6 +11,7 @@ AI-chatbot-style portfolio for Tushar Jayanti, senior backend engineer pivoting 
 - Data: Upstash Redis (Mumbai) — chat logs, error logs, rate-limit counters
 - Email: Cloudflare Email Routing (inbound, tj@tusharjayanti.io → Gmail) + Resend (outbound, Tokyo region,
   tusharjayanti.io)
+- Observability: Langfuse Cloud (Tokyo region, jp.cloud.langfuse.com) — primary trace destination
 - DNS / domain: Cloudflare Registrar + DNS
 - Models: Claude Sonnet 4.6 for chat; Haiku 4.5 planned for future evals
 - Deploy: Vercel auto-deploy from main (push = production)
@@ -18,7 +19,7 @@ AI-chatbot-style portfolio for Tushar Jayanti, senior backend engineer pivoting 
 ## Repo layout
 
 - src/ — React app (terminal + cv modes, commands, content)
-- api/ — Vercel Edge Functions (chat.ts, cron/digest.ts, \_kv, \_injection, \_resend, \_compat, \_systemPrompt.txt + .ts)
+- api/ — Vercel Edge Functions (chat.ts, cron/digest.ts, \_kv, \_injection, \_resend, \_langfuse, \_compat, \_systemPrompt.txt + .ts)
 - scripts/sync-prompt.mjs — syncs \_systemPrompt.txt to .ts on predev/prebuild
 - vercel.json — crons + SPA rewrites
 - public/ — static assets
@@ -63,7 +64,9 @@ AI-chatbot-style portfolio for Tushar Jayanti, senior backend engineer pivoting 
 
 ### Observability
 
-- Every chat → chat:log:YYYY-MM-DD (rolling list, 30-day TTL)
+- Langfuse Cloud (Tokyo / jp.cloud.langfuse.com) is the primary trace destination as of M1.1. Every `/api/chat` request emits one trace (`chat-turn`) with input, output, userId (ipHash), and tags (`rate-limited`, `injection-detected`, `canary-leak`). The Sonnet streaming call inside is one `generation` observation capturing model, input messages, output, token counts (input/output/total + cache_creation/cache_read), latency, and time-to-first-token.
+- Edge runtime: `flushAt: 1` on the Langfuse client and an explicit `flushAsync()` at end of request — Edge has no persistent process to batch for. Langfuse failures are caught and logged; they never break user-facing chat.
+- Existing Redis chat log continues in parallel — every chat still writes to chat:log:YYYY-MM-DD (rolling list, 30-day TTL). Cutover decision deferred to M3 when the /ops dashboard reads from Langfuse.
 - Every error → chat:errors:YYYY-MM-DD with category and detail
 - Successful chats log `[chat] rate ok ip: count:` to Vercel runtime logs
 - Daily digest cron at 00:00 UTC summarizes the day, emails via Resend

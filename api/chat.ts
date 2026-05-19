@@ -1,4 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
+import type {
+  Langfuse,
+  LangfuseGenerationClient,
+  LangfuseTraceClient,
+} from 'langfuse';
 import { CANARY_TOKEN, systemPrompt } from './_systemPrompt.js';
 import { detectInjection, detectOutputLeak } from './_injection.js';
 import {
@@ -17,6 +22,7 @@ import {
   writeResponse,
   type CompatRequest,
 } from './_compat.js';
+import { getLangfuse } from './_langfuse.js';
 
 export const runtime = 'edge';
 
@@ -57,6 +63,23 @@ async function fireAndForget(
   // No waitUntil (vercel dev) — await inline so the log write completes before
   // the handler exits and the function process is reaped.
   await promise.catch(() => undefined);
+}
+
+// Update trace with final tags + output and flush. Wrapped in try-catch so
+// Langfuse failures never break user-facing chat.
+async function finalizeTrace(
+  lf: Langfuse | null,
+  trace: LangfuseTraceClient | null,
+  tags: string[],
+  output: string,
+): Promise<void> {
+  if (!lf || !trace) return;
+  try {
+    trace.update({ output, tags });
+    await lf.flushAsync();
+  } catch (err) {
+    console.error('[langfuse] trace finalize failed:', err);
+  }
 }
 
 // Record a canary leak to Redis and fire the first alert email. On Resend
@@ -158,6 +181,29 @@ export default async function handler(
   // (b) ip hash
   const ipHash = await hashIp(req);
 
+  // (b.1) Langfuse trace — created here so every post-validation branch can
+  // attach tags / output. Tags are accumulated locally and applied once at
+  // the end via finalizeTrace (Langfuse trace.update replaces the tags array
+  // rather than appending, so we set them in one call).
+  const lf = getLangfuse();
+  const tags: string[] = [];
+  let trace: LangfuseTraceClient | null = null;
+  try {
+    if (lf) {
+      trace = lf.trace({
+        name: 'chat-turn',
+        userId: ipHash,
+        input: { q },
+        metadata: {
+          geoCountry: getHeader(req, 'x-vercel-ip-country') ?? null,
+          userAgent: (getHeader(req, 'user-agent') ?? '').slice(0, 200) || null,
+        },
+      });
+    }
+  } catch (err) {
+    console.error('[langfuse] trace creation failed:', err);
+  }
+
   // (c) rate limit
   const { ok, count } = await checkRateLimit(ipHash);
   if (!ok) {
@@ -177,6 +223,11 @@ export default async function handler(
       }),
     );
     checkAndSendSpike(resOrCtx);
+    tags.push('rate-limited');
+    await fireAndForget(
+      resOrCtx,
+      finalizeTrace(lf, trace, tags, RATE_LIMIT_TEXT),
+    );
     const body =
       JSON.stringify({ type: 'error', message: RATE_LIMIT_TEXT }) +
       '\n' +
@@ -196,6 +247,7 @@ export default async function handler(
       reason: inj.reason,
       qPreview: q.slice(0, 100),
     });
+    tags.push('injection-detected');
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         emit(controller, { type: 'delta', text: REFUSAL_TEXT });
@@ -207,6 +259,10 @@ export default async function handler(
           logChatTurn({ ipHash, q, aPreview: REFUSAL_TEXT }).catch((err) => {
             console.error('[chat] chat log write failed:', err);
           }),
+        );
+        await fireAndForget(
+          resOrCtx,
+          finalizeTrace(lf, trace, tags, REFUSAL_TEXT),
         );
         controller.close();
       },
@@ -222,6 +278,22 @@ export default async function handler(
     apiKey: process.env.ANTHROPIC_API_KEY,
   });
 
+  const messages: Array<{ role: 'user'; content: string }> = [
+    { role: 'user', content: q },
+  ];
+  let generation: LangfuseGenerationClient | null = null;
+  try {
+    generation =
+      trace?.generation({
+        name: 'sonnet-response',
+        model: MODEL_ID,
+        input: messages,
+        startTime: new Date(),
+      }) ?? null;
+  } catch (err) {
+    console.error('[langfuse] generation create failed:', err);
+  }
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let accumulated = '';
@@ -230,6 +302,7 @@ export default async function handler(
       let cacheCreationTokens: number | undefined;
       let cacheReadTokens: number | undefined;
       let model: string | undefined;
+      let firstTokenAt: number | null = null;
       const startMs = Date.now();
       try {
         const anthropicStream = await anthropic.messages.create({
@@ -242,7 +315,7 @@ export default async function handler(
               cache_control: { type: 'ephemeral' },
             },
           ],
-          messages: [{ role: 'user', content: q }],
+          messages,
           stream: true,
         });
 
@@ -264,6 +337,7 @@ export default async function handler(
             event.delta.type === 'text_delta'
           ) {
             const text = event.delta.text;
+            if (firstTokenAt === null) firstTokenAt = Date.now();
             accumulated += text;
             emit(controller, { type: 'delta', text });
           } else if (event.type === 'message_delta') {
@@ -293,6 +367,7 @@ export default async function handler(
         emit(controller, { type: 'done' });
       } finally {
         const latencyMs = Date.now() - startMs;
+        const ttftMs = firstTokenAt !== null ? firstTokenAt - startMs : null;
         // (f) output canary leak check — post-stream, server-side. The canary
         // has already been flushed to the client in deltas if it leaked; we
         // redact here only for the log preview and flag the turn for review.
@@ -303,7 +378,34 @@ export default async function handler(
             ipHash.slice(0, 8),
           );
           accumulated = accumulated.split(CANARY_TOKEN).join('[REDACTED]');
+          tags.push('canary-leak');
           fireAndForget(resOrCtx, recordAndAlertLeak(req, ipHash));
+        }
+        // End Langfuse generation with usage + metadata. usageDetails is
+        // the v3 SDK's accepted field for token counts (incl. cache tokens);
+        // Langfuse computes cost from `model` + token counts upstream.
+        try {
+          if (generation) {
+            const usageDetails: Record<string, number> = {};
+            if (tokensIn !== undefined) usageDetails.input = tokensIn;
+            if (tokensOut !== undefined) usageDetails.output = tokensOut;
+            if (tokensIn !== undefined && tokensOut !== undefined) {
+              usageDetails.total = tokensIn + tokensOut;
+            }
+            if (cacheCreationTokens !== undefined) {
+              usageDetails.cache_creation_input_tokens = cacheCreationTokens;
+            }
+            if (cacheReadTokens !== undefined) {
+              usageDetails.cache_read_input_tokens = cacheReadTokens;
+            }
+            generation.end({
+              output: accumulated,
+              usageDetails,
+              metadata: { timeToFirstTokenMs: ttftMs, latencyMs },
+            });
+          }
+        } catch (err) {
+          console.error('[langfuse] generation end failed:', err);
         }
         // (g) log turn — await BEFORE close so dev-mode inline wait holds the
         // stream open until the log completes; Edge prod uses waitUntil and
@@ -324,6 +426,10 @@ export default async function handler(
           }).catch((err) => {
             console.error('[chat] chat log write failed:', err);
           }),
+        );
+        await fireAndForget(
+          resOrCtx,
+          finalizeTrace(lf, trace, tags, accumulated),
         );
         controller.close();
       }
