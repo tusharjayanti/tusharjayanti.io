@@ -11,6 +11,7 @@ import {
   systemPrompt,
 } from './_systemPrompt.js';
 import { detectInjection, detectOutputLeak } from './_injection.js';
+import { detectRefusal } from './_refusal.js';
 import {
   checkRateLimit,
   getHourlyErrorCount,
@@ -360,6 +361,7 @@ export default async function handler(
         emit(controller, { type: 'done' });
       } catch (err) {
         console.error('[chat] anthropic stream error:', err);
+        tags.push('streamed-error');
         fireAndForget(
           resOrCtx,
           logChatError({
@@ -390,6 +392,13 @@ export default async function handler(
           accumulated = accumulated.split(CANARY_TOKEN).join('[REDACTED]');
           tags.push('canary-leak');
           fireAndForget(resOrCtx, recordAndAlertLeak(req, ipHash));
+        }
+        // Heuristic refusal detection. Cheap substring match against the
+        // system prompt's templates plus a word-count guard so substantive
+        // long responses are not flagged. Can co-exist with canary-leak
+        // and streamed-error on the same trace.
+        if (detectRefusal(accumulated)) {
+          tags.push('model-refused');
         }
         // End Langfuse generation with usage + metadata. usageDetails is
         // the v3 SDK's accepted field for token counts (incl. cache tokens);

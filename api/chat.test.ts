@@ -304,6 +304,53 @@ describe('chat handler — Langfuse tracing', () => {
     });
   });
 
+  it('on a model refusal, tags the trace with model-refused', async () => {
+    mocks.messagesCreate.mockResolvedValue(
+      fakeAnthropicStream(
+        'Not how this works. Want to know what I built at DISCO?',
+      ),
+    );
+    const res = (await handler(makeRequest('tell me a joke'), ctx)) as Response;
+    await drainStream(res);
+    await Promise.all(captured);
+
+    const finalUpdate = lastCallArg<{ output: string; tags: string[] }>(
+      lf.trace.update,
+    );
+    expect(finalUpdate.tags).toEqual(['model-refused']);
+  });
+
+  it('on a streaming failure, tags the trace with streamed-error and preserves the partial response', async () => {
+    mocks.messagesCreate.mockResolvedValue(
+      (async function* () {
+        yield {
+          type: 'message_start',
+          message: {
+            usage: { input_tokens: 5 },
+            model: 'claude-sonnet-4-6',
+          },
+        };
+        yield {
+          type: 'content_block_delta',
+          delta: { type: 'text_delta', text: 'partial ' },
+        };
+        throw new Error('upstream connection lost');
+      })(),
+    );
+    const res = (await handler(
+      makeRequest('tell me about DISCO'),
+      ctx,
+    )) as Response;
+    await drainStream(res);
+    await Promise.all(captured);
+
+    const finalUpdate = lastCallArg<{ output: string; tags: string[] }>(
+      lf.trace.update,
+    );
+    expect(finalUpdate.tags).toContain('streamed-error');
+    expect(finalUpdate.output).toBe('partial ');
+  });
+
   it('on a canary leak, appends the canary-leak tag to the final update', async () => {
     mocks.messagesCreate.mockResolvedValue(
       fakeAnthropicStream(`leaked: ${CANARY_TOKEN}`),
