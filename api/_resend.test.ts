@@ -17,7 +17,7 @@ function restoreEnv() {
 describe('sendLeakAlert', () => {
   beforeEach(() => {
     process.env.RESEND_API_KEY = 'test-key';
-    process.env.LEAK_ALERT_FROM = 'alerts@send.tusharjayanti.io';
+    process.env.LEAK_ALERT_FROM = 'alerts@tusharjayanti.io';
     process.env.LEAK_ALERT_TO = 'tj@tusharjayanti.io';
   });
 
@@ -45,7 +45,7 @@ describe('sendLeakAlert', () => {
     expect(init.method).toBe('POST');
     expect(init.headers.Authorization).toBe('Bearer test-key');
     const body = JSON.parse(init.body);
-    expect(body.from).toBe('alerts@send.tusharjayanti.io');
+    expect(body.from).toBe('alerts@tusharjayanti.io');
     expect(body.to).toEqual(['tj@tusharjayanti.io']);
     expect(body.subject).toBe(
       '[tusharjayanti.io] Canary leak detected — still active',

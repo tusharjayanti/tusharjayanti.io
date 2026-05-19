@@ -9,7 +9,8 @@ AI-chatbot-style portfolio for Tushar Jayanti, senior backend engineer pivoting 
 - Frontend: Vite + React 19 + TypeScript + React Router v7, Catppuccin Mocha
 - Backend: Vercel Edge Functions for /api/\*
 - Data: Upstash Redis (Mumbai) — chat logs, error logs, rate-limit counters
-- Email: Cloudflare Email Routing (inbound, tj@tusharjayanti.io → Gmail) + Resend (outbound, Tokyo region, send.tusharjayanti.io)
+- Email: Cloudflare Email Routing (inbound, tj@tusharjayanti.io → Gmail) + Resend (outbound, Tokyo region,
+  tusharjayanti.io)
 - DNS / domain: Cloudflare Registrar + DNS
 - Models: Claude Sonnet 4.6 for chat; Haiku 4.5 planned for future evals
 - Deploy: Vercel auto-deploy from main (push = production)
