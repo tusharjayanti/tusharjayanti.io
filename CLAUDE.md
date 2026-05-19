@@ -65,21 +65,28 @@ AI-chatbot-style portfolio for Tushar Jayanti, senior backend engineer pivoting 
 
 ### Observability
 
-- Langfuse Cloud (Tokyo / jp.cloud.langfuse.com) is the primary trace destination as of M1.1. Every `/api/chat` request emits one trace (`chat-turn`) with input, output, userId (ipHash), and tags from the M1.3 taxonomy. The Sonnet streaming call inside is one `generation` observation capturing model, input messages, output, token counts (input/output/total + cache_creation/cache_read), latency, time-to-first-token, and a prompt linkage to the Langfuse-registered version (M1.2 — see "System prompt" above).
-- Tag taxonomy (M1.3 — five tags, two precedence classes):
-  - **Exclusive** (short-circuit; no other tags possible on the same trace):
-    - `rate-limited` — request rejected before reaching Anthropic (40/hr IP cap).
-    - `injection-detected` — `detectInjection(q)` hit; refusal returned without invoking Sonnet.
-  - **Non-exclusive** (post-stream; can co-exist on the same trace):
-    - `streamed-error` — the Anthropic stream threw partway; partial response preserved in the trace output.
-    - `canary-leak` — `detectOutputLeak(accumulated)` hit; response redacted before logging.
-    - `model-refused` — heuristic substring match against the system prompt's refusal phrase templates with a word-count guard (`api/_refusal.ts`). Bounded false-positive rate; M4 will replace with an LLM-judge.
+- Langfuse Cloud (Tokyo / jp.cloud.langfuse.com) is the primary trace destination as of M1.1. Every `/api/chat` request emits one trace (`chat-turn`) with input, output, userId (ipHash), and tags from the taxonomy below. The Sonnet streaming call inside is one `generation` observation capturing model, input messages, output, token counts (input/output/total + cache_creation/cache_read), latency, time-to-first-token, and a prompt linkage to the Langfuse-registered version (M1.2 — see "System prompt" above).
 - Edge runtime: `flushAt: 1` on the Langfuse client and an explicit `flushAsync()` at end of request — Edge has no persistent process to batch for. Langfuse failures are caught and logged; they never break user-facing chat.
 - Existing Redis chat log continues in parallel — every chat still writes to chat:log:YYYY-MM-DD (rolling list, 30-day TTL). Cutover decision deferred to M3 when the /ops dashboard reads from Langfuse.
 - Every error → chat:errors:YYYY-MM-DD with category and detail
 - Successful chats log `[chat] rate ok ip: count:` to Vercel runtime logs
 - Daily digest cron at 00:00 UTC summarizes the day, emails via Resend
 - Spike alert: > 10 errors/hour → immediate email, 2-hour cooldown
+
+### Tag taxonomy
+
+Every trace can carry zero or more of these tags:
+
+- `rate-limited` — IP rate limit hit (40/hour). Returns early, no LLM call.
+- `injection-detected` — `detectInjection(q)` hit. Returns early, no LLM call.
+- `streamed-error` — Streaming failed partway. Partial response preserved in trace.
+- `canary-leak` — `detectOutputLeak(accumulated)` hit. Post-stream; redaction applied to log preview.
+- `model-refused` — Heuristic match against refusal phrase templates from system prompt. Post-stream.
+
+Precedence:
+
+- `rate-limited` and `injection-detected` are exclusive (short-circuit return before any other tag can fire)
+- `streamed-error`, `canary-leak`, `model-refused` can co-exist on the same trace
 
 ### Commit conventions
 

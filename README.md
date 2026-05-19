@@ -19,6 +19,7 @@
 [![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Vercel Edge](https://img.shields.io/badge/Vercel_Edge-000000?style=flat&logo=vercel&logoColor=white)](https://vercel.com/)
 [![Anthropic](https://img.shields.io/badge/Anthropic_Sonnet_4.6-191919?style=flat&logo=anthropic&logoColor=white)](https://www.anthropic.com/)
+[![Langfuse](https://img.shields.io/badge/Langfuse-0F0F0F?style=flat&logo=langfuse&logoColor=white)](https://langfuse.com/)
 [![Upstash Redis](https://img.shields.io/badge/Upstash_Redis-00E9A3?style=flat&logo=upstash&logoColor=white)](https://upstash.com/)
 [![Resend](https://img.shields.io/badge/Resend-000000?style=flat&logo=resend&logoColor=white)](https://resend.com/)
 [![Cloudflare](https://img.shields.io/badge/Cloudflare-F38020?style=flat&logo=cloudflare&logoColor=white)](https://www.cloudflare.com/)
@@ -49,6 +50,17 @@ PS: yes, Tarvis == Tushar + Jarvis. I'm an Iron Man nerd, deal with it.
   dispatch (`whoami`, `cat <role>`, `help`), and chat invocation.
 - **Schema-driven content** — one data source feeds both terminal
   `cat <role>` and the structured `/cv` page.
+- **Output-side canary scrubber and leak alerting** — post-stream substring
+  check on the model's response. On hit, redacts the canary in the log
+  preview and fires an immediate email via Resend, with leak events
+  persisted to Redis. Per-deploy canary rotation makes a leaked token
+  stale on next push.
+- **Langfuse observability** — every chat turn traces to Langfuse Cloud
+  (Tokyo region): input, output, model, token counts (including prompt
+  cache reads/writes), latency, TTFT, cost. Five-tag taxonomy classifies
+  trace behavior. System prompt is registered and versioned in Langfuse's
+  prompt registry, with traces linked to the prompt version that
+  produced them.
 
 ---
 
@@ -135,7 +147,12 @@ Five layers in the request path, in order of execution:
 
 **Explicit design choice:** layer 3 is cheap regex, not LLM-based classification. Trivially bypassable by paraphrase (`ign0re previous` slips through). That's intentional — cheap layer 1 catches the loud attacks for free, behavioral layer 2 catches the subtle ones at API cost. Better than nothing, honest about its bypass surface.
 
-**What this isn't:** there's no post-response check on the model's output. No LLM-as-judge, no hallucination scoring, no output-side canary scrubber. The model is _instructed_ not to emit the canary, but there's no programmatic guard before the stream reaches the client. Adding an output-side `String.includes(CANARY_TOKEN)` scrubber is a cheap improvement on the roadmap.
+**What this isn't (still):** there's no LLM-as-judge for hallucination
+scoring on the response, and no detection of paraphrased prompt
+extraction (the model summarizing the system prompt without emitting
+the canary verbatim). The output-side canary scrubber shipped in Phase
+0.1 — see "What's built today." LLM-judge quality scoring is deferred
+to M4 (online Haiku scoring via `waitUntil`).
 
 ---
 
@@ -212,6 +229,84 @@ $0.058 → $0.019, ~67% saved on input cost.
 
 ---
 
+## Observability
+
+Every chat turn becomes a structured trace in Langfuse Cloud (Tokyo
+region). One trace per `/api/chat` request, one generation observation
+inside it for the Sonnet streaming call. The structure scales for M2 RAG
+— when retrieval + rerank steps ship, they become sibling observations
+inside the same trace.
+
+### What's captured per trace
+
+| Dimension                  | Where it lives                                                          |
+| -------------------------- | ----------------------------------------------------------------------- |
+| Input (the user's `q`)     | trace input                                                             |
+| Output (the response text) | trace output                                                            |
+| User ID                    | anonymized `ipHash` (SHA-256 prefix)                                    |
+| Model                      | `claude-sonnet-4-6`                                                     |
+| Token counts               | input, output, `cache_creation_input_tokens`, `cache_read_input_tokens` |
+| Cost                       | auto-computed by Langfuse from model pricing                            |
+| Latency                    | generation latency + total trace duration                               |
+| Time-to-first-token        | server-side measurement of first stream chunk                           |
+| Metadata                   | userAgent, geoCountry (from Vercel Edge)                                |
+
+### Tag taxonomy
+
+Five tags classify trace behavior. Tags 1–2 are exclusive (short-circuit
+returns); tags 3–5 can co-exist.
+
+| Tag                  | Fires when                                                   |
+| -------------------- | ------------------------------------------------------------ |
+| `rate-limited`       | IP rate limit hit, no LLM call                               |
+| `injection-detected` | Regex prefilter caught injection, no LLM call                |
+| `streamed-error`     | Stream failed partway through generation                     |
+| `canary-leak`        | Output contained the system prompt's canary token            |
+| `model-refused`      | Model declined (heuristic match on refusal phrase templates) |
+
+### Prompt versioning
+
+The system prompt is registered in Langfuse's prompt registry as
+`tarvis-system-prompt`. Version label is a SHA-256 prefix (12 hex chars)
+of the prompt content with the per-deploy canary normalized — so canary
+rotation doesn't generate noise versions, only real editorial edits do.
+
+Each trace's generation links to the version that produced it.
+
+### What this isn't (yet)
+
+- No dashboard or visualization — Langfuse UI is the read interface for
+  now. Custom `/ops` dashboard is M3.
+- No quality scoring on traces — `score` is part of the schema but
+  unpopulated. M4 (online Haiku scoring) and M3 (eval CI gate) write
+  scores.
+- Trace updates (output text, post-stream tags) intermittently fail to
+  land in Langfuse Cloud due to a known v3 SDK bug on Edge runtime where
+  waitUntil-wrapped flushAsync() can return before all events flush
+  (langfuse/langfuse#5843). The trace and generation observation always
+  land; the post-stream trace.update({ output, tags }) may not.
+  Verified empirically during M1.3 development. Three of five tags
+  (rate-limited, injection-detected, canary-leak) land reliably
+  because they're pushed earlier in the request lifecycle; two
+  (model-refused, streamed-error) are post-stream and hit the bug
+  more often. The v4 OTel-based SDK eliminates this — migration tracked
+  in followups.md.
+- No closed loop from low-scored traces to auto-generated eval cases —
+  M5 territory.
+- The existing Redis chat log keeps writing in parallel. Cutover happens
+  when M3's dashboard reads from Langfuse reliably.
+
+### Operational notes
+
+Langfuse failures are caught and logged; they never break user-facing
+chat. Trace writes use `flushAt: 1` and an explicit `flushAsync()` in
+the finally block — Edge runtime has no persistent process to batch for.
+Langfuse Cloud's Hobby tier has variable ingest lag (sub-second to ~10
+minutes). The v4 SDK eliminates this; v3→v4 migration is banked in
+followups.
+
+---
+
 ## Roadmap
 
 This portfolio is also a working LLMOps demo. The chat assistant (Tarvis)
@@ -250,11 +345,6 @@ Status legend: `[ ]` queued, `[~]` in progress, `[x]` shipped.
   same as a curious visitor. Turnstile separates humans from automation
   directly.
 
-- `[ ]` **Output-side canary scrubber.** Input side checks for canary
-  emission. Output side currently relies on the system prompt telling
-  the model not to leak it. A `String.includes(CANARY_TOKEN)` check on
-  the streaming response would close that gap programmatically.
-
 ### LLMOps
 
 - `[ ]` **Deterministic eval suite with CI gate.** A small fast test
@@ -263,13 +353,20 @@ Status legend: `[ ]` queued, `[~]` in progress, `[x]` shipped.
   interview question and a working CI gate is a better answer than a
   plan.
 
-- `[ ]` **Langfuse tracing with per-span cost.** Per-call wrapper around
-  the Anthropic SDK on free-tier Langfuse. Buys real vocabulary for
-  the chat system: p50/p95 latency, per-component cost breakdown, error
-  rates by call type. Replaces hand-rolled token counting.
+- `[x]` **Langfuse tracing with per-span cost.** Shipped in M1 — see
+  [Observability](#observability) for the trace structure, tag
+  taxonomy, and prompt versioning details. Prompt-cache token math
+  surfaces correctly in Langfuse's cost display.
 
 ### Recently shipped
 
+- `[x]` **M1 — Langfuse observability foundation.** Trace/generation/tag
+  taxonomy, prompt versioning, cost computation. v0.2.0.
+- `[x]` **Phase 0.2 — Canary rotation and leak alerting.** Per-deploy
+  rotation via `sync-prompt.mjs`, leak event persistence in Redis,
+  synchronous email alerting via Resend on detection.
+- `[x]` **Phase 0.1 — Output canary scrubber.** Post-stream substring
+  check on the model's response, with redaction in the log preview.
 - `[x]` Phase 2: real CV content in resume-register voice, schema
   migration to support grouped bullets, inline markdown bold parser,
   system prompt rewrite with role-specific facts, terminal whoami
