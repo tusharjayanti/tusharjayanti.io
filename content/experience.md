@@ -7,13 +7,13 @@
 
 ### Identity platform migration
 
-Led the multi-quarter migration of the company's core identity platform from .NET + RavenDB to Kotlin + Spring Boot + PostgreSQL. Owned the architecture decision, the cutover plan, and the zero-downtime deployment strategy. \Migration shipped with zero customer-facing incidents over a 6-month rollout.
+Led the multi-quarter migration of the company's core identity platform from .NET + RavenDB to Kotlin + Spring Boot + PostgreSQL. Owned the architecture decision, the cutover plan, and the zero-downtime deployment strategy. Migration shipped with zero customer-facing incidents over a 6-month rollout.
 
 ### gRPC service-to-service architecture
 
 Owned the design and rollout of gRPC service-to-service communication using Protocol Buffers. Wrote the internal RFC, got cross-team buy-in, and shipped the first 4 services. Set the pattern that the rest of the platform team followed.
 
-### Modernized Oservability
+### Modernized Observability
 
 Deployed a Terraform-managed sidecar to integrate a Python graph-based authorization service with ELK, and implemented Request ID-based distributed tracing — reducing production MTTR by ~80%.
 
@@ -83,9 +83,9 @@ Built and orchestrated batch data pipelines using Apache Airflow. Replaced an ad
 
 Migrated several modules from the legacy monolith into Spring Boot microservices. Built REST APIs for high-throughput payment workflows.
 
-### batch loading financial data
+### Batch loading financial data
 
-Created a batch service using Spring Batch to ingest client financial data daily to our system
+Created a batch service using Spring Batch to ingest client financial data daily to our system.
 
 ### On-call and incident response
 
@@ -106,13 +106,13 @@ Developed Spring Boot services integrated with Kafka for high-throughput financi
 
 Built monitoring dashboards using Prometheus and Grafana. Established the SLO/SLI definitions for the team's services.
 
-### Custom Python Plugins
+### Custom Python plugins
 
-Created multiple plugins using Python to add custom functionality for a third-party tool
+Created multiple plugins using Python to add custom functionality for a third-party tool.
 
-### Frontend development with react
+### Frontend development with React
 
-- Lead developer for all User-interface implementations using React
+Lead developer for all user-interface implementations using React.
 
 ---
 
@@ -130,16 +130,13 @@ First Claude Code project. Built a tool-using calculator agent to learn LLM fund
 
 Text-based customer support AI with inline hallucination detection. Used Claude Sonnet as the generator, Claude Haiku as the LLM judge. FastAPI + asyncpg + pgvector. github.com/tusharjayanti/vox-agent
 
-### Intelligent Chatbot github.com/tusharjayanti/TensorflowChatbot
+### Intelligent Chatbot
 
-• Built a seq2seq chatbot using Python and TensorFlow, trained on a movie dialogue dataset to generate
-contextually relevant responses. github.com/tusharjayanti/TensorflowChatbot
+Built a seq2seq chatbot in TensorFlow around 2017–2018 using movie dialogue datasets, which gave me my first hands-on experience with training neural NLP models, preprocessing conversational data, and understanding encoder-decoder architectures that later informed my current work on LLM agents and retrieval systems. github.com/tusharjayanti/TensorflowChatbot
 
-### Optical Character Recognition github.com/tusharjayanti/OpticalCharacterRecognition
+### Optical Character Recognition
 
-• Developed an OCR system using Linear and Logistic Regression in Python and TensorFlow to improve
-accuracy on small fonts and noisy image data for CAPTCHA recognition.
-github.com/tusharjayanti/OpticalCharacterRecognition
+Built an OCR system in Python and TensorFlow around 2017-2018 using linear and logistic regression for CAPTCHA recognition, focused on improving accuracy on small fonts and noisy image data. My first encounter with adversarial ML problems and the limits of classical methods, which shaped how I think about robustness and red-team-style evaluation in my current LLM agent work on hallucination detection and prompt injection defense. github.com/tusharjayanti/OpticalCharacterRecognition
 
 ---
 
