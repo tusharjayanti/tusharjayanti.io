@@ -84,25 +84,34 @@ covered under [Known issues](#known-issues).
 
 ## Retrieval
 
-One stored function, [`match_chunks`](../supabase/migrations/0003_match_chunks.sql),
+One stored function, [`match_chunks`](../supabase/migrations/0004_match_chunks_hybrid.sql),
 called via Supabase RPC:
 
 ```ts
 const [queryEmbedding] = await embed([QUERY], 'query');
 const { data, error } = await supabase.rpc('match_chunks', {
   query_embedding: queryEmbedding,
+  query_text: QUERY,
   match_count: MATCH_COUNT,
   source_filter: SOURCE_FILTER,
 });
 ```
 
-The function returns rows ordered by ascending cosine distance, with
-`score = 1 - cosine_distance` so higher means closer. M2.1 is
-semantic-only; M2.2 extends in place (`create or replace`) to fuse
-BM25 lexical scores into the same ranking. Keeping retrieval behind
-an RPC, rather than expressing it as a client-side query builder
-call, means the M2.2 migration is server-only and callers don't
-change.
+M2.2 made retrieval hybrid: semantic (cosine distance over pgvector
+HNSW) and lexical (BM25 via Postgres `ts_rank` on the `tsv` generated
+column, `english` FTS config) are fused via Reciprocal Rank Fusion
+with `k = 60` and equal weights — canonical Cormack-Zobel-Clarke. The
+function over-retrieves top-20 from each retriever independently,
+joins them on chunk id, and returns the top-`match_count` rows by
+fused `score`. Each row carries `semantic_rank`, `bm25_rank`,
+`semantic_distance`, and `bm25_score` alongside the fused `score`, so
+callers and the M2.6 reranker can see *why* a row landed (semantic
+neighbor, lexical match, or both) and act on it. A `null` rank means
+that retriever didn't see the chunk in its top-20. Keeping the
+ranking inside an RPC, rather than expressing it as a client-side
+query builder call, means M2.2 was a server-only migration and the
+caller signature changes were limited to the new `query_text`
+parameter.
 
 ## Operations
 
@@ -115,11 +124,12 @@ work and consumes zero Voyage tokens. Run after editing
 chunk shape. Success looks like
 `ingest:experience ok: 27 chunks, N created, M updated, K unchanged, T tokens embedded`.
 
-**`npm run smoke:retrieval`** — embed a hardcoded query and print the
-top 3 hits with attribution (`source_id`, `chunk_index`, H2/H3
-metadata, content preview). Run after migrations or chunker changes
-to confirm retrieval still returns sensible results. Success is
-three results scoped to the expected H2 section.
+**`npm run smoke:retrieval`** — embed a hardcoded query against the
+experience corpus and print the top 3 hits with hybrid retrieval
+attribution (RRF score + per-retriever ranks, plus `source_id`,
+`chunk_index`, H2/H3 metadata, content preview). Run after migrations
+or chunker changes to confirm retrieval still returns sensible
+results. Success is three results with sensible top-1 attribution.
 
 **`supabase db push`** — apply pending migrations under
 `supabase/migrations/` to the linked project. Run after authoring a
@@ -129,13 +139,6 @@ new migration file. Success is either applied migrations listed or
 ## What this isn't (yet)
 
 Not pretending. Honest gaps:
-
-- **No BM25 hybrid retrieval.** M2.1 is cosine-similarity only.
-  Proper-noun queries land correctly today because the H2 prefix
-  pulls them into the right neighborhood, but a pure lexical match
-  on `"Elasticsearch"` won't beat a semantic match on
-  `"search infrastructure"`. M2.2 adds BM25 + reciprocal-rank fusion
-  in the same `match_chunks` RPC.
 
 - **No PDF / resume ingest.** Only the markdown experience corpus is
   in. M2.3 adds resume ingest via PDF text extraction → markdown
