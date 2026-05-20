@@ -15,7 +15,9 @@
     "test:coverage": "vitest run --coverage",
     "test:integration": "dotenv -e .env.local -- vitest run --config vitest.integration.config.ts",
     "sync:prompt": "node scripts/sync-prompt.mjs",
+    "ingest": "dotenv -e .env.local -- tsx scripts/rag/ingest.ts",
     "ingest:experience": "dotenv -e .env.local -- tsx scripts/rag/ingest-experience.ts",
+    "ingest:resume": "dotenv -e .env.local -- tsx scripts/rag/ingest-resume.ts",
     "smoke:retrieval": "dotenv -e .env.local -- tsx scripts/rag/smoke-retrieval.ts",
     "predev": "npm run sync:prompt",
     "prebuild": "npm run sync:prompt"

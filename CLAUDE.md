@@ -93,11 +93,11 @@ Precedence:
 - Conventional commits: `type(scope): subject` (e.g. `feat(canary):`, `chore:`, `fix(test):`). Body explains the why and any known limitations.
 - Never include `Co-Authored-By: Claude` or any AI co-author trailer. Trailers are human-only — applies on this repo and any other.
 
-## RAG (M2.1-M2.2)
+## RAG (M2.1-M2.3)
 
-- File layout: `rag/chunking/` (contextual chunker), `rag/ingest/` (per-source ingest pipelines, e.g. `experience.ts`), `scripts/rag/` (CLI entry points: `ingest-experience.ts`, `smoke-retrieval.ts`), `content/` (markdown corpora — currently `experience.md`), `supabase/migrations/` (schema, grants, retrieval RPC), `tests/rag/` (integration tests against the live DB).
+- File layout: `rag/chunking/` (contextual chunker), `rag/ingest/markdown.ts` (shared generic ingest pipeline) + per-source wrappers `experience.ts` / `resume.ts` + `all.ts` (default multi-source driver), `scripts/rag/` (CLI entry points: `ingest.ts`, `ingest-experience.ts`, `ingest-resume.ts`, `smoke-retrieval.ts`), `content/` (markdown corpora — currently `experience.md`, `resume.md`), `supabase/migrations/` (schema, grants, retrieval RPC), `tests/rag/` (integration tests against the live DB).
 - Env vars: `SUPABASE_URL`, `SUPABASE_SECRET_KEY` (server-side, `sb_secret_*` format, authenticates as `service_role`), `SUPABASE_PUBLISHABLE_KEY` (client-side, `sb_publishable_*`), `VOYAGE_API_KEY`. All live in `.env.local`.
-- Commands: `npm run ingest:experience` (idempotent re-embed/upsert of the experience corpus), `npm run smoke:retrieval` (top-3 retrieval against a hardcoded PurpleToko query, with attribution), `npm run test:integration` (hybrid retrieval contract tests against live DB + Voyage), `supabase db push` (apply pending migrations).
+- Commands: `npm run ingest` (default — ingest every markdown source in `content/` in sequence), `npm run ingest:experience` / `npm run ingest:resume` (per-source debugging helpers, same pipeline), `npm run smoke:retrieval` (top-3 hybrid retrieval against a hardcoded query with attribution), `npm run test:integration` (hybrid retrieval contract tests against live DB + Voyage), `supabase db push` (apply pending migrations).
 - Schema: single `chunks` table for all sources, keyed `(source, source_id, chunk_index)` unique; `content_hash` (SHA-256) drives ingest idempotency — unchanged content consumes zero Voyage tokens.
 - Pattern: contextual chunking — every chunk is one H3 section prefixed by its parent H2 heading on the first line of `content`. Paragraph-split fallback fires for H3 sections >500 tokens.
 - Embedding model: Voyage `voyage-3`, 1024 dims, asymmetric — `input_type='document'` at ingest, `input_type='query'` at retrieval. `voyageai@0.0.8` is pinned exactly (no `^`); SDK is pre-1.0, upgrades go through a manual smoke run.

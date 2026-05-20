@@ -117,12 +117,19 @@ parameter.
 
 Three commands cover day-to-day:
 
-**`npm run ingest:experience`** — embed and upsert the experience
-corpus. Idempotent: re-running against unchanged content does zero
-work and consumes zero Voyage tokens. Run after editing
-`content/experience.md` or after applying a migration that changes
-chunk shape. Success looks like
-`ingest:experience ok: 27 chunks, N created, M updated, K unchanged, T tokens embedded`.
+**`npm run ingest`** — embed and upsert every markdown source in
+`content/` in sequence (currently `experience.md` + `resume.md`;
+project READMEs join in M2.5). Default ingest workflow. Idempotent at
+the source level: each source diffs against its own DB rows and only
+re-embeds when `content_hash` changes. Success looks like one
+`ingest:<source> ok: ...` line per configured source. Fails fast — if
+a source throws, subsequent sources don't run.
+
+**`npm run ingest:experience`** / **`npm run ingest:resume`** —
+per-source helpers, identical pipeline to `npm run ingest` but scoped
+to one source. Use when iterating on a single corpus to skip the cost
+of re-checking the others. Same output format and idempotency
+semantics.
 
 **`npm run smoke:retrieval`** — embed a hardcoded query against the
 experience corpus and print the top 3 hits with hybrid retrieval
@@ -139,10 +146,6 @@ new migration file. Success is either applied migrations listed or
 ## What this isn't (yet)
 
 Not pretending. Honest gaps:
-
-- **No PDF / resume ingest.** Only the markdown experience corpus is
-  in. M2.3 adds resume ingest via PDF text extraction → markdown
-  normalization → same chunker.
 
 - **No project README auto-sync.** Project descriptions still live in
   the system prompt. M2.5 wires GitHub webhooks to ingest READMEs
