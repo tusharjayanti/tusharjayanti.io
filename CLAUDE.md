@@ -93,6 +93,20 @@ Precedence:
 - Conventional commits: `type(scope): subject` (e.g. `feat(canary):`, `chore:`, `fix(test):`). Body explains the why and any known limitations.
 - Never include `Co-Authored-By: Claude` or any AI co-author trailer. Trailers are human-only — applies on this repo and any other.
 
+## RAG (M2.1)
+
+- File layout: `rag/chunking/` (contextual chunker), `rag/ingest/` (per-source ingest pipelines, e.g. `experience.ts`), `scripts/rag/` (CLI entry points: `ingest-experience.ts`, `smoke-retrieval.ts`), `content/` (markdown corpora — currently `experience.md`), `supabase/migrations/` (schema, grants, retrieval RPC).
+- Env vars: `SUPABASE_URL`, `SUPABASE_SECRET_KEY` (server-side, `sb_secret_*` format, authenticates as `service_role`), `SUPABASE_PUBLISHABLE_KEY` (client-side, `sb_publishable_*`), `VOYAGE_API_KEY`. All live in `.env.local`.
+- Commands: `npm run ingest:experience` (idempotent re-embed/upsert of the experience corpus), `npm run smoke:retrieval` (top-3 retrieval against a hardcoded PurpleToko query, with attribution), `supabase db push` (apply pending migrations).
+- Schema: single `chunks` table for all sources, keyed `(source, source_id, chunk_index)` unique; `content_hash` (SHA-256) drives ingest idempotency — unchanged content consumes zero Voyage tokens.
+- Pattern: contextual chunking — every chunk is one H3 section prefixed by its parent H2 heading on the first line of `content`. Paragraph-split fallback fires for H3 sections >500 tokens.
+- Embedding model: Voyage `voyage-3`, 1024 dims, asymmetric — `input_type='document'` at ingest, `input_type='query'` at retrieval. `voyageai@0.0.8` is pinned exactly (no `^`); SDK is pre-1.0, upgrades go through a manual smoke run.
+- Retrieval: `match_chunks(query_embedding, match_count, source_filter)` RPC; returns `score = 1 - cosine_distance` (higher = closer). Generalized on `source_filter` so M2.3 (resume) and M2.5 (READMEs) reuse it without new migrations. M2.2 extends in place via `create or replace` to fuse BM25.
+- Wiring: `/api/chat` does NOT call retrieval in M2.1. Tool-use integration is M2.4. M2.1 is reachable via the smoke script and direct RPC only.
+- Known: H2-preamble lines (`**Dates:** ...`, `**Tech stack:** ...`) are dropped by the chunker — they aren't inside any H3 section. Banked for M3 retrieval-data review.
+- Known: Supabase free-tier auto-pauses after 7 days inactivity (~30s cold start on first request after pause).
+- Known: service_role grants don't auto-apply on user-created tables under `sb_secret_*` keys (codified in `0002_chunks_grants.sql`).
+
 ## Guiding principle
 
 Solve the problem, keep it simple. Right-size infrastructure to actual load. Over-engineering reads as a senior anti-pattern. The portfolio must demonstrate engineering judgment — including the judgment of NOT building elaborate machinery for traffic that doesn't exist.

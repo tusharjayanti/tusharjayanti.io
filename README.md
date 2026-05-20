@@ -26,6 +26,17 @@
 
 ---
 
+## What this is
+
+A production LLMOps demo built around a real chat agent on Claude
+Sonnet 4.6. M1 shipped Langfuse observability — every chat turn becomes
+a structured, queryable trace with token, cost, and prompt-version
+fidelity. M2 is in progress: agentic RAG over the experience corpus
+today, project READMEs and resume next, with eval gates and
+closed-loop scoring landing in M3+.
+
+---
+
 ## The problem
 
 Traditional resumes are static. They list technologies, roles, and achievements, but they rarely show how someone actually thinks, builds, or communicates as an engineer.
@@ -436,6 +447,26 @@ won't be rewritten. Keep route paths dot-free.
 
 **If `/terminal` is 404ing in production:** check that `vercel.json`
 still has the `rewrites` block. That's almost always the bug.
+
+---
+
+## Stack
+
+- Vite + React 19 + TypeScript on the frontend.
+- Vercel Edge Functions for `/api/*`.
+- Upstash Redis (Mumbai) — chat logs, error logs, rate-limit counters.
+- Langfuse Cloud (Tokyo) — primary trace destination.
+- Resend (Tokyo) — outbound mail (daily digest, spike alerts).
+- Supabase Postgres + pgvector — RAG storage.
+- Voyage `voyage-3` embeddings (1024 dims, asymmetric).
+- Anthropic Claude Sonnet 4.6 for chat; Haiku 4.5 planned for evals and reranking.
+
+## Status
+
+- **M1** (observability foundation) — shipped at `v0.2.0`. Langfuse tracing, prompt versioning, cost computation. Details in [`docs/observability.md`](docs/observability.md), rationale in [`docs/decisions/0001-observability-foundation.md`](docs/decisions/0001-observability-foundation.md).
+- **M2.1** (RAG foundation) — shipped at `HEAD`. Schema, contextual chunker, Voyage embeddings, `match_chunks` RPC. Details in [`docs/rag.md`](docs/rag.md), rationale in [`docs/decisions/0002-agentic-rag.md`](docs/decisions/0002-agentic-rag.md). Not yet wired into `/api/chat`.
+- **M2.2–M2.8** — in progress; ships at `v0.3.0`. BM25 hybrid (M2.2), resume ingest (M2.3), tool-use integration (M2.4), README auto-sync (M2.5), Haiku reranking (M2.6), context compression (M2.7).
+- **M3–M6** — roadmap. Eval CI gate, `/ops` dashboard, online Haiku scoring, closed-loop eval generation.
 
 ---
 
