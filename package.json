@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "sync:prompt": "node scripts/sync-prompt.mjs",
+    "ingest:experience": "dotenv -e .env.local -- tsx scripts/ingest-experience.ts",
     "predev": "npm run sync:prompt",
     "prebuild": "npm run sync:prompt"
   },
