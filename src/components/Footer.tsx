@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { version } from '../../package.json';
 
 export function Footer() {
   return (
@@ -11,7 +12,7 @@ export function Footer() {
       >
         source
       </a>{' '}
-      · v0.1.0
+      · v{version}
     </footer>
   );
 }

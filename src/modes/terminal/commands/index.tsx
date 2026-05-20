@@ -12,6 +12,7 @@ import {
 import { whoami as whoamiText } from '../../../content/bio';
 import { experience } from '../../../content/experience';
 import { projects } from '../../../content/projects';
+import { version } from '../../../../package.json';
 
 export type ScrollbackEntry =
   | { kind: 'command'; text: string }
@@ -242,7 +243,7 @@ const status: Command = {
           </div>
           <div className="term-line">
             <span className="term-dim">build:</span>
-            {'  '}v0.1.0
+            {'  '}v{version}
           </div>
           <div className="term-line">
             <span className="term-dim">chat:</span>
