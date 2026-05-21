@@ -27,6 +27,26 @@ export const config = { runtime: 'nodejs' };
 
 const README_BASENAME = /^readme(\.md|\.markdown)?$/i;
 
+// Vercel's Node-runtime adapter doesn't expose `.text()` on the
+// request object — it's IncomingMessage-shaped, not Web Request.
+// Calling `req.text()` throws TypeError in production (caught in
+// post-deploy logs after sub-spec 3 shipped). Read as a stream
+// instead: collect raw chunks into Buffers and decode UTF-8 so we
+// recover the exact bytes GitHub signed. The .text() short-circuit
+// keeps the Web Request mocks in the unit-test suite working
+// without changing the mocked req shape.
+async function readRawBody(req: unknown): Promise<string> {
+  const maybeText = (req as { text?: () => Promise<string> }).text;
+  if (typeof maybeText === 'function') {
+    return maybeText.call(req);
+  }
+  const chunks: Buffer[] = [];
+  for await (const chunk of req as AsyncIterable<Buffer | string>) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks).toString('utf-8');
+}
+
 type PushPayload = {
   ref?: string;
   repository?: {
@@ -85,7 +105,7 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   // Read raw body once — we need the exact bytes for HMAC verification.
-  const rawBody = await req.text();
+  const rawBody = await readRawBody(req);
   const signature = req.headers.get('x-hub-signature-256');
   if (!verifySignature(rawBody, signature)) {
     console.warn('[github-webhook] signature verification failed');
