@@ -10,9 +10,11 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 export type ChunkSource = 'experience' | 'readme' | 'resume';
 
-// Mirrors the chunks table schema (supabase/migrations/0001_init_chunks.sql).
-// `tsv` is a generated tsvector column — server-maintained, present on
-// reads if explicitly selected; typically used only for FTS index lookups.
+// Mirrors the chunks table schema (supabase/migrations/0001_init_chunks.sql
+// + 0005_chunks_embedding_text.sql). `tsv` is a generated tsvector column —
+// server-maintained, present on reads if explicitly selected; typically
+// used only for FTS index lookups. `embedding_text` is what was embedded
+// into the dense vector — null for legacy rows ingested before sub-spec 1.
 export type ChunkRow = {
   id: string;
   source: ChunkSource;
@@ -20,6 +22,7 @@ export type ChunkRow = {
   chunk_index: number;
   content: string;
   embedding: number[] | null;
+  embedding_text: string | null;
   tsv: string;
   metadata: Record<string, unknown>;
   content_hash: string;
@@ -36,6 +39,7 @@ export type ChunkInput = Pick<
   | 'chunk_index'
   | 'content'
   | 'embedding'
+  | 'embedding_text'
   | 'metadata'
   | 'content_hash'
 >;

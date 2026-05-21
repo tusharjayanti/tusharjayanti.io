@@ -1,13 +1,21 @@
 // Generic markdown-source ingest pipeline used by every markdown-backed
-// RAG corpus (experience.md in M2.1, resume.md in M2.3, READMEs in M2.5).
-// Reads the file from disk, chunks via the shared markdown chunker, diffs
-// against existing rows in `chunks` (matched by source/source_id/
-// chunk_index), embeds only the rows that are new or whose content_hash
-// changed, upserts via the (source, source_id, chunk_index) unique key,
-// and deletes any rows whose chunk_index no longer appears in the new
-// chunk set (covers the "section deleted from the corpus" case). File
-// paths are resolved against process.cwd() so callers stay agnostic to
-// where the script lives.
+// RAG corpus (experience.md in M2.1, resume.md in M2.3, READMEs in
+// sub-spec 2). Reads the file from disk, hands off to the per-source
+// chunker dispatcher, diffs against existing rows in `chunks` (matched
+// by source/source_id/chunk_index), embeds only the rows that are new
+// or whose content_hash changed, upserts via the
+// (source, source_id, chunk_index) unique key, and deletes any rows
+// whose chunk_index no longer appears in the new chunk set (covers the
+// "section deleted from the corpus" case). File paths are resolved
+// against process.cwd() so callers stay agnostic to where the script
+// lives.
+//
+// Sub-spec 1 changes: the chunker is now per-source dispatched, and
+// each chunk carries both `content` (clean display text) and
+// `embedding_text` (what we embed into the dense vector). The
+// content_hash combines both so re-embedding fires whenever either
+// changes — important when only the heading-path prefix logic gets
+// tweaked but bodies don't.
 
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -31,7 +39,7 @@ export type IngestResult = {
 
 export type IngestOptions = {
   filePath: string;
-  source: string;
+  source: ChunkSource;
   source_id: string;
 };
 
@@ -39,12 +47,19 @@ function sha256Hex(text: string): string {
   return createHash('sha256').update(text, 'utf-8').digest('hex');
 }
 
+function hashChunk(chunk: MarkdownChunk): string {
+  // Combine content + embedding_text so a future change to
+  // embedding_text construction (e.g., different heading-path format)
+  // forces a re-embed even when content is byte-identical.
+  return sha256Hex(`${chunk.content}\n---embedding---\n${chunk.embedding_text}`);
+}
+
 export async function ingestMarkdownSource(
   opts: IngestOptions,
 ): Promise<IngestResult> {
   const resolvedPath = resolve(process.cwd(), opts.filePath);
   const markdown = await readFile(resolvedPath, 'utf-8');
-  const chunks = chunkMarkdown(markdown);
+  const chunks = chunkMarkdown(markdown, opts.source);
 
   if (chunks.length === 0) {
     console.warn(
@@ -80,7 +95,7 @@ export async function ingestMarkdownSource(
   let unchanged = 0;
 
   for (const chunk of chunks) {
-    const hash = sha256Hex(chunk.content);
+    const hash = hashChunk(chunk);
     const prevHash = existing.get(chunk.chunk_index);
     if (prevHash === undefined) {
       created++;
@@ -94,25 +109,26 @@ export async function ingestMarkdownSource(
   }
 
   // Single batched embedding call for everything that changed. Voyage's
-  // limit is 128 inputs per request; current corpora are well under that.
+  // limit is 128 inputs per request; current corpora are well under
+  // that. We embed `embedding_text` — the heading-path-prefixed (or
+  // overlap-prepended for sliding-window) version of the chunk — so the
+  // dense vector captures section context that clean `content` alone
+  // doesn't carry.
   let embeddings: number[][] = [];
   if (toEmbed.length > 0) {
     embeddings = await embed(
-      toEmbed.map((x) => x.chunk.content),
+      toEmbed.map((x) => x.chunk.embedding_text),
       'document',
     );
   }
 
-  // `source` is widened to `string` at the IngestOptions boundary so M2.5
-  // README ingest can supply repo-derived strings without TS friction. The
-  // DB-level check constraint in 0001_init_chunks.sql is the actual
-  // enforcement: a bad source value fails the upsert.
   const rows: ChunkInput[] = toEmbed.map((x, i) => ({
-    source: opts.source as ChunkSource,
+    source: opts.source,
     source_id: opts.source_id,
     chunk_index: x.chunk.chunk_index,
     content: x.chunk.content,
     embedding: embeddings[i],
+    embedding_text: x.chunk.embedding_text,
     metadata: { ...x.chunk.metadata },
     content_hash: x.hash,
   }));
