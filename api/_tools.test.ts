@@ -67,7 +67,7 @@ describe('executeTool — dispatch', () => {
   });
 
   it('calls match_chunks with source_filter="readme"', async () => {
-    await executeTool('search_readme', 'how does vox-agent work');
+    await executeTool('search_readme', { query: 'how does vox-agent work' });
     expect(mocks.rpc).toHaveBeenCalledTimes(1);
     const [fnName, args] = mocks.rpc.mock.calls[0]!;
     expect(fnName).toBe('match_chunks');
@@ -80,7 +80,7 @@ describe('executeTool — dispatch', () => {
   });
 
   it('formats tool_result with source=readme prefix in each chunk', async () => {
-    const result = await executeTool('search_readme', 'x');
+    const result = await executeTool('search_readme', { query: 'x' });
     expect(result.metadata.source).toBe('readme');
     expect(result.metadata.no_match).toBe(false);
     expect(result.formatted).toContain('[Source: readme,');
@@ -112,7 +112,7 @@ describe('executeTool — no-match guardrail', () => {
       ],
       error: null,
     });
-    const result = await executeTool('search_experience', 'q');
+    const result = await executeTool('search_experience', { query: 'q' });
     expect(result.metadata.no_match).toBe(false);
     expect(result.metadata.chunk_ids).toEqual([0, 1]);
     expect(result.formatted).not.toBe(NO_MATCH_TOOL_RESULT);
@@ -127,7 +127,7 @@ describe('executeTool — no-match guardrail', () => {
       ],
       error: null,
     });
-    const result = await executeTool('search_experience', 'spacex stories');
+    const result = await executeTool('search_experience', { query: 'spacex stories' });
     expect(result.metadata.no_match).toBe(true);
     expect(result.metadata.chunk_ids).toEqual([]);
     expect(result.metadata.top_scores).toEqual([]);
@@ -144,7 +144,7 @@ describe('executeTool — no-match guardrail', () => {
       ],
       error: null,
     });
-    const result = await executeTool('search_resume', 'mixed query');
+    const result = await executeTool('search_resume', { query: 'mixed query' });
     expect(result.metadata.no_match).toBe(false);
     expect(result.metadata.chunk_ids).toEqual([0, 2]);
     expect(result.formatted).not.toContain('fake chunk body 1');
@@ -159,14 +159,14 @@ describe('executeTool — no-match guardrail', () => {
       data: [row({ chunk_index: 0, semantic_distance: null })],
       error: null,
     });
-    const result = await executeTool('search_readme', 'lexical-only term');
+    const result = await executeTool('search_readme', { query: 'lexical-only term' });
     expect(result.metadata.no_match).toBe(true);
     expect(result.formatted).toBe(NO_MATCH_TOOL_RESULT);
   });
 
   it('returns no-match when the RPC returns zero rows', async () => {
     mocks.rpc.mockResolvedValue({ data: [], error: null });
-    const result = await executeTool('search_readme', 'q');
+    const result = await executeTool('search_readme', { query: 'q' });
     expect(result.metadata.no_match).toBe(true);
     expect(result.formatted).toBe(NO_MATCH_TOOL_RESULT);
   });
@@ -179,7 +179,102 @@ describe('executeTool — no-match guardrail', () => {
       data: [row({ chunk_index: 0, semantic_distance: PASSING_DISTANCE })],
       error: null,
     });
-    const result = await executeTool('search_readme', 'q');
+    const result = await executeTool('search_readme', { query: 'q' });
     expect(result.metadata.no_match).toBe(true);
+  });
+});
+
+describe('executeTool — fetch_url', () => {
+  beforeEach(() => {
+    mocks.embed.mockReset();
+    mocks.rpc.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('FETCH_URL constant is in TOOLS and recognized by isToolName', async () => {
+    const { FETCH_URL: FU, TOOLS: T, isToolName: isT } = await import(
+      './_tools.js'
+    );
+    expect(T.map((t) => t.name)).toContain(FU);
+    expect(isT('fetch_url')).toBe(true);
+  });
+
+  it('happy path: formats tool_result with the fetched markdown + sourceUrl header', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response('<html><body><h1>Job Posting</h1><p>Backend role.</p></body></html>', {
+          status: 200,
+          headers: new Headers({ 'content-type': 'text/html' }),
+        }),
+      ),
+    );
+    // Response.url is read-only when constructed plainly — defineProperty
+    // simulates the post-redirect URL fetch() exposes.
+    const originalFetch = globalThis.fetch as ReturnType<typeof vi.fn>;
+    originalFetch.mockImplementationOnce(async () => {
+      const res = new Response(
+        '<html><body><h1>Job Posting</h1><p>Backend role.</p></body></html>',
+        {
+          status: 200,
+          headers: new Headers({ 'content-type': 'text/html' }),
+        },
+      );
+      Object.defineProperty(res, 'url', { value: 'https://example.com/job/42' });
+      return res;
+    });
+
+    const result = await executeTool('fetch_url', {
+      url: 'https://example.com/job/42',
+    });
+    expect(result.metadata.source).toBe('web');
+    expect(result.metadata.no_match).toBe(false);
+    expect(result.metadata.fetch_url?.error).toBeNull();
+    expect(result.metadata.fetch_url?.truncated).toBe('none');
+    expect(result.metadata.fetch_url?.source_url).toBe(
+      'https://example.com/job/42',
+    );
+    expect(result.formatted).toContain('[Fetched: https://example.com/job/42]');
+    expect(result.formatted).toContain('Job Posting');
+    expect(result.formatted).toContain('Backend role');
+  });
+
+  it('error path: 404 surfaces as a tool_result error string', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async () => {
+        const res = new Response('not found', {
+          status: 404,
+          headers: new Headers({ 'content-type': 'text/html' }),
+        });
+        Object.defineProperty(res, 'url', { value: 'https://example.com/missing' });
+        return res;
+      }),
+    );
+    const result = await executeTool('fetch_url', {
+      url: 'https://example.com/missing',
+    });
+    expect(result.metadata.no_match).toBe(true);
+    expect(result.metadata.fetch_url?.error).toMatch(/HTTP 404/);
+    expect(result.formatted).toMatch(/^\[fetch_url error\]/);
+  });
+
+  it('error path: SSRF block surfaces as a tool_result error string', async () => {
+    const result = await executeTool('fetch_url', {
+      url: 'http://localhost/secret',
+    });
+    expect(result.metadata.no_match).toBe(true);
+    expect(result.metadata.fetch_url?.error).toMatch(
+      /URL not allowed for security reasons/,
+    );
+  });
+
+  it('rejects fetch_url calls missing the url input', async () => {
+    const result = await executeTool('fetch_url', {});
+    expect(result.metadata.no_match).toBe(true);
+    expect(result.formatted).toMatch(/Invalid input/);
   });
 });

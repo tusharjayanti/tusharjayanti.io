@@ -489,6 +489,53 @@ describe('chat handler — Langfuse tracing', () => {
   });
 });
 
+describe('chat handler — q length cap (50,000 chars)', () => {
+  let captured: Promise<unknown>[];
+  let ctx: { waitUntil: (p: Promise<unknown>) => void };
+
+  beforeEach(() => {
+    captured = [];
+    ctx = { waitUntil: (p) => captured.push(p) };
+    fakeRedis.incr.mockResolvedValue(1);
+    fakeRedis.expire.mockResolvedValue(1);
+    fakeRedis.lpush.mockResolvedValue(1);
+    fakeRedis.set.mockResolvedValue('OK');
+    mocks.sendLeakAlert.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('accepts a 49,999-character q without validation failure', async () => {
+    mocks.messagesCreate.mockResolvedValue(fakeAnthropicStream('processed long input'));
+    const longQ = 'x'.repeat(49_999);
+    const res = (await handler(makeRequest(longQ), ctx)) as Response;
+    await drainStream(res);
+    await Promise.all(captured);
+    expect(res.status).toBe(200);
+    // Anthropic call DID fire — q passed validation.
+    expect(mocks.messagesCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a 50,001-character q with the actionable error message', async () => {
+    const tooLongQ = 'x'.repeat(50_001);
+    const res = (await handler(makeRequest(tooLongQ), ctx)) as Response;
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/50,000 character limit/);
+    expect(body.error).toMatch(/summarize/);
+    expect(mocks.messagesCreate).not.toHaveBeenCalled();
+  });
+
+  it('rejects an empty q with the original 1..50,000 message', async () => {
+    const res = (await handler(makeRequest(''), ctx)) as Response;
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/1\.\.50,000/);
+  });
+});
+
 describe('chat handler — M2.4 tool-use', () => {
   let captured: Promise<unknown>[];
   let ctx: { waitUntil: (p: Promise<unknown>) => void };
@@ -548,7 +595,7 @@ describe('chat handler — M2.4 tool-use', () => {
     expect(mocks.executeTool).toHaveBeenCalledTimes(1);
     const toolCallArgs = mocks.executeTool.mock.calls[0]!;
     expect(toolCallArgs[0]).toBe('search_experience');
-    expect(toolCallArgs[1]).toBe('identity platform migration');
+    expect(toolCallArgs[1]).toEqual({ query: 'identity platform migration' });
 
     // Two generations (one per Anthropic round): anthropic_first_call
     // then anthropic_second_call. Tool-execution span is a child of the

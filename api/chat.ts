@@ -33,7 +33,12 @@ import { TOOLS, executeTool, isToolName } from './_tools.js';
 
 export const runtime = 'edge';
 
-const MAX_Q_LENGTH = 500;
+// Raised from 500 to 50,000 so users can paste a full JD or article
+// inline without hitting the validation wall. 50K chars ≈ 12.5K
+// tokens — well within Sonnet's context budget alongside the system
+// prompt and any retrieved chunks. The chat handler also has a
+// `fetch_url` tool for cases where the user pastes a link instead.
+const MAX_Q_LENGTH = 50_000;
 const MODEL_ID = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
 // Cap on tool-use rounds per turn. 3 rounds = initial + 2 tool follow-ups,
@@ -229,7 +234,10 @@ export default async function handler(
       resOrCtx,
       new Response(
         JSON.stringify({
-          error: `expected { q: string } with 1..${MAX_Q_LENGTH} chars`,
+          error:
+            q.length === 0
+              ? 'expected { q: string } with 1..50,000 chars'
+              : 'Message exceeds 50,000 character limit. Please summarize the key parts or paste a relevant section.',
         }),
         { status: 400, headers: { 'content-type': 'application/json' } },
       ),
@@ -609,9 +617,18 @@ export default async function handler(
               });
               continue;
             }
-            const input = block.input as { query?: unknown };
-            const query =
-              typeof input?.query === 'string' ? input.query : '';
+            // Tool input shape varies by tool — search_* takes `query`,
+            // fetch_url takes `url`. Pull whichever is present for
+            // the tool-execution span's display string; pass the full
+            // input through to executeTool which knows the per-tool
+            // parsing.
+            const rawInput = (block.input ?? {}) as Record<string, unknown>;
+            const inputDisplay =
+              typeof rawInput.query === 'string'
+                ? rawInput.query
+                : typeof rawInput.url === 'string'
+                  ? rawInput.url
+                  : '';
 
             // Per M2.4 spec PART 4: tool-execution spans are children of
             // the first call's generation (the one that emitted the
@@ -624,7 +641,7 @@ export default async function handler(
               span =
                 parent?.span({
                   name: 'tool-execution',
-                  input: { tool: block.name, query },
+                  input: { tool: block.name, input: rawInput },
                   startTime: new Date(),
                 }) ?? null;
             } catch (err) {
@@ -632,13 +649,13 @@ export default async function handler(
             }
 
             try {
-              const toolResult = await executeTool(block.name, query);
+              const toolResult = await executeTool(block.name, rawInput);
               toolResults.push({
                 type: 'tool_result',
                 tool_use_id: block.id,
                 content: toolResult.formatted,
               });
-              ragMeta.rag_queries.push(query);
+              ragMeta.rag_queries.push(inputDisplay);
               if (!ragMeta.rag_sources.includes(toolResult.metadata.source)) {
                 ragMeta.rag_sources.push(toolResult.metadata.source);
               }

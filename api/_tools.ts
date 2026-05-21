@@ -15,18 +15,25 @@
 
 import { embed } from './_voyage.js';
 import { getSupabaseClient } from './_supabase.js';
+import { fetchUrl } from './_webFetch.js';
 
 export const SEARCH_EXPERIENCE = 'search_experience';
 export const SEARCH_RESUME = 'search_resume';
 export const SEARCH_README = 'search_readme';
+export const FETCH_URL = 'fetch_url';
 
 export type ToolName =
   | typeof SEARCH_EXPERIENCE
   | typeof SEARCH_RESUME
-  | typeof SEARCH_README;
+  | typeof SEARCH_README
+  | typeof FETCH_URL;
 type RetrievalSource = 'experience' | 'resume' | 'readme';
+export type ToolSource = RetrievalSource | 'web';
 
-const TOOL_SOURCE_MAP: Record<ToolName, RetrievalSource> = {
+const SEARCH_SOURCE_MAP: Record<
+  Exclude<ToolName, typeof FETCH_URL>,
+  RetrievalSource
+> = {
   [SEARCH_EXPERIENCE]: 'experience',
   [SEARCH_RESUME]: 'resume',
   [SEARCH_README]: 'readme',
@@ -83,16 +90,41 @@ export const TOOLS = [
       required: ['query'],
     },
   },
+  {
+    name: FETCH_URL,
+    description:
+      "Fetch the text content of a public web URL the user has pasted into the chat — typically a job description, article, or external page they want discussed. Returns the page content as markdown for token efficiency. The user must have included the URL in their message; do NOT invent URLs. Use this when the user provides a URL and the answer requires reading that page. Fetched content is for THIS turn only and is not persisted. Very long pages are truncated at ~150K tokens with a notice appended.",
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        url: {
+          type: 'string',
+          description:
+            'The HTTP or HTTPS URL to fetch, taken verbatim from the user\'s message.',
+        },
+      },
+      required: ['url'],
+    },
+  },
 ];
 
 export type ToolCallResult = {
   formatted: string;
   metadata: {
+    // The user-facing input — query string for search_*, the URL for
+    // fetch_url. Stored verbatim in the trace for M3 eval surfacing.
     query: string;
-    source: RetrievalSource;
+    source: ToolSource;
     chunk_ids: number[];
     top_scores: number[];
     no_match: boolean;
+    // fetch_url only — sourceUrl is the post-redirect URL,
+    // truncated marks which size cap fired if any.
+    fetch_url?: {
+      source_url: string;
+      truncated: 'none' | 'raw' | 'markdown';
+      error: string | null;
+    };
   };
 };
 
@@ -134,15 +166,100 @@ export function isToolName(name: string): name is ToolName {
   return (
     name === SEARCH_EXPERIENCE ||
     name === SEARCH_RESUME ||
-    name === SEARCH_README
+    name === SEARCH_README ||
+    name === FETCH_URL
   );
 }
 
 export async function executeTool(
   toolName: ToolName,
+  input: unknown,
+): Promise<ToolCallResult> {
+  if (toolName === FETCH_URL) {
+    const url = (input as { url?: unknown })?.url;
+    if (typeof url !== 'string' || url.length === 0) {
+      return {
+        formatted: 'Invalid input: fetch_url requires a `url` string.',
+        metadata: {
+          query: '',
+          source: 'web',
+          chunk_ids: [],
+          top_scores: [],
+          no_match: true,
+          fetch_url: {
+            source_url: '',
+            truncated: 'none',
+            error: 'missing or invalid url input',
+          },
+        },
+      };
+    }
+    return executeFetchUrl(url);
+  }
+
+  const query = (input as { query?: unknown })?.query;
+  if (typeof query !== 'string' || query.length === 0) {
+    return {
+      formatted: 'Invalid input: search tools require a `query` string.',
+      metadata: {
+        query: '',
+        source: SEARCH_SOURCE_MAP[toolName],
+        chunk_ids: [],
+        top_scores: [],
+        no_match: true,
+      },
+    };
+  }
+  return executeSearch(toolName, query);
+}
+
+async function executeFetchUrl(url: string): Promise<ToolCallResult> {
+  const result = await fetchUrl(url);
+  if ('error' in result) {
+    console.log('[chat] fetch_url error', { url, error: result.error });
+    return {
+      formatted: `[fetch_url error] ${result.error}`,
+      metadata: {
+        query: url,
+        source: 'web',
+        chunk_ids: [],
+        top_scores: [],
+        no_match: true,
+        fetch_url: {
+          source_url: url,
+          truncated: 'none',
+          error: result.error,
+        },
+      },
+    };
+  }
+  const header =
+    `[Fetched: ${result.sourceUrl}]\n` +
+    (result.truncated !== 'none'
+      ? `[Truncation: ${result.truncated}]\n`
+      : '');
+  return {
+    formatted: header + '\n' + result.content,
+    metadata: {
+      query: url,
+      source: 'web',
+      chunk_ids: [],
+      top_scores: [],
+      no_match: false,
+      fetch_url: {
+        source_url: result.sourceUrl,
+        truncated: result.truncated,
+        error: null,
+      },
+    },
+  };
+}
+
+async function executeSearch(
+  toolName: Exclude<ToolName, typeof FETCH_URL>,
   query: string,
 ): Promise<ToolCallResult> {
-  const source = TOOL_SOURCE_MAP[toolName];
+  const source = SEARCH_SOURCE_MAP[toolName];
 
   const [queryEmbedding] = await embed([query], 'query');
   const supabase = getSupabaseClient();
