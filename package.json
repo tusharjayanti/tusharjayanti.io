@@ -18,6 +18,7 @@
     "ingest": "dotenv -e .env.local -- tsx scripts/rag/ingest.ts",
     "ingest:experience": "dotenv -e .env.local -- tsx scripts/rag/ingest-experience.ts",
     "ingest:resume": "dotenv -e .env.local -- tsx scripts/rag/ingest-resume.ts",
+    "backfill:readmes": "dotenv -e .env.local -- tsx scripts/rag/backfill-readmes.ts",
     "smoke:retrieval": "dotenv -e .env.local -- tsx scripts/rag/smoke-retrieval.ts",
     "smoke:chat": "dotenv -e .env.local -- tsx scripts/rag/smoke-chat.ts",
     "predev": "npm run sync:prompt",
@@ -25,6 +26,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
+    "@octokit/rest": "^22.0.1",
     "@supabase/supabase-js": "^2.106.1",
     "@upstash/redis": "^1.34.3",
     "langfuse": "^3.38.20",

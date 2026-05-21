@@ -43,15 +43,35 @@ export type IngestOptions = {
   source_id: string;
 };
 
-function sha256Hex(text: string): string {
+export function sha256Hex(text: string): string {
   return createHash('sha256').update(text, 'utf-8').digest('hex');
 }
 
-function hashChunk(chunk: MarkdownChunk): string {
-  // Combine content + embedding_text so a future change to
-  // embedding_text construction (e.g., different heading-path format)
-  // forces a re-embed even when content is byte-identical.
-  return sha256Hex(`${chunk.content}\n---embedding---\n${chunk.embedding_text}`);
+// Hash bundles `content` + `embedding_text` so a future change to
+// embedding_text construction (e.g., a different heading-path format)
+// forces a re-embed even when content is byte-identical.
+//
+// Source-conditional: README rows (sub-spec 2) extend the input with
+// a `summary_input_hash` derived from neighbor chunks. That lets the
+// Haiku-summary step share a single cache key with the embedding —
+// when the chunk OR either neighbor changes, the chunk re-summarizes
+// AND re-embeds together. Non-readme sources keep the exact deployed
+// formula so the 41 pre-sub-spec-2 rows hash to byte-identical values
+// after this lands. The literal `'<none>'` sentinel from the spec is
+// replaced by "don't append the suffix at all" — same operational
+// outcome, and arithmetically valid (sha256(A + B) ≠ sha256(A)).
+export function hashChunk(
+  chunk: MarkdownChunk,
+  source: ChunkSource,
+  summaryInputHash?: string,
+): string {
+  const base = `${chunk.content}\n---embedding---\n${chunk.embedding_text}`;
+  if (source === 'readme') {
+    return sha256Hex(
+      `${base}\n---summary_input_hash---\n${summaryInputHash ?? ''}`,
+    );
+  }
+  return sha256Hex(base);
 }
 
 export async function ingestMarkdownSource(
@@ -95,7 +115,7 @@ export async function ingestMarkdownSource(
   let unchanged = 0;
 
   for (const chunk of chunks) {
-    const hash = hashChunk(chunk);
+    const hash = hashChunk(chunk, opts.source);
     const prevHash = existing.get(chunk.chunk_index);
     if (prevHash === undefined) {
       created++;
