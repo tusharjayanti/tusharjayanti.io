@@ -29,12 +29,17 @@ import {
   type CompatRequest,
 } from './_compat.js';
 import { getLangfuse, makeSystemPromptHandle } from './_langfuse.js';
+import { TOOLS, executeTool, isToolName } from './_tools.js';
 
 export const runtime = 'edge';
 
 const MAX_Q_LENGTH = 500;
 const MODEL_ID = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
+// Cap on tool-use rounds per turn. 3 rounds = initial + 2 tool follow-ups,
+// which is more than Sonnet ever needs for the two RAG tools in M2.4 and
+// guards against runaway loops if a future tool returns ambiguous results.
+const MAX_TOOL_ROUNDS = 3;
 
 const REFUSAL_TEXT = 'Not how this works. Want to know what I built at DISCO?';
 const RATE_LIMIT_TEXT =
@@ -71,17 +76,27 @@ async function fireAndForget(
   await promise.catch(() => undefined);
 }
 
-// Update trace with final tags + output and flush. Wrapped in try-catch so
-// Langfuse failures never break user-facing chat.
+// Update trace with final tags + output + RAG metadata, then flush.
+// Wrapped in try-catch so Langfuse failures never break user-facing chat.
 async function finalizeTrace(
   lf: Langfuse | null,
   trace: LangfuseTraceClient | null,
   tags: string[],
   output: string,
+  ragMeta: RagTraceMetadata,
 ): Promise<void> {
   if (!lf || !trace) return;
   try {
-    trace.update({ output, tags });
+    trace.update({
+      output,
+      tags,
+      metadata: {
+        rag_retrieved: ragMeta.rag_retrieved,
+        rag_queries: ragMeta.rag_queries,
+        rag_sources: ragMeta.rag_sources,
+        rag_top_chunk_ids: ragMeta.rag_top_chunk_ids,
+      },
+    });
     await lf.flushAsync();
   } catch (err) {
     console.error('[langfuse] trace finalize failed:', err);
@@ -145,6 +160,41 @@ function checkAndSendSpike(resOrCtx: unknown): void {
   );
 }
 
+// Per-tool-use block accumulator. JSON arrives as `input_json_delta`
+// fragments inside content_block_delta events; we concatenate them and
+// JSON.parse at content_block_stop. `id` and `name` come from the
+// content_block_start event for the block.
+type ToolUseAccum = {
+  id: string;
+  name: string;
+  jsonBuffer: string;
+};
+
+// Result of one Anthropic streaming round. Encodes the content blocks
+// in the assistant message (used to reconstruct conversation history),
+// the stop_reason, and per-call usage.
+type StreamRoundResult = {
+  contentBlocks: Array<
+    | { type: 'text'; text: string }
+    | { type: 'tool_use'; id: string; name: string; input: unknown }
+  >;
+  stopReason: string | null;
+  usage: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
+  model?: string;
+};
+
+type RagTraceMetadata = {
+  rag_retrieved: boolean;
+  rag_queries: string[];
+  rag_sources: string[];
+  rag_top_chunk_ids: string[];
+};
+
 export default async function handler(
   req: CompatRequest,
   resOrCtx?: unknown,
@@ -193,6 +243,12 @@ export default async function handler(
   // rather than appending, so we set them in one call).
   const lf = getLangfuse();
   const tags: string[] = [];
+  const ragMeta: RagTraceMetadata = {
+    rag_retrieved: false,
+    rag_queries: [],
+    rag_sources: [],
+    rag_top_chunk_ids: [],
+  };
   let trace: LangfuseTraceClient | null = null;
   try {
     if (lf) {
@@ -232,7 +288,7 @@ export default async function handler(
     tags.push('rate-limited');
     await fireAndForget(
       resOrCtx,
-      finalizeTrace(lf, trace, tags, RATE_LIMIT_TEXT),
+      finalizeTrace(lf, trace, tags, RATE_LIMIT_TEXT, ragMeta),
     );
     const body =
       JSON.stringify({ type: 'error', message: RATE_LIMIT_TEXT }) +
@@ -258,8 +314,6 @@ export default async function handler(
       async start(controller) {
         emit(controller, { type: 'delta', text: REFUSAL_TEXT });
         emit(controller, { type: 'done' });
-        // await log BEFORE close so the dev-mode inline wait keeps the
-        // function alive long enough for the log write to land.
         await fireAndForget(
           resOrCtx,
           logChatTurn({ ipHash, q, aPreview: REFUSAL_TEXT }).catch((err) => {
@@ -268,7 +322,7 @@ export default async function handler(
         );
         await fireAndForget(
           resOrCtx,
-          finalizeTrace(lf, trace, tags, REFUSAL_TEXT),
+          finalizeTrace(lf, trace, tags, REFUSAL_TEXT, ragMeta),
         );
         controller.close();
       },
@@ -279,43 +333,67 @@ export default async function handler(
     );
   }
 
-  // (e) Anthropic stream
+  // (e) Anthropic — single client streaming session that may span multiple
+  // Anthropic round-trips if Sonnet emits tool_use blocks. The outer
+  // ReadableStream is the user-facing channel; inside, we iterate rounds
+  // until Sonnet returns end_turn (or we hit MAX_TOOL_ROUNDS).
   const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
   });
 
-  const messages: Array<{ role: 'user'; content: string }> = [
-    { role: 'user', content: q },
-  ];
-  let generation: LangfuseGenerationClient | null = null;
-  try {
-    const promptHandle = makeSystemPromptHandle(
-      PROMPT_NAME,
-      PROMPT_VERSION_NUMBER,
-    );
-    generation =
-      trace?.generation({
-        name: 'sonnet-response',
-        model: MODEL_ID,
-        input: messages,
-        startTime: new Date(),
-        ...(promptHandle ? { prompt: promptHandle } : {}),
-      }) ?? null;
-  } catch (err) {
-    console.error('[langfuse] generation create failed:', err);
-  }
+  type Message = Anthropic.Messages.MessageParam;
+  const messages: Message[] = [{ role: 'user', content: q }];
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let accumulated = '';
-      let tokensIn: number | undefined;
-      let tokensOut: number | undefined;
-      let cacheCreationTokens: number | undefined;
-      let cacheReadTokens: number | undefined;
+      let totalTokensIn: number | undefined;
+      let totalTokensOut: number | undefined;
+      let totalCacheCreationTokens: number | undefined;
+      let totalCacheReadTokens: number | undefined;
       let model: string | undefined;
       let firstTokenAt: number | null = null;
       const startMs = Date.now();
-      try {
+
+      // Per-round helper. Runs one Anthropic streaming call, streams text
+      // deltas to the client (preserving the no-tool TTFT), and returns the
+      // structured assistant message + usage. Each round opens its own
+      // Langfuse generation so cost/token breakdown survives multi-call turns.
+      let firstGeneration: LangfuseGenerationClient | null = null;
+      async function runRound(roundIndex: number): Promise<StreamRoundResult> {
+        const promptHandle = makeSystemPromptHandle(
+          PROMPT_NAME,
+          PROMPT_VERSION_NUMBER,
+        );
+        let generation: LangfuseGenerationClient | null = null;
+        try {
+          // Snapshot messages — the array is mutated as the turn progresses
+          // (assistant content blocks + tool_result blocks appended each
+          // round), so Langfuse must see the input state at THIS call's
+          // moment, not the final array.
+          const inputSnapshot = JSON.parse(JSON.stringify(messages));
+          // Per the M2.4 spec PART 4 trace taxonomy: round 0 is the call
+          // that may produce tool_use ("anthropic_first_call"); rounds 1+
+          // are the follow-up responses after tool_results land
+          // ("anthropic_second_call").
+          const generationName =
+            roundIndex === 0 ? 'anthropic_first_call' : 'anthropic_second_call';
+          generation =
+            trace?.generation({
+              name: generationName,
+              model: MODEL_ID,
+              input: inputSnapshot,
+              startTime: new Date(),
+              metadata: { round: roundIndex },
+              ...(promptHandle ? { prompt: promptHandle } : {}),
+            }) ?? null;
+          if (roundIndex === 0) {
+            firstGeneration = generation;
+          }
+        } catch (err) {
+          console.error('[langfuse] generation create failed:', err);
+        }
+
         const anthropicStream = await anthropic.messages.create({
           model: MODEL_ID,
           max_tokens: MAX_TOKENS,
@@ -327,37 +405,275 @@ export default async function handler(
             },
           ],
           messages,
+          tools: TOOLS,
           stream: true,
         });
+
+        // Per-block accumulators keyed by content_block index. Anthropic
+        // streams events with `index` indicating which block they belong to.
+        const blockTypes = new Map<number, 'text' | 'tool_use'>();
+        const textBuffers = new Map<number, string>();
+        const toolBuffers = new Map<number, ToolUseAccum>();
+        const blockOrder: number[] = [];
+
+        let roundTokensIn: number | undefined;
+        let roundTokensOut: number | undefined;
+        let roundCacheCreation: number | undefined;
+        let roundCacheRead: number | undefined;
+        let stopReason: string | null = null;
+        let roundOutputText = '';
 
         for await (const event of anthropicStream) {
           if (event.type === 'message_start') {
             const u = event.message?.usage;
-            if (u?.input_tokens !== undefined) tokensIn = u.input_tokens;
-            // Truthy guard: drops null and zero. Cache fields are only
-            // present in the log when there's actual caching activity.
+            if (u?.input_tokens !== undefined) roundTokensIn = u.input_tokens;
             if (u?.cache_creation_input_tokens) {
-              cacheCreationTokens = u.cache_creation_input_tokens;
+              roundCacheCreation = u.cache_creation_input_tokens;
             }
             if (u?.cache_read_input_tokens) {
-              cacheReadTokens = u.cache_read_input_tokens;
+              roundCacheRead = u.cache_read_input_tokens;
             }
             if (event.message?.model) model = event.message.model;
-          } else if (
-            event.type === 'content_block_delta' &&
-            event.delta.type === 'text_delta'
-          ) {
-            const text = event.delta.text;
-            if (firstTokenAt === null) firstTokenAt = Date.now();
-            accumulated += text;
-            emit(controller, { type: 'delta', text });
+          } else if (event.type === 'content_block_start') {
+            const idx = event.index;
+            blockOrder.push(idx);
+            const cb = event.content_block;
+            if (cb.type === 'text') {
+              blockTypes.set(idx, 'text');
+              textBuffers.set(idx, '');
+            } else if (cb.type === 'tool_use') {
+              blockTypes.set(idx, 'tool_use');
+              toolBuffers.set(idx, {
+                id: cb.id,
+                name: cb.name,
+                jsonBuffer: '',
+              });
+            }
+          } else if (event.type === 'content_block_delta') {
+            const idx = event.index;
+            const blockType = blockTypes.get(idx);
+            if (blockType === 'text' && event.delta.type === 'text_delta') {
+              const text = event.delta.text;
+              if (firstTokenAt === null) firstTokenAt = Date.now();
+              accumulated += text;
+              roundOutputText += text;
+              textBuffers.set(idx, (textBuffers.get(idx) ?? '') + text);
+              emit(controller, { type: 'delta', text });
+            } else if (
+              blockType === 'tool_use' &&
+              event.delta.type === 'input_json_delta'
+            ) {
+              const acc = toolBuffers.get(idx);
+              if (acc) acc.jsonBuffer += event.delta.partial_json;
+            }
           } else if (event.type === 'message_delta') {
-            // Cumulative output token count; last value wins.
             if (event.usage?.output_tokens !== undefined) {
-              tokensOut = event.usage.output_tokens;
+              roundTokensOut = event.usage.output_tokens;
+            }
+            if (event.delta?.stop_reason) {
+              stopReason = event.delta.stop_reason;
             }
           }
         }
+
+        // End-of-round Langfuse: emit usage + per-round output text. Cache
+        // tokens are per-call (only the first call typically writes the
+        // system prompt cache; subsequent calls read it).
+        try {
+          if (generation) {
+            const usageDetails: Record<string, number> = {};
+            if (roundTokensIn !== undefined) usageDetails.input = roundTokensIn;
+            if (roundTokensOut !== undefined)
+              usageDetails.output = roundTokensOut;
+            if (roundTokensIn !== undefined && roundTokensOut !== undefined) {
+              usageDetails.total = roundTokensIn + roundTokensOut;
+            }
+            if (roundCacheCreation !== undefined) {
+              usageDetails.cache_creation_input_tokens = roundCacheCreation;
+            }
+            if (roundCacheRead !== undefined) {
+              usageDetails.cache_read_input_tokens = roundCacheRead;
+            }
+            generation.end({
+              output: roundOutputText,
+              usageDetails,
+              metadata: {
+                stop_reason: stopReason,
+                latencyMs: Date.now() - startMs,
+              },
+            });
+          }
+        } catch (err) {
+          console.error('[langfuse] generation end failed:', err);
+        }
+
+        // Aggregate token counts across rounds. For input_tokens / cache_*
+        // we sum across rounds — the second call's input includes the
+        // first call's assistant message + tool_result, so summing reflects
+        // actual prompt-token spend.
+        if (roundTokensIn !== undefined) {
+          totalTokensIn = (totalTokensIn ?? 0) + roundTokensIn;
+        }
+        if (roundTokensOut !== undefined) {
+          totalTokensOut = (totalTokensOut ?? 0) + roundTokensOut;
+        }
+        if (roundCacheCreation !== undefined) {
+          totalCacheCreationTokens =
+            (totalCacheCreationTokens ?? 0) + roundCacheCreation;
+        }
+        if (roundCacheRead !== undefined) {
+          totalCacheReadTokens = (totalCacheReadTokens ?? 0) + roundCacheRead;
+        }
+
+        const contentBlocks: StreamRoundResult['contentBlocks'] = [];
+        for (const idx of blockOrder) {
+          const type = blockTypes.get(idx);
+          if (type === 'text') {
+            const text = textBuffers.get(idx) ?? '';
+            if (text.length > 0) contentBlocks.push({ type: 'text', text });
+          } else if (type === 'tool_use') {
+            const acc = toolBuffers.get(idx);
+            if (!acc) continue;
+            let input: unknown = {};
+            try {
+              input = acc.jsonBuffer.length > 0 ? JSON.parse(acc.jsonBuffer) : {};
+            } catch (err) {
+              console.error(
+                '[chat] tool input JSON parse failed:',
+                err,
+                'buffer:',
+                acc.jsonBuffer,
+              );
+            }
+            contentBlocks.push({
+              type: 'tool_use',
+              id: acc.id,
+              name: acc.name,
+              input,
+            });
+          }
+        }
+
+        return {
+          contentBlocks,
+          stopReason,
+          usage: {
+            input_tokens: roundTokensIn,
+            output_tokens: roundTokensOut,
+            cache_creation_input_tokens: roundCacheCreation,
+            cache_read_input_tokens: roundCacheRead,
+          },
+          model,
+        };
+      }
+
+      try {
+        for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+          const result = await runRound(round);
+
+          // Append assistant message to conversation history.
+          messages.push({ role: 'assistant', content: result.contentBlocks });
+
+          const toolUseBlocks = result.contentBlocks.filter(
+            (b): b is { type: 'tool_use'; id: string; name: string; input: unknown } =>
+              b.type === 'tool_use',
+          );
+
+          if (
+            result.stopReason !== 'tool_use' ||
+            toolUseBlocks.length === 0
+          ) {
+            // Sonnet finished without (or done with) tool calls. Exit loop.
+            break;
+          }
+
+          // Execute each tool block in order, build tool_result content
+          // blocks, then continue the conversation. One Langfuse span per
+          // tool execution captures the query + chunk metadata.
+          ragMeta.rag_retrieved = true;
+          const toolResults: Array<{
+            type: 'tool_result';
+            tool_use_id: string;
+            content: string;
+          }> = [];
+          for (const block of toolUseBlocks) {
+            if (!isToolName(block.name)) {
+              console.error('[chat] unknown tool name:', block.name);
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: block.id,
+                content: `[Unknown tool: ${block.name}]`,
+              });
+              continue;
+            }
+            const input = block.input as { query?: unknown };
+            const query =
+              typeof input?.query === 'string' ? input.query : '';
+
+            // Per M2.4 spec PART 4: tool-execution spans are children of
+            // the first call's generation (the one that emitted the
+            // tool_use blocks we're now executing). Fall through to
+            // trace-level if firstGeneration wasn't created.
+            let span: ReturnType<NonNullable<typeof trace>['span']> | null =
+              null;
+            try {
+              const parent = firstGeneration ?? trace;
+              span =
+                parent?.span({
+                  name: 'tool-execution',
+                  input: { tool: block.name, query },
+                  startTime: new Date(),
+                }) ?? null;
+            } catch (err) {
+              console.error('[langfuse] span create failed:', err);
+            }
+
+            try {
+              const toolResult = await executeTool(block.name, query);
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: block.id,
+                content: toolResult.formatted,
+              });
+              ragMeta.rag_queries.push(query);
+              if (!ragMeta.rag_sources.includes(toolResult.metadata.source)) {
+                ragMeta.rag_sources.push(toolResult.metadata.source);
+              }
+              for (const id of toolResult.metadata.chunk_ids) {
+                ragMeta.rag_top_chunk_ids.push(String(id));
+              }
+              try {
+                span?.end({
+                  output: {
+                    source: toolResult.metadata.source,
+                    chunk_ids: toolResult.metadata.chunk_ids,
+                    top_scores: toolResult.metadata.top_scores,
+                  },
+                });
+              } catch (err) {
+                console.error('[langfuse] span end failed:', err);
+              }
+            } catch (err) {
+              console.error('[chat] tool execution failed:', err);
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: block.id,
+                content: `[Tool execution failed: ${err instanceof Error ? err.message : String(err)}]`,
+              });
+              try {
+                span?.end({
+                  output: { error: err instanceof Error ? err.message : String(err) },
+                });
+              } catch {
+                // swallow
+              }
+            }
+          }
+
+          messages.push({ role: 'user', content: toolResults });
+          // Loop continues for the next round.
+        }
+
         emit(controller, { type: 'done' });
       } catch (err) {
         console.error('[chat] anthropic stream error:', err);
@@ -400,32 +716,6 @@ export default async function handler(
         if (detectRefusal(accumulated)) {
           tags.push('model-refused');
         }
-        // End Langfuse generation with usage + metadata. usageDetails is
-        // the v3 SDK's accepted field for token counts (incl. cache tokens);
-        // Langfuse computes cost from `model` + token counts upstream.
-        try {
-          if (generation) {
-            const usageDetails: Record<string, number> = {};
-            if (tokensIn !== undefined) usageDetails.input = tokensIn;
-            if (tokensOut !== undefined) usageDetails.output = tokensOut;
-            if (tokensIn !== undefined && tokensOut !== undefined) {
-              usageDetails.total = tokensIn + tokensOut;
-            }
-            if (cacheCreationTokens !== undefined) {
-              usageDetails.cache_creation_input_tokens = cacheCreationTokens;
-            }
-            if (cacheReadTokens !== undefined) {
-              usageDetails.cache_read_input_tokens = cacheReadTokens;
-            }
-            generation.end({
-              output: accumulated,
-              usageDetails,
-              metadata: { timeToFirstTokenMs: ttftMs, latencyMs },
-            });
-          }
-        } catch (err) {
-          console.error('[langfuse] generation end failed:', err);
-        }
         // (g) log turn — await BEFORE close so dev-mode inline wait holds the
         // stream open until the log completes; Edge prod uses waitUntil and
         // returns immediately so the order is harmless there.
@@ -435,10 +725,10 @@ export default async function handler(
             ipHash,
             q,
             aPreview: accumulated.slice(0, 280),
-            tokensIn,
-            tokensOut,
-            cacheCreationTokens,
-            cacheReadTokens,
+            tokensIn: totalTokensIn,
+            tokensOut: totalTokensOut,
+            cacheCreationTokens: totalCacheCreationTokens,
+            cacheReadTokens: totalCacheReadTokens,
             model,
             latencyMs,
             ...(leak.hit && { canary_leak: true }),
@@ -448,8 +738,9 @@ export default async function handler(
         );
         await fireAndForget(
           resOrCtx,
-          finalizeTrace(lf, trace, tags, accumulated),
+          finalizeTrace(lf, trace, tags, accumulated, ragMeta),
         );
+        void ttftMs;
         controller.close();
       }
     },

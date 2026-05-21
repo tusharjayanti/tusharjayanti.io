@@ -13,22 +13,32 @@ const mocks = vi.hoisted(() => ({
   messagesCreate: vi.fn(),
   sendLeakAlert: vi.fn(),
   sendEmail: vi.fn(),
+  executeTool: vi.fn(),
 }));
 
 const lf = vi.hoisted(() => {
-  const generation = {
+  const span = {
     end: vi.fn(),
     update: vi.fn(),
   };
+  // Mock generation. `span()` returns the tool-execution span — per M2.4
+  // PART 4, tool-execution spans are children of the first call's
+  // generation, so the chat handler attaches them via generation.span().
+  const generation = {
+    end: vi.fn(),
+    update: vi.fn(),
+    span: vi.fn(() => span),
+  };
   const trace = {
     generation: vi.fn(() => generation),
+    span: vi.fn(() => span),
     update: vi.fn(),
   };
   const client = {
     trace: vi.fn(() => trace),
     flushAsync: vi.fn(() => Promise.resolve()),
   };
-  return { client, trace, generation };
+  return { client, trace, generation, span };
 });
 
 vi.mock('@upstash/redis', () => ({
@@ -45,6 +55,40 @@ vi.mock('./_resend.js', () => ({
   sendLeakAlert: mocks.sendLeakAlert,
   sendEmail: mocks.sendEmail,
 }));
+
+// Mock the tool module so chat.test.ts stays an offline unit test — no
+// Voyage / Supabase round-trips. Tests that exercise the tool-use code
+// path supply mock results via mocks.executeTool.
+vi.mock('./_tools.js', async () => {
+  const TOOLS = [
+    {
+      name: 'search_experience',
+      description: 'mock',
+      input_schema: {
+        type: 'object' as const,
+        properties: { query: { type: 'string' } },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'search_resume',
+      description: 'mock',
+      input_schema: {
+        type: 'object' as const,
+        properties: { query: { type: 'string' } },
+        required: ['query'],
+      },
+    },
+  ];
+  return {
+    TOOLS,
+    executeTool: mocks.executeTool,
+    isToolName: (n: string) =>
+      n === 'search_experience' || n === 'search_resume',
+    SEARCH_EXPERIENCE: 'search_experience',
+    SEARCH_RESUME: 'search_resume',
+  };
+});
 
 // Mock _systemPrompt.js with deterministic values so the prompt-linkage
 // test is independent of whatever sync-prompt.mjs last wrote. The mock
@@ -72,7 +116,11 @@ vi.mock('./_langfuse.js', async () => {
 const { default: handler } = await import('./chat.js');
 const { CANARY_TOKEN } = await import('./_systemPrompt.js');
 
-function fakeAnthropicStream(text: string) {
+// Faithful-to-SDK fake. Real Anthropic streams emit content_block_start
+// before any delta, and content_block_stop before message_delta; the
+// chat handler's stream loop now relies on that sequence to disambiguate
+// text vs tool_use blocks.
+function fakeAnthropicStream(text: string, stopReason: string = 'end_turn') {
   return (async function* () {
     yield {
       type: 'message_start',
@@ -82,13 +130,76 @@ function fakeAnthropicStream(text: string) {
       },
     };
     yield {
-      type: 'content_block_delta',
-      delta: { type: 'text_delta', text },
+      type: 'content_block_start',
+      index: 0,
+      content_block: { type: 'text', text: '' },
     };
     yield {
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'text_delta', text },
+    };
+    yield { type: 'content_block_stop', index: 0 };
+    yield {
       type: 'message_delta',
+      delta: { stop_reason: stopReason },
       usage: { output_tokens: 10 },
     };
+    yield { type: 'message_stop' };
+  })();
+}
+
+// Streams a tool_use content block. `inputJson` is the partial_json that
+// would arrive across input_json_delta events; we send it as a single
+// delta here for simplicity (real streams chunk it more finely, but the
+// handler concatenates and JSON.parses at content_block_stop so the
+// granularity doesn't matter).
+function fakeAnthropicToolUseStream(
+  toolId: string,
+  toolName: string,
+  inputJson: string,
+  preambleText: string = '',
+) {
+  return (async function* () {
+    yield {
+      type: 'message_start',
+      message: {
+        usage: { input_tokens: 7 },
+        model: 'claude-sonnet-4-6',
+      },
+    };
+    let nextIndex = 0;
+    if (preambleText.length > 0) {
+      yield {
+        type: 'content_block_start',
+        index: nextIndex,
+        content_block: { type: 'text', text: '' },
+      };
+      yield {
+        type: 'content_block_delta',
+        index: nextIndex,
+        delta: { type: 'text_delta', text: preambleText },
+      };
+      yield { type: 'content_block_stop', index: nextIndex };
+      nextIndex++;
+    }
+    yield {
+      type: 'content_block_start',
+      index: nextIndex,
+      content_block: { type: 'tool_use', id: toolId, name: toolName, input: {} },
+    };
+    yield {
+      type: 'content_block_delta',
+      index: nextIndex,
+      delta: { type: 'input_json_delta', partial_json: inputJson },
+    };
+    yield { type: 'content_block_stop', index: nextIndex };
+    yield {
+      type: 'message_delta',
+      delta: { stop_reason: 'tool_use' },
+      usage: { output_tokens: 12 },
+    };
+    yield { type: 'message_stop' };
   })();
 }
 
@@ -228,7 +339,7 @@ describe('chat handler — Langfuse tracing', () => {
       model: string;
       input: Array<{ role: string; content: string }>;
     }>(lf.trace.generation);
-    expect(genArg.name).toBe('sonnet-response');
+    expect(genArg.name).toBe('anthropic_first_call');
     expect(genArg.model).toBe('claude-sonnet-4-6');
     expect(genArg.input).toEqual([{ role: 'user', content: 'hello' }]);
 
@@ -331,7 +442,13 @@ describe('chat handler — Langfuse tracing', () => {
           },
         };
         yield {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'text', text: '' },
+        };
+        yield {
           type: 'content_block_delta',
+          index: 0,
           delta: { type: 'text_delta', text: 'partial ' },
         };
         throw new Error('upstream connection lost');
@@ -369,5 +486,227 @@ describe('chat handler — Langfuse tracing', () => {
     expect(finalUpdate.tags).toEqual(['canary-leak']);
     expect(finalUpdate.output).toContain('[REDACTED]');
     expect(finalUpdate.output).not.toContain(CANARY_TOKEN);
+  });
+});
+
+describe('chat handler — M2.4 tool-use', () => {
+  let captured: Promise<unknown>[];
+  let ctx: { waitUntil: (p: Promise<unknown>) => void };
+
+  beforeEach(() => {
+    captured = [];
+    ctx = { waitUntil: (p) => captured.push(p) };
+    fakeRedis.incr.mockResolvedValue(1);
+    fakeRedis.expire.mockResolvedValue(1);
+    fakeRedis.lpush.mockResolvedValue(1);
+    fakeRedis.set.mockResolvedValue('OK');
+    mocks.sendLeakAlert.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function lastCallArg<T = Record<string, unknown>>(fn: {
+    mock: { calls: unknown[][] };
+  }): T {
+    const calls = fn.mock.calls;
+    return calls[calls.length - 1]![0] as T;
+  }
+
+  it('executes a search_experience tool call and continues with a streamed answer', async () => {
+    mocks.executeTool.mockResolvedValue({
+      formatted: '[Source: experience, score: 0.0328]\nDISCO > Identity migration\nfake chunk body',
+      metadata: {
+        query: 'identity platform migration',
+        source: 'experience',
+        chunk_ids: [0, 2, 4],
+        top_scores: [0.0328, 0.0161, 0.0159],
+      },
+    });
+    mocks.messagesCreate
+      .mockResolvedValueOnce(
+        fakeAnthropicToolUseStream(
+          'toolu_abc',
+          'search_experience',
+          '{"query":"identity platform migration"}',
+          'Let me search for that. ',
+        ),
+      )
+      .mockResolvedValueOnce(
+        fakeAnthropicStream('At DISCO I migrated the identity platform.'),
+      );
+
+    const res = (await handler(
+      makeRequest('walk me through the identity platform migration'),
+      ctx,
+    )) as Response;
+    const body = await drainStream(res);
+    await Promise.all(captured);
+
+    expect(mocks.messagesCreate).toHaveBeenCalledTimes(2);
+    expect(mocks.executeTool).toHaveBeenCalledTimes(1);
+    const toolCallArgs = mocks.executeTool.mock.calls[0]!;
+    expect(toolCallArgs[0]).toBe('search_experience');
+    expect(toolCallArgs[1]).toBe('identity platform migration');
+
+    // Two generations (one per Anthropic round): anthropic_first_call
+    // then anthropic_second_call. Tool-execution span is a child of the
+    // first generation per M2.4 PART 4 spec.
+    expect(lf.trace.generation).toHaveBeenCalledTimes(2);
+    expect(lf.generation.end).toHaveBeenCalledTimes(2);
+    const generationCalls = lf.trace.generation.mock
+      .calls as unknown as unknown[][];
+    const generationNames = generationCalls.map(
+      (c) => (c[0] as { name: string }).name,
+    );
+    expect(generationNames).toEqual([
+      'anthropic_first_call',
+      'anthropic_second_call',
+    ]);
+    expect(lf.generation.span).toHaveBeenCalledTimes(1);
+    expect(lf.span.end).toHaveBeenCalledTimes(1);
+    const spanCalls = lf.generation.span.mock.calls as unknown as unknown[][];
+    const spanArg = spanCalls[0]![0] as {
+      name: string;
+      input: { tool: string; query: string };
+    };
+    expect(spanArg.name).toBe('tool-execution');
+    expect(spanArg.input.tool).toBe('search_experience');
+
+    // Final trace update carries the rag metadata.
+    const finalUpdate = lastCallArg<{
+      output: string;
+      tags: string[];
+      metadata: {
+        rag_retrieved: boolean;
+        rag_queries: string[];
+        rag_sources: string[];
+        rag_top_chunk_ids: string[];
+      };
+    }>(lf.trace.update);
+    expect(finalUpdate.metadata.rag_retrieved).toBe(true);
+    expect(finalUpdate.metadata.rag_queries).toEqual([
+      'identity platform migration',
+    ]);
+    expect(finalUpdate.metadata.rag_sources).toEqual(['experience']);
+    expect(finalUpdate.metadata.rag_top_chunk_ids).toEqual(['0', '2', '4']);
+
+    // The preamble + final answer both stream to the client.
+    expect(finalUpdate.output).toContain('Let me search for that.');
+    expect(finalUpdate.output).toContain(
+      'At DISCO I migrated the identity platform.',
+    );
+    // Output stream emits both segments.
+    expect(body).toContain('Let me search for that.');
+    expect(body).toContain('At DISCO I migrated the identity platform.');
+  });
+
+  it('executes both tools when Sonnet calls search_experience and search_resume in one round', async () => {
+    mocks.executeTool
+      .mockResolvedValueOnce({
+        formatted: '[Source: experience]\nbody A',
+        metadata: {
+          query: 'latency optimization story',
+          source: 'experience',
+          chunk_ids: [3, 7],
+          top_scores: [0.03, 0.02],
+        },
+      })
+      .mockResolvedValueOnce({
+        formatted: '[Source: resume]\nbody B',
+        metadata: {
+          query: 'elevator pitch',
+          source: 'resume',
+          chunk_ids: [0],
+          top_scores: [0.05],
+        },
+      });
+    mocks.messagesCreate
+      .mockResolvedValueOnce(
+        (async function* () {
+          yield {
+            type: 'message_start',
+            message: {
+              usage: { input_tokens: 7 },
+              model: 'claude-sonnet-4-6',
+            },
+          };
+          yield {
+            type: 'content_block_start',
+            index: 0,
+            content_block: {
+              type: 'tool_use',
+              id: 'toolu_1',
+              name: 'search_experience',
+              input: {},
+            },
+          };
+          yield {
+            type: 'content_block_delta',
+            index: 0,
+            delta: {
+              type: 'input_json_delta',
+              partial_json: '{"query":"latency optimization story"}',
+            },
+          };
+          yield { type: 'content_block_stop', index: 0 };
+          yield {
+            type: 'content_block_start',
+            index: 1,
+            content_block: {
+              type: 'tool_use',
+              id: 'toolu_2',
+              name: 'search_resume',
+              input: {},
+            },
+          };
+          yield {
+            type: 'content_block_delta',
+            index: 1,
+            delta: {
+              type: 'input_json_delta',
+              partial_json: '{"query":"elevator pitch"}',
+            },
+          };
+          yield { type: 'content_block_stop', index: 1 };
+          yield {
+            type: 'message_delta',
+            delta: { stop_reason: 'tool_use' },
+            usage: { output_tokens: 15 },
+          };
+          yield { type: 'message_stop' };
+        })(),
+      )
+      .mockResolvedValueOnce(fakeAnthropicStream('Combined answer.'));
+
+    const res = (await handler(
+      makeRequest('elevator pitch plus a latency story please'),
+      ctx,
+    )) as Response;
+    await drainStream(res);
+    await Promise.all(captured);
+
+    expect(mocks.executeTool).toHaveBeenCalledTimes(2);
+    expect(mocks.executeTool.mock.calls[0]![0]).toBe('search_experience');
+    expect(mocks.executeTool.mock.calls[1]![0]).toBe('search_resume');
+    // Both tool spans are children of the first generation.
+    expect(lf.generation.span).toHaveBeenCalledTimes(2);
+
+    const finalUpdate = lastCallArg<{
+      metadata: {
+        rag_retrieved: boolean;
+        rag_queries: string[];
+        rag_sources: string[];
+        rag_top_chunk_ids: string[];
+      };
+    }>(lf.trace.update);
+    expect(finalUpdate.metadata.rag_retrieved).toBe(true);
+    expect(finalUpdate.metadata.rag_queries).toEqual([
+      'latency optimization story',
+      'elevator pitch',
+    ]);
+    expect(finalUpdate.metadata.rag_sources).toEqual(['experience', 'resume']);
+    expect(finalUpdate.metadata.rag_top_chunk_ids).toEqual(['3', '7', '0']);
   });
 });

@@ -113,6 +113,41 @@ query builder call, means M2.2 was a server-only migration and the
 caller signature changes were limited to the new `query_text`
 parameter.
 
+## Tool-use integration (M2.4)
+
+`/api/chat` calls retrieval through Anthropic tool-use, not directly.
+Two source-scoped tools are exposed to Sonnet — `search_experience`
+(detailed role writeups) and `search_resume` (compact summaries) — and
+the model decides per-turn whether to call them. The tool definitions
+live in [`api/_tools.ts`](../api/_tools.ts); each executes one embed +
+one `match_chunks` RPC and formats the top-3 chunks as a single
+`tool_result` text block.
+
+The chat handler runs one Anthropic streaming session per user turn,
+not one per call. Inside that session the stream loop iterates rounds:
+text deltas stream to the client immediately (so any preamble Sonnet
+emits — "let me look that up" — flows through with no added TTFT),
+tool_use blocks accumulate until the round ends, then any tool calls
+execute and a follow-up round starts on the same client stream. The
+loop exits when Sonnet returns `end_turn`. Cap is 3 rounds per turn,
+which is more than the two RAG tools ever need but guards against
+runaway loops if a future tool returns ambiguous results.
+
+Langfuse picks up the round structure: one `sonnet-response`
+generation per Anthropic call (so per-call token / cache / cost
+breakdown survives multi-call turns), one `tool-execution` span per
+tool firing, and the per-turn trace carries `rag_retrieved`,
+`rag_queries`, `rag_sources`, and `rag_top_chunk_ids` metadata. The
+M3 `/ops` dashboard will filter on those metadata fields.
+
+The system prompt steers the model toward NOT calling tools for the
+common cases (greetings, off-topic refusals, anything already covered
+by the inline role-specific facts). This is deliberate — there's
+substantial overlap between the inline facts and the corpus today, so
+tools should fire only when the inline facts run out. M2.7 (context
+compression) will trim the inline facts once retrieval is the
+load-bearing path.
+
 ## Operations
 
 Three commands cover day-to-day:
@@ -158,11 +193,6 @@ Not pretending. Honest gaps:
 - **No context compression.** Retrieved chunks land in the prompt
   verbatim. M2.7 adds Haiku-driven extractive compression to keep
   the chat handler under the cache breakpoint.
-
-- **`/api/chat` doesn't call retrieval yet.** The pipeline is live,
-  the chat handler doesn't use it. M2.4 wires Anthropic tool-use so
-  the model decides _whether_ to retrieve and what to query for —
-  rather than retrieving on every turn.
 
 - **H2-preamble lines dropped.** As noted above, `**Dates:**` and
   `**Tech stack:**` lines that live directly under an H2 are not in

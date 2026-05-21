@@ -19,6 +19,7 @@
     "ingest:experience": "dotenv -e .env.local -- tsx scripts/rag/ingest-experience.ts",
     "ingest:resume": "dotenv -e .env.local -- tsx scripts/rag/ingest-resume.ts",
     "smoke:retrieval": "dotenv -e .env.local -- tsx scripts/rag/smoke-retrieval.ts",
+    "smoke:chat": "dotenv -e .env.local -- tsx scripts/rag/smoke-chat.ts",
     "predev": "npm run sync:prompt",
     "prebuild": "npm run sync:prompt"
   },
