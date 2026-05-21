@@ -1,0 +1,3992 @@
+{
+  "run_at": "2026-05-21T17:58:24.317Z",
+  "mode": "unified",
+  "dataset_size": 31,
+  "overall": {
+    "count": 26,
+    "retrieval_at_1": 0.6153846153846154,
+    "retrieval_at_3": 0.8076923076923077,
+    "retrieval_at_5": 0.8076923076923077,
+    "mrr": 0.7097069597069597
+  },
+  "guardrail": {
+    "count": 5,
+    "fired": 0,
+    "rate": 0
+  },
+  "results": [
+    {
+      "id": "Q1",
+      "query": "How does vox-agent's hallucination detection work?",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.472394450676276,
+          "cosine_similarity": 0.5276055493237239,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 21,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.547099874827262,
+          "cosine_similarity": 0.45290012517273803,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.559489704309666,
+          "cosine_similarity": 0.44051029569033395,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0,
+          "score": 0.015625,
+          "semantic_distance": 0.563399169647644,
+          "cosine_similarity": 0.436600830352356,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 23,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.596317428240699,
+          "cosine_similarity": 0.403682571759301,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.613343614737499,
+          "cosine_similarity": 0.386656385262501,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 3,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.617494110689089,
+          "cosine_similarity": 0.382505889310911,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 2,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.632951218871808,
+          "cosine_similarity": 0.36704878112819195,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 3,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.663795490974053,
+          "cosine_similarity": 0.336204509025947,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 5,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.680142989162892,
+          "cosine_similarity": 0.31985701083710805,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 3,
+      "reciprocal_rank": 0.3333333333333333,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q2",
+      "query": "What's the architecture of calculator-agent?",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 0,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.50973425834579,
+          "cosine_similarity": 0.49026574165421,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 2,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.51632827325722,
+          "cosine_similarity": 0.48367172674278003,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 1,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.517146975824056,
+          "cosine_similarity": 0.482853024175944,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 20,
+          "score": 0.015625,
+          "semantic_distance": 0.560824025722015,
+          "cosine_similarity": 0.43917597427798505,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.673801214140761,
+          "cosine_similarity": 0.326198785859239,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 3,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.703303694725037,
+          "cosine_similarity": 0.29669630527496305,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 7,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 4,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.710495059431186,
+          "cosine_similarity": 0.28950494056881404,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 8,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 1,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.716481566429138,
+          "cosine_similarity": 0.28351843357086204,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 9,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 3,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.717557076506961,
+          "cosine_similarity": 0.282442923493039,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 10,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.718141065946753,
+          "cosine_similarity": 0.281858934053247,
+          "is_correct": false,
+          "above_floor": false
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 5
+    },
+    {
+      "id": "Q3",
+      "query": "What's tusharjayanti.io built with?",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 0,
+          "score": 0.0327868852459016,
+          "semantic_distance": 0.440280623402517,
+          "cosine_similarity": 0.559719376597483,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 11,
+          "score": 0.0315136476426799,
+          "semantic_distance": 0.584117496960312,
+          "cosine_similarity": 0.415882503039688,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 1,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.53021427989006,
+          "cosine_similarity": 0.46978572010994,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.567582960868897,
+          "cosine_similarity": 0.43241703913110296,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 21,
+          "score": 0.015625,
+          "semantic_distance": 0.572854280471802,
+          "cosine_similarity": 0.427145719528198,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 7,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.590391278266907,
+          "cosine_similarity": 0.40960872173309304,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 19,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.594055091980402,
+          "cosine_similarity": 0.40594490801959804,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.60566246509552,
+          "cosine_similarity": 0.39433753490448,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.630070090293884,
+          "cosine_similarity": 0.36992990970611594,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 5,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.63778941180832,
+          "cosine_similarity": 0.36221058819167995,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q4",
+      "query": "what makes the customer-support agent reliable",
+      "target_source": "readme",
+      "tags": [
+        "adversarial",
+        "vocabulary-poor",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.527860536341053,
+          "cosine_similarity": 0.472139463658947,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.622440956685485,
+          "cosine_similarity": 0.37755904331451495,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.630667466839174,
+          "cosine_similarity": 0.36933253316082604,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 10,
+          "score": 0.015625,
+          "semantic_distance": 0.642324011256574,
+          "cosine_similarity": 0.357675988743426,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 5,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.650972029508827,
+          "cosine_similarity": 0.34902797049117296,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.651509803353572,
+          "cosine_similarity": 0.348490196646428,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 1,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.660600384438014,
+          "cosine_similarity": 0.33939961556198595,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 0,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.670669217665838,
+          "cosine_similarity": 0.329330782334162,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 0,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.678100744542456,
+          "cosine_similarity": 0.32189925545754405,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 4,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.679189045477566,
+          "cosine_similarity": 0.320810954522434,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q5",
+      "query": "how does this project handle errors",
+      "target_source": "readme",
+      "tags": [
+        "adversarial",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 3,
+          "score": 0.0163934426229508,
+          "semantic_distance": null,
+          "cosine_similarity": null,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 12,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.705350910979399,
+          "cosine_similarity": 0.29464908902060105,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 3,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 1,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.732087107648,
+          "cosine_similarity": 0.267912892352,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 4,
+          "source": "readme",
+          "source_id": "tusharjayanti/TensorflowChatbot",
+          "chunk_index": 0,
+          "score": 0.0161290322580645,
+          "semantic_distance": null,
+          "cosine_similarity": null,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 5,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.734250815600058,
+          "cosine_similarity": 0.265749184399942,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 6,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 5,
+          "score": 0.015625,
+          "semantic_distance": 0.736216250368059,
+          "cosine_similarity": 0.26378374963194096,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 7,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.747892074475398,
+          "cosine_similarity": 0.25210792552460204,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 8,
+          "source": "readme",
+          "source_id": "tusharjayanti/OpticalCharacterRecognition",
+          "chunk_index": 3,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.753620296285115,
+          "cosine_similarity": 0.24637970371488505,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 9,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 4,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.754546775329882,
+          "cosine_similarity": 0.245453224670118,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 10,
+          "source": "readme",
+          "source_id": "tusharjayanti/OpticalCharacterRecognition",
+          "chunk_index": 2,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.757231055397202,
+          "cosine_similarity": 0.24276894460279796,
+          "is_correct": false,
+          "above_floor": false
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": false,
+      "retrieval_at_5": false,
+      "first_correct_rank": null,
+      "reciprocal_rank": 0,
+      "guardrail_fired": null,
+      "chunks_above_floor": 0
+    },
+    {
+      "id": "Q6",
+      "query": "Tushar's experience at DISCO",
+      "target_source": "experience",
+      "tags": [
+        "realistic",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 3,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.606775921381236,
+          "cosine_similarity": 0.39322407861876396,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 2,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.625393707316926,
+          "cosine_similarity": 0.374606292683074,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 6,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.628630794801163,
+          "cosine_similarity": 0.371369205198837,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 1,
+          "score": 0.015625,
+          "semantic_distance": 0.645859869194635,
+          "cosine_similarity": 0.354140130805365,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.653106997814564,
+          "cosine_similarity": 0.34689300218543595,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 5,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.673612723540879,
+          "cosine_similarity": 0.326387276459121,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 1,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.673699786475294,
+          "cosine_similarity": 0.32630021352470595,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 13,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.682565183868872,
+          "cosine_similarity": 0.317434816131128,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 0,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.687121899764707,
+          "cosine_similarity": 0.31287810023529306,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 4,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.691408565384405,
+          "cosine_similarity": 0.308591434615595,
+          "is_correct": true,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q7",
+      "query": "Tell me how vox-agent catches AI mistakes",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "vocabulary-poor",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.467977611301995,
+          "cosine_similarity": 0.532022388698005,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.529412332703152,
+          "cosine_similarity": 0.470587667296848,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.542400525283829,
+          "cosine_similarity": 0.457599474716171,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 21,
+          "score": 0.015625,
+          "semantic_distance": 0.606508779719733,
+          "cosine_similarity": 0.39349122028026695,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 2,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.633417058986934,
+          "cosine_similarity": 0.366582941013066,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 2,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.639279401194959,
+          "cosine_similarity": 0.36072059880504104,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 0,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.639353055934699,
+          "cosine_similarity": 0.36064694406530096,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 3,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.639567006813496,
+          "cosine_similarity": 0.360432993186504,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 3,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.641484888659275,
+          "cosine_similarity": 0.358515111340725,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 5,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.647278715589008,
+          "cosine_similarity": 0.35272128441099204,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q8",
+      "query": "How is calculator-agent structured?",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "vocabulary-poor",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 2,
+          "score": 0.0327868852459016,
+          "semantic_distance": 0.475232842536822,
+          "cosine_similarity": 0.524767157463178,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 0,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.497595533656941,
+          "cosine_similarity": 0.502404466343059,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 1,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.499990493058591,
+          "cosine_similarity": 0.500009506941409,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 20,
+          "score": 0.015625,
+          "semantic_distance": 0.548454037585125,
+          "cosine_similarity": 0.451545962414875,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.711464319658068,
+          "cosine_similarity": 0.288535680341932,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 6,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 3,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.729248496383606,
+          "cosine_similarity": 0.270751503616394,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 7,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.740919247810885,
+          "cosine_similarity": 0.25908075218911497,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 8,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 11,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.750375971198082,
+          "cosine_similarity": 0.24962402880191803,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 9,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 3,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.754822641611099,
+          "cosine_similarity": 0.24517735838890098,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 10,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 0,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.755254819989204,
+          "cosine_similarity": 0.24474518001079604,
+          "is_correct": false,
+          "above_floor": false
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 4
+    },
+    {
+      "id": "Q9",
+      "query": "show me the AI evaluation project",
+      "target_source": "readme",
+      "tags": [
+        "vocabulary-poor",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 19,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.543376627169646,
+          "cosine_similarity": 0.45662337283035404,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 2,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.54552298784256,
+          "cosine_similarity": 0.45447701215743996,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.560234099626541,
+          "cosine_similarity": 0.439765900373459,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.015625,
+          "semantic_distance": 0.562060084220165,
+          "cosine_similarity": 0.43793991577983504,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 21,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.577031821012497,
+          "cosine_similarity": 0.42296817898750305,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 5,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.577347338199615,
+          "cosine_similarity": 0.42265266180038497,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.578427604892336,
+          "cosine_similarity": 0.421572395107664,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 20,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.581489757033027,
+          "cosine_similarity": 0.41851024296697303,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 11,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.581849242338583,
+          "cosine_similarity": 0.41815075766141696,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.585442692041397,
+          "cosine_similarity": 0.414557307958603,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": false,
+      "retrieval_at_5": false,
+      "first_correct_rank": 7,
+      "reciprocal_rank": 0.14285714285714285,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q10",
+      "query": "which of these projects use Python",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/TensorflowChatbot",
+          "chunk_index": 0,
+          "score": 0.0308861962461392,
+          "semantic_distance": 0.671486625494165,
+          "cosine_similarity": 0.32851337450583495,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/OpticalCharacterRecognition",
+          "chunk_index": 0,
+          "score": 0.0295716460100022,
+          "semantic_distance": 0.68086963891983,
+          "cosine_similarity": 0.31913036108017,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 1,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.621756851673126,
+          "cosine_similarity": 0.378243148326874,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 19,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.628386713766259,
+          "cosine_similarity": 0.371613286233741,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "readme",
+          "source_id": "tusharjayanti/OpticalCharacterRecognition",
+          "chunk_index": 2,
+          "score": 0.0161290322580645,
+          "semantic_distance": null,
+          "cosine_similarity": null,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 6,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 5,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.647217205332684,
+          "cosine_similarity": 0.352782794667316,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.015625,
+          "semantic_distance": 0.655817985534668,
+          "cosine_similarity": 0.34418201446533203,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 10,
+          "score": 0.015625,
+          "semantic_distance": null,
+          "cosine_similarity": null,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 9,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 21,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.655923575162888,
+          "cosine_similarity": 0.344076424837112,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 17,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.659459391800128,
+          "cosine_similarity": 0.340540608199872,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 2,
+      "reciprocal_rank": 0.5,
+      "guardrail_fired": null,
+      "chunks_above_floor": 8
+    },
+    {
+      "id": "Q11",
+      "query": "What's the multi-agent architecture in shortlist?",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 0,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.485268115997314,
+          "cosine_similarity": 0.514731884002686,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 1,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.520631045103073,
+          "cosine_similarity": 0.479368954896927,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 19,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.540137203939986,
+          "cosine_similarity": 0.459862796060014,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 12,
+          "score": 0.015625,
+          "semantic_distance": 0.549946457147598,
+          "cosine_similarity": 0.45005354285240196,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 3,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.575076605375015,
+          "cosine_similarity": 0.42492339462498496,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.576302315217118,
+          "cosine_similarity": 0.42369768478288194,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 2,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.591142575877017,
+          "cosine_similarity": 0.408857424122983,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 10,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.607916878710162,
+          "cosine_similarity": 0.392083121289838,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.66572380057488,
+          "cosine_similarity": 0.33427619942512,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.676714718341827,
+          "cosine_similarity": 0.32328528165817305,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q12",
+      "query": "How does shortlist score jobs?",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 0,
+          "score": 0.0325224748810153,
+          "semantic_distance": 0.431231498718262,
+          "cosine_similarity": 0.5687685012817381,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 9,
+          "score": 0.0320184426229508,
+          "semantic_distance": 0.529063254594803,
+          "cosine_similarity": 0.47093674540519703,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 1,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.456997513771057,
+          "cosine_similarity": 0.543002486228943,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 19,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.493995636343695,
+          "cosine_similarity": 0.506004363656305,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 12,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.539964079856873,
+          "cosine_similarity": 0.460035920143127,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 10,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.54748260408847,
+          "cosine_similarity": 0.45251739591152995,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 4,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.548186719417572,
+          "cosine_similarity": 0.451813280582428,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 3,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.56103315585654,
+          "cosine_similarity": 0.43896684414346,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 2,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.57650534230534,
+          "cosine_similarity": 0.42349465769466,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 7,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.605800973677516,
+          "cosine_similarity": 0.39419902632248405,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 3,
+      "reciprocal_rank": 0.3333333333333333,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q13",
+      "query": "explain the resume helper tool",
+      "target_source": "readme",
+      "tags": [
+        "vocabulary-poor",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 10,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.496245801896354,
+          "cosine_similarity": 0.503754198103646,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 1,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.516496181488037,
+          "cosine_similarity": 0.483503818511963,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 2,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.567066468842798,
+          "cosine_similarity": 0.432933531157202,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 9,
+          "score": 0.015625,
+          "semantic_distance": 0.57122141122818,
+          "cosine_similarity": 0.42877858877181996,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 1,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.606961607933044,
+          "cosine_similarity": 0.393038392066956,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 6,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.607011056364241,
+          "cosine_similarity": 0.392988943635759,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 4,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.642740219831467,
+          "cosine_similarity": 0.357259780168533,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 19,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.655559042427482,
+          "cosine_similarity": 0.344440957572518,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 12,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.657610863447189,
+          "cosine_similarity": 0.342389136552811,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 0,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.671593189239502,
+          "cosine_similarity": 0.32840681076049805,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": false,
+      "retrieval_at_5": false,
+      "first_correct_rank": 7,
+      "reciprocal_rank": 0.14285714285714285,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q14",
+      "query": "How does vox-agent rate-limit requests?",
+      "target_source": "readme",
+      "tags": [
+        "out-of-corpus",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.533159412898877,
+          "cosine_similarity": 0.466840587101123,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 12,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.588569997037942,
+          "cosine_similarity": 0.411430002962058,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 4,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.593298940852122,
+          "cosine_similarity": 0.406701059147878,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0,
+          "score": 0.015625,
+          "semantic_distance": 0.601208168484238,
+          "cosine_similarity": 0.39879183151576203,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 8,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.642727560211351,
+          "cosine_similarity": 0.357272439788649,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 3,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.649747885726073,
+          "cosine_similarity": 0.350252114273927,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 10,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.652967003518401,
+          "cosine_similarity": 0.347032996481599,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 2,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.654069738939051,
+          "cosine_similarity": 0.34593026106094904,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.654613652022723,
+          "cosine_similarity": 0.34538634797727696,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 3,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.655081917496964,
+          "cosine_similarity": 0.344918082503036,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": null,
+      "retrieval_at_3": null,
+      "retrieval_at_5": null,
+      "first_correct_rank": null,
+      "reciprocal_rank": null,
+      "guardrail_fired": false,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q15",
+      "query": "How does the job-search agent handle audio?",
+      "target_source": "readme",
+      "tags": [
+        "out-of-corpus",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.62377058721956,
+          "cosine_similarity": 0.37622941278044,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 19,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.630995013177097,
+          "cosine_similarity": 0.36900498682290295,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 0,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.632279992103577,
+          "cosine_similarity": 0.367720007896423,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 4,
+          "score": 0.015625,
+          "semantic_distance": 0.637437522411346,
+          "cosine_similarity": 0.362562477588654,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 12,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.641619265079498,
+          "cosine_similarity": 0.35838073492050204,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 1,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.652303993701935,
+          "cosine_similarity": 0.34769600629806496,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.669643700122833,
+          "cosine_similarity": 0.33035629987716697,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 0,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.674953242389954,
+          "cosine_similarity": 0.325046757610046,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 1,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.696847319602966,
+          "cosine_similarity": 0.303152680397034,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 2,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.70333679954252,
+          "cosine_similarity": 0.29666320045747996,
+          "is_correct": false,
+          "above_floor": false
+        }
+      ],
+      "retrieval_at_1": null,
+      "retrieval_at_3": null,
+      "retrieval_at_5": null,
+      "first_correct_rank": null,
+      "reciprocal_rank": null,
+      "guardrail_fired": false,
+      "chunks_above_floor": 9
+    },
+    {
+      "id": "Q16",
+      "query": "what does the OCR project preprocess?",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/OpticalCharacterRecognition",
+          "chunk_index": 2,
+          "score": 0.0327868852459016,
+          "semantic_distance": 0.490627080760771,
+          "cosine_similarity": 0.509372919239229,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/OpticalCharacterRecognition",
+          "chunk_index": 0,
+          "score": 0.032258064516129,
+          "semantic_distance": 0.524897664785385,
+          "cosine_similarity": 0.475102335214615,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 23,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.59481418132782,
+          "cosine_similarity": 0.40518581867217995,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.015625,
+          "semantic_distance": 0.611514389514923,
+          "cosine_similarity": 0.388485610485077,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "readme",
+          "source_id": "tusharjayanti/OpticalCharacterRecognition",
+          "chunk_index": 3,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.66509872674942,
+          "cosine_similarity": 0.33490127325057995,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "readme",
+          "source_id": "tusharjayanti/OpticalCharacterRecognition",
+          "chunk_index": 1,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.706830620765686,
+          "cosine_similarity": 0.29316937923431396,
+          "is_correct": true,
+          "above_floor": false
+        },
+        {
+          "rank": 7,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 9,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.720062613487244,
+          "cosine_similarity": 0.279937386512756,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 8,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 13,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.735997780322896,
+          "cosine_similarity": 0.264002219677104,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 9,
+          "source": "readme",
+          "source_id": "tusharjayanti/TensorflowChatbot",
+          "chunk_index": 0,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.745560557179383,
+          "cosine_similarity": 0.25443944282061703,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 10,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 11,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.750589266419411,
+          "cosine_similarity": 0.24941073358058896,
+          "is_correct": false,
+          "above_floor": false
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 2,
+      "reciprocal_rank": 0.5,
+      "guardrail_fired": null,
+      "chunks_above_floor": 5
+    },
+    {
+      "id": "Q17",
+      "query": "Tushar's gRPC migration at DISCO",
+      "target_source": "experience",
+      "tags": [
+        "realistic",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 1,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.425931070689486,
+          "cosine_similarity": 0.574068929310514,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 6,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.552247470885214,
+          "cosine_similarity": 0.447752529114786,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 0,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.565294869577273,
+          "cosine_similarity": 0.43470513042272696,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 2,
+          "score": 0.015625,
+          "semantic_distance": 0.594926035101773,
+          "cosine_similarity": 0.405073964898227,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 3,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.632663100957868,
+          "cosine_similarity": 0.36733689904213196,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 6,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.671548456390064,
+          "cosine_similarity": 0.328451543609936,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 5,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.675825238227842,
+          "cosine_similarity": 0.324174761772158,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 4,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.68991627157233,
+          "cosine_similarity": 0.31008372842766996,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.69690780025171,
+          "cosine_similarity": 0.30309219974829005,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 10,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.704858574705592,
+          "cosine_similarity": 0.295141425294408,
+          "is_correct": false,
+          "above_floor": false
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 9
+    },
+    {
+      "id": "Q18",
+      "query": "What was the Reserve Release feature?",
+      "target_source": "experience",
+      "tags": [
+        "realistic",
+        "single-source",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 11,
+          "score": 0.0327868852459016,
+          "semantic_distance": 0.561724841594696,
+          "cosine_similarity": 0.43827515840530396,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 8,
+          "score": 0.0320020481310804,
+          "semantic_distance": 0.77904412150383,
+          "cosine_similarity": 0.22095587849617004,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 3,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 5,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.755822717449339,
+          "cosine_similarity": 0.24417728255066096,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 4,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 1,
+          "score": 0.015625,
+          "semantic_distance": 0.789504051208496,
+          "cosine_similarity": 0.21049594879150402,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 5,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 10,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.789689923561819,
+          "cosine_similarity": 0.210310076438181,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 6,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 6,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.804228186607361,
+          "cosine_similarity": 0.19577181339263905,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 7,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 11,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.806058085686931,
+          "cosine_similarity": 0.19394191431306895,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 8,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 9,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.810764241860165,
+          "cosine_similarity": 0.18923575813983495,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 9,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 2,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.812413774420472,
+          "cosine_similarity": 0.18758622557952798,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 10,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 12,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.813038364052773,
+          "cosine_similarity": 0.18696163594722703,
+          "is_correct": false,
+          "above_floor": false
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 1
+    },
+    {
+      "id": "Q19",
+      "query": "How did Tushar reduce p99 latency?",
+      "target_source": "experience",
+      "tags": [
+        "realistic",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 3,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.519702553749081,
+          "cosine_similarity": 0.48029744625091897,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 11,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.705329567193983,
+          "cosine_similarity": 0.294670432806017,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 3,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 15,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.706890297346728,
+          "cosine_similarity": 0.29310970265327196,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 2,
+          "score": 0.015625,
+          "semantic_distance": 0.714933676417689,
+          "cosine_similarity": 0.285066323582311,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 5,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.718088282232778,
+          "cosine_similarity": 0.281911717767222,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 6,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 4,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.729027626398519,
+          "cosine_similarity": 0.27097237360148096,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 7,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 6,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.737778632376031,
+          "cosine_similarity": 0.26222136762396897,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 8,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.738208919763563,
+          "cosine_similarity": 0.26179108023643705,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 9,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 5,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.73843854665756,
+          "cosine_similarity": 0.26156145334243996,
+          "is_correct": false,
+          "above_floor": false
+        },
+        {
+          "rank": 10,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 12,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.738854653136848,
+          "cosine_similarity": 0.26114534686315205,
+          "is_correct": false,
+          "above_floor": false
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 1
+    },
+    {
+      "id": "Q20",
+      "query": "Tushar's Kafka work at USAA",
+      "target_source": "experience",
+      "tags": [
+        "realistic",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 16,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.364461535609685,
+          "cosine_similarity": 0.635538464390315,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 9,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.421414001927255,
+          "cosine_similarity": 0.578585998072745,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 17,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.565040886402127,
+          "cosine_similarity": 0.434959113597873,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 9,
+          "score": 0.015625,
+          "semantic_distance": 0.628638565540311,
+          "cosine_similarity": 0.37136143445968905,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 2,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.634850136348596,
+          "cosine_similarity": 0.365149863651404,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 11,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.640677107491838,
+          "cosine_similarity": 0.35932289250816196,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 18,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.649744778871534,
+          "cosine_similarity": 0.35025522112846597,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.652523687331456,
+          "cosine_similarity": 0.34747631266854395,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 13,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.658375471830366,
+          "cosine_similarity": 0.34162452816963396,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 3,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.659085672010699,
+          "cosine_similarity": 0.340914327989301,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q21",
+      "query": "What did Tushar build at PurpleToko?",
+      "target_source": "experience",
+      "tags": [
+        "realistic",
+        "single-source",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 10,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.493376835983301,
+          "cosine_similarity": 0.5066231640166989,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 8,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.527344629983444,
+          "cosine_similarity": 0.472655370016556,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 9,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.559023340853155,
+          "cosine_similarity": 0.44097665914684503,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 7,
+          "score": 0.015625,
+          "semantic_distance": 0.561764316611418,
+          "cosine_similarity": 0.438235683388582,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 7,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.568944892490943,
+          "cosine_similarity": 0.43105510750905696,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 20,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.641558462149126,
+          "cosine_similarity": 0.35844153785087396,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 13,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.643557635863808,
+          "cosine_similarity": 0.356442364136192,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 1,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.648542810933078,
+          "cosine_similarity": 0.351457189066922,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 21,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.654888977256089,
+          "cosine_similarity": 0.34511102274391103,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.656172861342813,
+          "cosine_similarity": 0.34382713865718695,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q22",
+      "query": "Tushar's experience with high-throughput financial systems",
+      "target_source": "experience",
+      "tags": [
+        "vocabulary-poor",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 8,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.514430729814677,
+          "cosine_similarity": 0.48556927018532303,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 16,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.533840588607648,
+          "cosine_similarity": 0.46615941139235195,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 14,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.565373114899022,
+          "cosine_similarity": 0.434626885100978,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 9,
+          "score": 0.015625,
+          "semantic_distance": 0.569103403305196,
+          "cosine_similarity": 0.43089659669480396,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.591514839259116,
+          "cosine_similarity": 0.40848516074088403,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 11,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.592681933321719,
+          "cosine_similarity": 0.40731806667828097,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 15,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.59880702509796,
+          "cosine_similarity": 0.40119297490204,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 9,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.615012370645256,
+          "cosine_similarity": 0.38498762935474395,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.626340910632499,
+          "cosine_similarity": 0.37365908936750103,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 23,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.63761110453473,
+          "cosine_similarity": 0.36238889546527,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 2,
+      "reciprocal_rank": 0.5,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q23",
+      "query": "Tushar's monolith decomposition story",
+      "target_source": "experience",
+      "tags": [
+        "realistic",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 14,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.501945346593857,
+          "cosine_similarity": 0.49805465340614297,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.614474617572151,
+          "cosine_similarity": 0.38552538242784895,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 11,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.629654697796422,
+          "cosine_similarity": 0.370345302203578,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 3,
+          "score": 0.015625,
+          "semantic_distance": 0.634613356911339,
+          "cosine_similarity": 0.365386643088661,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 0,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.640402206206452,
+          "cosine_similarity": 0.35959779379354795,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 6,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.643210509014755,
+          "cosine_similarity": 0.35678949098524504,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 1,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.649657052796236,
+          "cosine_similarity": 0.350342947203764,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.653352379798889,
+          "cosine_similarity": 0.34664762020111095,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 7,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.657240152359009,
+          "cosine_similarity": 0.342759847640991,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 2,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.661141365766525,
+          "cosine_similarity": 0.33885863423347495,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q24",
+      "query": "Tushar's experience with Rust programming",
+      "target_source": "experience",
+      "tags": [
+        "out-of-corpus",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.571684190235634,
+          "cosine_similarity": 0.428315809764366,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 20,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.586591357791921,
+          "cosine_similarity": 0.41340864220807905,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.589407240713068,
+          "cosine_similarity": 0.41059275928693195,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 23,
+          "score": 0.015625,
+          "semantic_distance": 0.592511664928393,
+          "cosine_similarity": 0.407488335071607,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 11,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.607950515028859,
+          "cosine_similarity": 0.392049484971141,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 21,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.620450928264964,
+          "cosine_similarity": 0.37954907173503605,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 19,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.623223118166288,
+          "cosine_similarity": 0.37677688183371205,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 13,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.623928867088949,
+          "cosine_similarity": 0.376071132911051,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 1,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.625191941880217,
+          "cosine_similarity": 0.374808058119783,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 22,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.65216155673999,
+          "cosine_similarity": 0.34783844326001,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": null,
+      "retrieval_at_3": null,
+      "retrieval_at_5": null,
+      "first_correct_rank": null,
+      "reciprocal_rank": null,
+      "guardrail_fired": false,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q25",
+      "query": "Tushar's blockchain work",
+      "target_source": "experience",
+      "tags": [
+        "out-of-corpus",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.595812547706062,
+          "cosine_similarity": 0.40418745229393804,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 20,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.625888705041715,
+          "cosine_similarity": 0.374111294958285,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.633613131426982,
+          "cosine_similarity": 0.36638686857301805,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 23,
+          "score": 0.015625,
+          "semantic_distance": 0.650637826285491,
+          "cosine_similarity": 0.34936217371450895,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 19,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.651120483875272,
+          "cosine_similarity": 0.348879516124728,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 21,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.652047029015598,
+          "cosine_similarity": 0.34795297098440203,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 11,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.655692528999742,
+          "cosine_similarity": 0.34430747100025805,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 13,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.659668982028959,
+          "cosine_similarity": 0.34033101797104104,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 14,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.672147830000648,
+          "cosine_similarity": 0.32785216999935196,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.67963041784582,
+          "cosine_similarity": 0.32036958215418,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": null,
+      "retrieval_at_3": null,
+      "retrieval_at_5": null,
+      "first_correct_rank": null,
+      "reciprocal_rank": null,
+      "guardrail_fired": false,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q26",
+      "query": "what databases does Tushar know",
+      "target_source": "resume",
+      "tags": [
+        "realistic",
+        "resume"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 3,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.597332847197863,
+          "cosine_similarity": 0.40266715280213705,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.628009721277985,
+          "cosine_similarity": 0.37199027872201496,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 11,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.64419750640422,
+          "cosine_similarity": 0.35580249359578,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 21,
+          "score": 0.015625,
+          "semantic_distance": 0.649136534384695,
+          "cosine_similarity": 0.350863465615305,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 19,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.65651750564575,
+          "cosine_similarity": 0.34348249435425005,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.67766537203399,
+          "cosine_similarity": 0.32233462796601,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 13,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.680417150259016,
+          "cosine_similarity": 0.31958284974098405,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.691812354814269,
+          "cosine_similarity": 0.30818764518573105,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 22,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.693274069233294,
+          "cosine_similarity": 0.30672593076670596,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 20,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.694825841229951,
+          "cosine_similarity": 0.30517415877004905,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q27",
+      "query": "what languages does Tushar code in",
+      "target_source": "resume",
+      "tags": [
+        "realistic",
+        "resume"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 1,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.549474047108711,
+          "cosine_similarity": 0.45052595289128905,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.552562548143786,
+          "cosine_similarity": 0.447437451856214,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 20,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.568940167286958,
+          "cosine_similarity": 0.43105983271304205,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 19,
+          "score": 0.015625,
+          "semantic_distance": 0.584288619544084,
+          "cosine_similarity": 0.41571138045591605,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 21,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.58447073651763,
+          "cosine_similarity": 0.41552926348236996,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 13,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.593815707607481,
+          "cosine_similarity": 0.40618429239251896,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.598026204050368,
+          "cosine_similarity": 0.401973795949632,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 23,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.624976444988741,
+          "cosine_similarity": 0.37502355501125895,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 22,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.625832486922517,
+          "cosine_similarity": 0.37416751307748297,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 0,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.626655552388227,
+          "cosine_similarity": 0.373344447611773,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q28",
+      "query": "Tushar's cloud and AWS experience",
+      "target_source": "resume",
+      "tags": [
+        "realistic",
+        "resume"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 4,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.483405559265944,
+          "cosine_similarity": 0.516594440734056,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 7,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.56404322385788,
+          "cosine_similarity": 0.43595677614212003,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 6,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.596465486182734,
+          "cosine_similarity": 0.403534513817266,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 11,
+          "score": 0.015625,
+          "semantic_distance": 0.600279504044085,
+          "cosine_similarity": 0.39972049595591497,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.601959758880152,
+          "cosine_similarity": 0.39804024111984804,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.602759063243866,
+          "cosine_similarity": 0.39724093675613403,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 9,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.607454991784989,
+          "cosine_similarity": 0.39254500821501104,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 7,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.608796781825827,
+          "cosine_similarity": 0.39120321817417303,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 23,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.610458105802536,
+          "cosine_similarity": 0.389541894197464,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 22,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.626675069332123,
+          "cosine_similarity": 0.373324930667877,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q29",
+      "query": "Does Tushar have a PhD?",
+      "target_source": "resume",
+      "tags": [
+        "out-of-corpus",
+        "resume"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.610746728092822,
+          "cosine_similarity": 0.38925327190717796,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 16,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.638394049501773,
+          "cosine_similarity": 0.36160595049822697,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.640157423010025,
+          "cosine_similarity": 0.359842576989975,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 13,
+          "score": 0.015625,
+          "semantic_distance": 0.652683496475217,
+          "cosine_similarity": 0.34731650352478305,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 19,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.679862976074217,
+          "cosine_similarity": 0.320137023925783,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 23,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.679917145972421,
+          "cosine_similarity": 0.32008285402757897,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 22,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.687532771376802,
+          "cosine_similarity": 0.312467228623198,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 11,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.68940398819399,
+          "cosine_similarity": 0.31059601180601004,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 1,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.696326542119589,
+          "cosine_similarity": 0.303673457880411,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 15,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.704777407361423,
+          "cosine_similarity": 0.295222592638577,
+          "is_correct": false,
+          "above_floor": false
+        }
+      ],
+      "retrieval_at_1": null,
+      "retrieval_at_3": null,
+      "retrieval_at_5": null,
+      "first_correct_rank": null,
+      "reciprocal_rank": null,
+      "guardrail_fired": false,
+      "chunks_above_floor": 9
+    },
+    {
+      "id": "Q30",
+      "query": "what's Tushar currently building",
+      "target_source": "resume",
+      "tags": [
+        "vocabulary-poor",
+        "resume"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.575152005246161,
+          "cosine_similarity": 0.42484799475383905,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 20,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.594854933943456,
+          "cosine_similarity": 0.405145066056544,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 19,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.603815978992937,
+          "cosine_similarity": 0.39618402100706296,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 1,
+          "score": 0.015625,
+          "semantic_distance": 0.620274633169174,
+          "cosine_similarity": 0.379725366830826,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 21,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.622028827667236,
+          "cosine_similarity": 0.377971172332764,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 11,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.624099932664636,
+          "cosine_similarity": 0.37590006733536396,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 13,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.625312782842682,
+          "cosine_similarity": 0.374687217157318,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.631505072116852,
+          "cosine_similarity": 0.36849492788314797,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 0,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.653775345829086,
+          "cosine_similarity": 0.34622465417091397,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 23,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.660209149122238,
+          "cosine_similarity": 0.33979085087776195,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": false,
+      "retrieval_at_5": false,
+      "first_correct_rank": null,
+      "reciprocal_rank": 0,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    },
+    {
+      "id": "Q31",
+      "query": "Tushar's Python experience",
+      "target_source": "resume",
+      "tags": [
+        "cross-source",
+        "realistic"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 23,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.570997344583194,
+          "cosine_similarity": 0.42900265541680604,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.588117080572756,
+          "cosine_similarity": 0.411882919427244,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.609779280132671,
+          "cosine_similarity": 0.390220719867329,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 13,
+          "score": 0.015625,
+          "semantic_distance": 0.619988675712526,
+          "cosine_similarity": 0.380011324287474,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 20,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.621657845130876,
+          "cosine_similarity": 0.37834215486912404,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 6,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 22,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.623623538721309,
+          "cosine_similarity": 0.37637646127869095,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 7,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 19,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.630475666863531,
+          "cosine_similarity": 0.36952433313646904,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 8,
+          "source": "readme",
+          "source_id": "tusharjayanti/TensorflowChatbot",
+          "chunk_index": 0,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.632739159517955,
+          "cosine_similarity": 0.367260840482045,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 9,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 21,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.644216377860796,
+          "cosine_similarity": 0.355783622139204,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 10,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.0142857142857143,
+          "semantic_distance": 0.647081215592659,
+          "cosine_similarity": 0.35291878440734104,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": false,
+      "retrieval_at_5": false,
+      "first_correct_rank": null,
+      "reciprocal_rank": 0,
+      "guardrail_fired": null,
+      "chunks_above_floor": 10
+    }
+  ]
+}

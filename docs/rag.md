@@ -304,6 +304,119 @@ Per-tag breakdown:
 This baseline is the comparison point for sub-spec 3 (tool
 consolidation) and M2.7 (reranker).
 
+## Tool architecture decision (M2.6 sub-spec 3, 2026-05-21)
+
+Question asked: keep three source-scoped tools (`search_experience`,
+`search_resume`, `search_readme`) or consolidate into one unified
+`search_portfolio`? Santifer's repo uses one tool with the argument
+that source-routing-at-decision-time forces the LLM to guess before
+seeing the corpus. Whether that argument transfers to this corpus
+shape is an empirical question.
+
+**Method.** Extended `scripts/eval/retrieval.ts` with a
+`--mode=three-tool|unified` flag. Added
+[`match_chunks_unified`](../supabase/migrations/0008_match_chunks_unified.sql)
+— same hybrid (semantic + BM25 + RRF) as `match_chunks` but with no
+`source_filter` parameter, so semantic and BM25 top-20 are computed
+globally across the whole corpus before fusion. Ran the eval in both
+modes against the same 31-query dataset.
+
+### Side-by-side comparison
+
+| Metric | Three-tool | Unified | Δ |
+|---|---|---|---|
+| retrieval@1 | 69.2% | 61.5% | **−7.7pp** |
+| retrieval@3 | 84.6% | 80.8% | −3.8pp |
+| **retrieval@5** | **84.6%** | **80.8%** | **−3.8pp** |
+| **MRR** | **0.774** | **0.710** | **−8.3%** |
+| guardrail firing rate (OOC) | 0% | 0% | (unchanged) |
+
+Per-tag, the regression concentrates on the tags that ought to have
+benefited:
+
+| Tag | n | Three-tool @1 / MRR | Unified @1 / MRR |
+|---|---|---|---|
+| readme | 13 | 53.8% / 0.690 | 46.2% / 0.612 |
+| vocabulary-poor | 7 | 57.1% / 0.663 | **42.9% / 0.541** |
+| **cross-source (Q31)** | 1 | rank=7, MRR=0.143 | **rank=NONE in top-10, MRR=0.000** |
+
+**Decision rule:** unified retrieval@5 (80.8%) < three-tool (84.6%);
+unified MRR (0.710) is 8.3% below three-tool (0.774), exceeds the 5%
+tolerance. Both gates fail. **Outcome: keep three tools.**
+
+### Why the structural argument cuts the other way here
+
+Santifer's "source-routing forces guessing" argument assumes the LLM's
+choice of source is roughly random or weak signal — that the model
+guesses wrong about as often as it guesses right, so removing the
+choice eliminates a coin-flip. That assumption holds when the sources
+are **structurally similar** and the question's domain is **ambiguous
+across them** — which is the case for santifer's single-source corpus
+where "source-routing" doesn't really apply, and would also be the
+case for a corpus of, say, six similarly-shaped technical writeups.
+
+The argument inverts here because:
+
+- **The three sources are structurally different.** Resume chunks are
+  short prose summaries of skills and roles. Experience chunks are
+  detailed H3-anchored stories with concrete narrative content.
+  README chunks are sliding-window slices of project docs with
+  embedded code fences and structural markdown. A query about a
+  *story* ("Tushar's Reserve Release work") is structurally a
+  better match for experience chunks than for the resume summary
+  paragraph; a query about *high-level qualifications* ("what
+  databases does Tushar know") is structurally a better match for
+  resume than for any specific experience chunk.
+- **The LLM has reliable domain signal.** Sonnet picks `search_resume`
+  for "does Tushar know Postgres" and `search_experience` for "the
+  p99 latency story" consistently — these are the kinds of queries
+  the system prompt's tool descriptions and inline role facts already
+  steer effectively. Source routing isn't a coin-flip; it's a
+  consistent pre-filter that narrows the candidate pool before
+  within-source ranking does its work.
+- **Removing the pre-filter dilutes top-K with cross-source noise.**
+  Q9 (`"show me the AI evaluation project"`) passed three-tool @3
+  but regressed to rank=7 under unified — vox-agent #1 got pushed
+  out by resume #5 (AI/LLM systems chunk) and other Python-heavy
+  chunks that semantic-match the query without actually being about
+  the project the user asked for. Q31 (`"Tushar's Python experience"`)
+  showed the same shape: the resume Languages chunk (192 chars,
+  generic skill listing) got buried by globally-more-similar chunks
+  that mention Python more substantively. The labeled chunks were
+  unreachable.
+
+**The santifer pattern is corpus-dependent.** It wins when the LLM's
+source choice carries no signal (one source, or homogeneous sources).
+It loses when the LLM's source choice carries strong signal
+(structurally different sources, well-aligned tool descriptions) —
+which is the regime this corpus operates in today.
+
+### When to re-evaluate
+
+The trade-off shifts as the corpus grows or restructures. Re-run the
+three-tool-vs-unified comparison if any of:
+
+- **Total corpus crosses ~150 chunks** (we're at 82 today: 24
+  experience + 17 resume + 41 readme). At 2× scale, within-source
+  ranking has more candidates to discriminate among, and unified's
+  larger candidate pool may surface high-relevance chunks the
+  per-source filter would otherwise hide.
+- **Any single source exceeds ~50 chunks** (readme is at 41 today,
+  closest to the threshold). A source that dominates the corpus
+  starts to look like santifer's single-source regime locally —
+  the LLM's choice of "search this source" stops being a useful
+  pre-filter when most of the corpus is in that source anyway.
+- **Adding a 4th source type** (e.g., a blog/writing corpus, or a
+  meeting-notes / decision-log corpus). The N-tool design scales
+  linearly with sources; at some N the LLM's tool selection becomes
+  the bottleneck and unified retrieval gets cheaper to reason about.
+
+Whichever happens first.
+
+The migration ([`0008_match_chunks_unified.sql`](../supabase/migrations/0008_match_chunks_unified.sql))
+and the `--mode=unified` runner support stay in place — both are
+cheap to retain and ready for the future revisit.
+
 ## Operations
 
 Three commands cover day-to-day:

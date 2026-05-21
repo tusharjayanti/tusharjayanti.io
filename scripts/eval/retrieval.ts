@@ -1,8 +1,23 @@
-// Retrieval evaluation harness for the three-tool RAG pipeline.
-// Loads the labeled dataset at evals/retrieval/queries.json, embeds
-// every query in one Voyage batch, calls match_chunks per query
-// against the query's `target_source` (the source the corresponding
-// tool would filter to in /api/chat's tool-use loop), and computes:
+// Retrieval evaluation harness. Loads the labeled dataset at
+// evals/retrieval/queries.json, embeds every query in one Voyage
+// batch, calls retrieval per query, and computes metrics.
+//
+// Two retrieval modes — selected via `--mode=three-tool|unified` flag
+// (default `three-tool`):
+//
+//   three-tool: calls `match_chunks` with the query's `target_source`
+//               as the filter. Simulates the production /api/chat
+//               tool-use loop where Sonnet picks one of three
+//               search_<source> tools and that tool scopes retrieval.
+//
+//   unified:    calls `match_chunks_unified` (added in migration
+//               0008) with no source filter. Simulates a hypothetical
+//               single `search_portfolio` tool where retrieval ranks
+//               globally across all chunks before any source-level
+//               scoping happens.
+//
+// Cross-source queries (Q31): three-tool can't satisfy by design —
+// labeled chunks span sources. Unified should be able to.
 //
 //   - retrieval@1 / @3 / @5: success rate over labeled queries
 //   - MRR (mean reciprocal rank): 1/rank of first correct chunk
@@ -33,6 +48,19 @@ import { getSupabaseClient } from '../../api/_supabase.js';
 
 const COSINE_FLOOR = 0.3;
 const TOP_K = 10;
+
+type Mode = 'three-tool' | 'unified';
+
+function parseMode(): Mode {
+  const arg = process.argv.find((a) => a.startsWith('--mode='));
+  if (!arg) return 'three-tool';
+  const value = arg.slice('--mode='.length);
+  if (value !== 'three-tool' && value !== 'unified') {
+    console.error(`invalid --mode value: ${value}. expected three-tool|unified`);
+    process.exit(2);
+  }
+  return value;
+}
 
 type ChunkRef = {
   source: 'experience' | 'resume' | 'readme';
@@ -313,8 +341,10 @@ function printSummary(results: PerQueryResult[]): void {
 }
 
 async function main(): Promise<void> {
+  const mode = parseMode();
   const dataset = await loadDataset();
   console.log(`loaded ${dataset.queries.length} queries from queries.json`);
+  console.log(`mode: ${mode}`);
 
   console.log('embedding queries (1 Voyage batch)...');
   const embeddings = await embed(
@@ -324,18 +354,31 @@ async function main(): Promise<void> {
 
   const supabase = getSupabaseClient();
   const results: PerQueryResult[] = [];
-  console.log(`running match_chunks against the three-tool baseline...`);
+  console.log(
+    mode === 'three-tool'
+      ? 'running match_chunks against the three-tool baseline...'
+      : 'running match_chunks_unified across the whole corpus...',
+  );
   for (let i = 0; i < dataset.queries.length; i++) {
     const q = dataset.queries[i];
     const emb = embeddings[i];
-    const { data, error } = await supabase.rpc('match_chunks', {
-      query_embedding: emb,
-      query_text: q.query,
-      match_count: TOP_K,
-      source_filter: q.target_source,
-    });
+    const rpcName = mode === 'three-tool' ? 'match_chunks' : 'match_chunks_unified';
+    const rpcArgs: Record<string, unknown> =
+      mode === 'three-tool'
+        ? {
+            query_embedding: emb,
+            query_text: q.query,
+            match_count: TOP_K,
+            source_filter: q.target_source,
+          }
+        : {
+            query_embedding: emb,
+            query_text: q.query,
+            match_count: TOP_K,
+          };
+    const { data, error } = await supabase.rpc(rpcName, rpcArgs);
     if (error) {
-      console.error(`match_chunks failed for ${q.id}:`, error);
+      console.error(`${rpcName} failed for ${q.id}:`, error);
       throw error;
     }
     const rows = (data ?? []) as MatchRow[];
@@ -352,7 +395,7 @@ async function main(): Promise<void> {
     '..',
     'evals',
     'retrieval',
-    `results-${ts}.json`,
+    `results-${mode}-${ts}.json`,
   );
   await mkdir(dirname(outPath), { recursive: true });
   const overall = aggregateLabeled(results);
@@ -362,6 +405,7 @@ async function main(): Promise<void> {
     JSON.stringify(
       {
         run_at: new Date().toISOString(),
+        mode,
         dataset_size: dataset.queries.length,
         overall,
         guardrail,
