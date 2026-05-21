@@ -2,6 +2,14 @@
 // (`@vercel/functions` waitUntil, `ingestReadme`) are mocked — no live
 // network, no live DB. Covers the spec's 6 scenarios plus the
 // length-mismatch HMAC gotcha and the wrong-HTTP-method case.
+//
+// Mock shape matches VercelRequest/VercelResponse rather than Web
+// Request/Response, after sub-spec 3's runtime-mismatch fix realigned
+// the handler with the canonical Node-serverless function signature.
+// `req.headers` is a plain object with lowercase keys; `req.text()`
+// is included on the mock so the readRawBody short-circuit fires and
+// tests don't have to async-iterate. `res.status/.send/.end` are
+// vi.fn() chainables.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createHmac } from 'node:crypto';
@@ -28,26 +36,56 @@ function sign(body: string): string {
   );
 }
 
-function makeRequest(opts: {
+type MockRes = {
+  status: ReturnType<typeof vi.fn>;
+  send: ReturnType<typeof vi.fn>;
+  end: ReturnType<typeof vi.fn>;
+  _status: number;
+  _body: string;
+};
+
+function makeRes(): MockRes {
+  const res = {
+    _status: 0,
+    _body: '',
+  } as MockRes;
+  res.status = vi.fn((code: number) => {
+    res._status = code;
+    return res;
+  });
+  res.send = vi.fn((body: string) => {
+    res._body = body;
+    return res;
+  });
+  res.end = vi.fn((body?: string) => {
+    if (body !== undefined) res._body = body;
+    return res;
+  });
+  return res;
+}
+
+// VercelRequest mock — plain-object headers (lowercase keys),
+// `.method`, and a `.text()` shortcut for body reading so we don't
+// have to implement async iteration in every test.
+function makeReq(opts: {
   method?: string;
   body?: string;
   signature?: string | null;
   event?: string | null;
-}): Request {
-  const headers: Record<string, string> = {
-    'content-type': 'application/json',
-  };
+}): unknown {
+  const headers: Record<string, string> = {};
   if (opts.signature !== null && opts.signature !== undefined) {
     headers['x-hub-signature-256'] = opts.signature;
   }
   if (opts.event !== null && opts.event !== undefined) {
     headers['x-github-event'] = opts.event;
   }
-  return new Request('http://localhost/api/github-webhook', {
+  const body = opts.method === 'GET' ? '' : (opts.body ?? '');
+  return {
     method: opts.method ?? 'POST',
     headers,
-    body: opts.method === 'GET' ? undefined : (opts.body ?? ''),
-  });
+    text: async () => body,
+  };
 }
 
 function pushPayload(opts: {
@@ -76,8 +114,8 @@ function pushPayload(opts: {
 
 // Lazy import after env + mocks are wired up.
 async function loadHandler() {
-  const { default: handler } = await import('./github-webhook.js');
-  return handler;
+  const mod = await import('./github-webhook.js');
+  return mod.default as (req: unknown, res: unknown) => Promise<void>;
 }
 
 describe('github-webhook', () => {
@@ -101,11 +139,11 @@ describe('github-webhook', () => {
   it('dispatches ingest on a valid signature + README push on default branch', async () => {
     const handler = await loadHandler();
     const body = pushPayload({});
-    const res = await handler(
-      makeRequest({ body, signature: sign(body), event: 'push' }),
-    );
-    expect(res.status).toBe(202);
-    expect(await res.text()).toBe('accepted');
+    const req = makeReq({ body, signature: sign(body), event: 'push' });
+    const res = makeRes();
+    await handler(req, res);
+    expect(res._status).toBe(202);
+    expect(res._body).toBe('accepted');
     expect(mocks.waitUntil).toHaveBeenCalledTimes(1);
     // The promise passed into waitUntil is the (then/catch-wrapped)
     // ingest. Awaiting it lets the underlying ingestReadme fire.
@@ -116,71 +154,83 @@ describe('github-webhook', () => {
 
   it('returns 405 for non-POST methods', async () => {
     const handler = await loadHandler();
-    const res = await handler(makeRequest({ method: 'GET' }));
-    expect(res.status).toBe(405);
+    const res = makeRes();
+    await handler(makeReq({ method: 'GET' }), res);
+    expect(res._status).toBe(405);
     expect(mocks.waitUntil).not.toHaveBeenCalled();
   });
 
   it('rejects an invalid signature with 401', async () => {
     const handler = await loadHandler();
     const body = pushPayload({});
-    const res = await handler(
-      makeRequest({
+    const res = makeRes();
+    await handler(
+      makeReq({
         body,
         signature: 'sha256=' + 'a'.repeat(64),
         event: 'push',
       }),
+      res,
     );
-    expect(res.status).toBe(401);
+    expect(res._status).toBe(401);
     expect(mocks.waitUntil).not.toHaveBeenCalled();
   });
 
   it('rejects a wrong-length signature with 401 (no throw)', async () => {
     const handler = await loadHandler();
     const body = pushPayload({});
-    const res = await handler(
-      makeRequest({ body, signature: 'sha256=short', event: 'push' }),
+    const res = makeRes();
+    await handler(
+      makeReq({ body, signature: 'sha256=short', event: 'push' }),
+      res,
     );
-    expect(res.status).toBe(401);
+    expect(res._status).toBe(401);
     expect(mocks.waitUntil).not.toHaveBeenCalled();
   });
 
   it('rejects a missing signature with 401', async () => {
     const handler = await loadHandler();
     const body = pushPayload({});
-    const res = await handler(makeRequest({ body, event: 'push' }));
-    expect(res.status).toBe(401);
+    const res = makeRes();
+    await handler(makeReq({ body, event: 'push' }), res);
+    expect(res._status).toBe(401);
   });
 
   it('returns 200 no-op for non-push event types', async () => {
     const handler = await loadHandler();
     const body = pushPayload({});
-    const res = await handler(
-      makeRequest({ body, signature: sign(body), event: 'ping' }),
+    const res = makeRes();
+    await handler(
+      makeReq({ body, signature: sign(body), event: 'ping' }),
+      res,
     );
-    expect(res.status).toBe(200);
-    expect(await res.text()).toBe('event ignored');
+    expect(res._status).toBe(200);
+    expect(res._body).toBe('event ignored');
     expect(mocks.waitUntil).not.toHaveBeenCalled();
   });
 
   it('returns 400 for malformed JSON', async () => {
     const handler = await loadHandler();
     const body = 'not-json {';
-    const res = await handler(
-      makeRequest({ body, signature: sign(body), event: 'push' }),
+    const res = makeRes();
+    await handler(
+      makeReq({ body, signature: sign(body), event: 'push' }),
+      res,
     );
-    expect(res.status).toBe(400);
+    expect(res._status).toBe(400);
     expect(mocks.waitUntil).not.toHaveBeenCalled();
   });
 
   it('returns 200 no-op for a repo not in the allowlist', async () => {
     const handler = await loadHandler();
     const body = pushPayload({ full_name: 'someone-else/random-repo' });
-    const res = await handler(
-      makeRequest({ body, signature: sign(body), event: 'push' }),
+    const res = makeRes();
+    await handler(
+      makeReq({ body, signature: sign(body), event: 'push' }),
+      res,
     );
-    expect(res.status).toBe(200);
-    expect(await res.text()).toBe('not in allowlist');
+    expect(res._status).toBe(200);
+    expect(res._body).toBe('not in allowlist');
     expect(mocks.waitUntil).not.toHaveBeenCalled();
   });
 
@@ -190,11 +240,13 @@ describe('github-webhook', () => {
       default_branch: 'main',
       ref: 'refs/heads/feature-branch',
     });
-    const res = await handler(
-      makeRequest({ body, signature: sign(body), event: 'push' }),
+    const res = makeRes();
+    await handler(
+      makeReq({ body, signature: sign(body), event: 'push' }),
+      res,
     );
-    expect(res.status).toBe(200);
-    expect(await res.text()).toBe('not default branch');
+    expect(res._status).toBe(200);
+    expect(res._body).toBe('not default branch');
     expect(mocks.waitUntil).not.toHaveBeenCalled();
   });
 
@@ -204,11 +256,13 @@ describe('github-webhook', () => {
       modified: ['src/index.ts', 'docs/SOMETHING.md'],
       added: ['src/new-file.ts'],
     });
-    const res = await handler(
-      makeRequest({ body, signature: sign(body), event: 'push' }),
+    const res = makeRes();
+    await handler(
+      makeReq({ body, signature: sign(body), event: 'push' }),
+      res,
     );
-    expect(res.status).toBe(200);
-    expect(await res.text()).toBe('README not touched');
+    expect(res._status).toBe(200);
+    expect(res._body).toBe('README not touched');
     expect(mocks.waitUntil).not.toHaveBeenCalled();
   });
 
@@ -218,20 +272,24 @@ describe('github-webhook', () => {
       modified: [],
       added: ['README.md'],
     });
-    const res = await handler(
-      makeRequest({ body, signature: sign(body), event: 'push' }),
+    const res = makeRes();
+    await handler(
+      makeReq({ body, signature: sign(body), event: 'push' }),
+      res,
     );
-    expect(res.status).toBe(202);
+    expect(res._status).toBe(202);
     expect(mocks.waitUntil).toHaveBeenCalledTimes(1);
   });
 
   it('matches README path case-insensitively', async () => {
     const handler = await loadHandler();
     const body = pushPayload({ modified: ['readme.markdown'] });
-    const res = await handler(
-      makeRequest({ body, signature: sign(body), event: 'push' }),
+    const res = makeRes();
+    await handler(
+      makeReq({ body, signature: sign(body), event: 'push' }),
+      res,
     );
-    expect(res.status).toBe(202);
+    expect(res._status).toBe(202);
     expect(mocks.waitUntil).toHaveBeenCalledTimes(1);
   });
 
@@ -239,9 +297,11 @@ describe('github-webhook', () => {
     const handler = await loadHandler();
     delete process.env.GITHUB_WEBHOOK_SECRET;
     const body = pushPayload({});
-    const res = await handler(
-      makeRequest({ body, signature: sign(body), event: 'push' }),
+    const res = makeRes();
+    await handler(
+      makeReq({ body, signature: sign(body), event: 'push' }),
+      res,
     );
-    expect(res.status).toBe(401);
+    expect(res._status).toBe(401);
   });
 });

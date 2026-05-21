@@ -3,21 +3,29 @@
 // Closes the M2.5 loop: pushing to a README on a tracked repo updates
 // the chat's knowledge of that project within seconds.
 //
-// Runs in the Node runtime so node:crypto's createHmac + timingSafeEqual
-// are available; Edge would force a WebCrypto rewrite for no benefit.
+// Runs in the Node serverless runtime so node:crypto's createHmac +
+// timingSafeEqual are available natively. The handler uses the
+// canonical Vercel Node shape — `(req: VercelRequest, res:
+// VercelResponse) => Promise<void>` — instead of the Edge-style
+// `(req: Request) => Promise<Response>` it briefly used in sub-spec
+// 3. Two production runtime errors (`req.text is not a function`,
+// then `req.headers.get is not a function`) revealed the abstraction
+// mismatch; the rewrite aligns the handler's API patterns with its
+// runtime instead of polyfilling Web APIs piecemeal.
 //
 // Security: GitHub signs every webhook with the shared secret using
 // HMAC-SHA256. The `x-hub-signature-256` header carries
 // `sha256=<hex>`. We verify with timing-safe comparison and reject
 // anything that doesn't match before doing any other work.
 //
-// Async dispatch: ingest runs via `@vercel/functions` `waitUntil`,
-// scheduled AFTER the Response is constructed but BEFORE it's
-// returned. Vercel keeps the function alive until the registered
-// promise resolves; the client sees an immediate 202 with no
-// ingest latency in the response.
+// Async dispatch: ingest runs via `@vercel/functions` `waitUntil`.
+// Registered AFTER the response is written but BEFORE the handler
+// returns; Vercel keeps the function alive until the promise resolves.
+// The client sees an immediate 202 with no ingest latency in the
+// response.
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { waitUntil } from '@vercel/functions';
 
 import { ingestReadme } from '../rag/ingest/readme.js';
@@ -27,13 +35,12 @@ export const config = { runtime: 'nodejs' };
 
 const README_BASENAME = /^readme(\.md|\.markdown)?$/i;
 
-// Vercel's Node-runtime adapter doesn't expose Web-Request APIs on
-// the request object — it's IncomingMessage-shaped. Calling
-// `req.text()` or `req.headers.get(...)` throws TypeError in
-// production (caught in post-deploy logs after sub-spec 3 shipped).
-// Both helpers below short-circuit to the Web API when present
-// (preserving the test suite's Web Request mocks unchanged) and fall
-// through to the Node IncomingMessage shape when not.
+// Stream-collect the raw request body so we have the exact bytes
+// GitHub signed. VercelRequest pre-buffers small bodies onto
+// `req.body` (parsed JSON), but the HMAC needs the wire bytes — never
+// re-serialize a parsed object, the whitespace won't match. The
+// `.text()` short-circuit is retained so test mocks can supply the
+// body as a string without having to implement async iteration.
 async function readRawBody(req: unknown): Promise<string> {
   const maybeText = (req as { text?: () => Promise<string> }).text;
   if (typeof maybeText === 'function') {
@@ -46,21 +53,11 @@ async function readRawBody(req: unknown): Promise<string> {
   return Buffer.concat(chunks).toString('utf-8');
 }
 
-function getHeader(req: unknown, name: string): string | null {
-  const headers = (req as { headers?: unknown }).headers;
-  // Web Headers path: tests + Edge runtime.
-  if (typeof (headers as Headers | undefined)?.get === 'function') {
-    return (headers as Headers).get(name);
-  }
-  // Node IncomingMessage path: headers is a plain object with
-  // lowercase-normalized keys. Multi-valued headers arrive as arrays
-  // (e.g., Set-Cookie); single-valued as strings. GitHub never
-  // multi-values signature or event headers, but handle both shapes
-  // defensively.
-  const lower = name.toLowerCase();
-  const value = (
-    headers as Record<string, string | string[] | undefined> | undefined
-  )?.[lower];
+// Plain-object header lookup. Node lowercases header keys; multi-
+// valued headers (Set-Cookie etc.) arrive as arrays. GitHub never
+// multi-values signature or event headers but handle both defensively.
+function getHeader(req: VercelRequest, name: string): string | null {
+  const value = req.headers[name.toLowerCase()];
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
 }
@@ -117,9 +114,13 @@ function readmeTouched(payload: PushPayload): boolean {
   return false;
 }
 
-export default async function handler(req: Request): Promise<Response> {
+export default async function handler(
+  req: VercelRequest,
+  res: VercelResponse,
+): Promise<void> {
   if (req.method !== 'POST') {
-    return new Response('method not allowed', { status: 405 });
+    res.status(405).send('method not allowed');
+    return;
   }
 
   // Read raw body once — we need the exact bytes for HMAC verification.
@@ -127,7 +128,8 @@ export default async function handler(req: Request): Promise<Response> {
   const signature = getHeader(req, 'x-hub-signature-256');
   if (!verifySignature(rawBody, signature)) {
     console.warn('[github-webhook] signature verification failed');
-    return new Response('invalid signature', { status: 401 });
+    res.status(401).send('invalid signature');
+    return;
   }
 
   // GitHub sends many event types over the same webhook endpoint; we
@@ -136,7 +138,8 @@ export default async function handler(req: Request): Promise<Response> {
   const event = getHeader(req, 'x-github-event');
   if (event !== 'push') {
     console.log(`[github-webhook] ignoring event=${event}`);
-    return new Response('event ignored', { status: 200 });
+    res.status(200).send('event ignored');
+    return;
   }
 
   let payload: PushPayload;
@@ -144,7 +147,8 @@ export default async function handler(req: Request): Promise<Response> {
     payload = JSON.parse(rawBody) as PushPayload;
   } catch {
     console.warn('[github-webhook] payload JSON parse failed');
-    return new Response('invalid json', { status: 400 });
+    res.status(400).send('invalid json');
+    return;
   }
 
   const repoSlug = payload.repository?.full_name;
@@ -152,7 +156,8 @@ export default async function handler(req: Request): Promise<Response> {
     console.log(
       `[github-webhook] skipping, not in allowlist: ${repoSlug ?? '(none)'}`,
     );
-    return new Response('not in allowlist', { status: 200 });
+    res.status(200).send('not in allowlist');
+    return;
   }
 
   const defaultBranch = payload.repository?.default_branch;
@@ -162,18 +167,20 @@ export default async function handler(req: Request): Promise<Response> {
     console.log(
       `[github-webhook] skipping, not default branch: ref=${payload.ref} expected=${expectedRef ?? '(unknown)'}`,
     );
-    return new Response('not default branch', { status: 200 });
+    res.status(200).send('not default branch');
+    return;
   }
 
   if (!readmeTouched(payload)) {
     console.log(`[github-webhook] skipping, README not modified: ${repoSlug}`);
-    return new Response('README not touched', { status: 200 });
+    res.status(200).send('README not touched');
+    return;
   }
 
   // Dispatch ingest in the background. `waitUntil` registers the
   // promise with Vercel's runtime so the function stays alive until
-  // it resolves — but `return new Response(...)` below ships the 202
-  // to GitHub immediately, no blocking.
+  // it resolves — but the `res.status(202).send(...)` below ships
+  // the response to GitHub immediately, no blocking.
   console.log(`[github-webhook] dispatching ingest for ${repoSlug}`);
   waitUntil(
     ingestReadme(repoSlug)
@@ -190,5 +197,5 @@ export default async function handler(req: Request): Promise<Response> {
       }),
   );
 
-  return new Response('accepted', { status: 202 });
+  res.status(202).send('accepted');
 }
