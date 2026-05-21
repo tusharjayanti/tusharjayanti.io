@@ -1,0 +1,381 @@
+// Retrieval evaluation harness for the three-tool RAG pipeline.
+// Loads the labeled dataset at evals/retrieval/queries.json, embeds
+// every query in one Voyage batch, calls match_chunks per query
+// against the query's `target_source` (the source the corresponding
+// tool would filter to in /api/chat's tool-use loop), and computes:
+//
+//   - retrieval@1 / @3 / @5: success rate over labeled queries
+//   - MRR (mean reciprocal rank): 1/rank of first correct chunk
+//   - guardrail firing rate: for `out-of-corpus` queries, % where
+//     zero chunks land above the production 0.3 cosine floor
+//
+// Scoring conventions per query:
+//   - default (any tag, non-empty correct_chunks): success at K =
+//     "any correct chunk appears in top-K"
+//   - cross-source: success at K = "ALL correct chunks appear in
+//     top-K" (single-tool retrieval can't satisfy this by design;
+//     these queries fail under the current three-tool pipeline,
+//     succeed under a future unified retriever)
+//   - out-of-corpus (correct_chunks empty): success = "zero chunks
+//     above cosine 0.3" — the guardrail fires cleanly. Tracked as
+//     guardrail_firing_rate, not retrieval@k.
+//
+// Output: stdout summary table + JSON results to
+// evals/retrieval/results-<UTC-timestamp>.json so deltas across runs
+// are diff-able.
+
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { dirname, resolve as resolvePath } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { embed } from '../../api/_voyage.js';
+import { getSupabaseClient } from '../../api/_supabase.js';
+
+const COSINE_FLOOR = 0.3;
+const TOP_K = 10;
+
+type ChunkRef = {
+  source: 'experience' | 'resume' | 'readme';
+  source_id?: string;
+  chunk_index: number;
+};
+
+type Query = {
+  id: string;
+  query: string;
+  target_source: 'experience' | 'resume' | 'readme';
+  correct_chunks: ChunkRef[];
+  tags: string[];
+};
+
+type Dataset = {
+  _meta: Record<string, unknown>;
+  queries: Query[];
+};
+
+type MatchRow = {
+  source: string;
+  source_id: string;
+  chunk_index: number;
+  content: string;
+  score: number;
+  semantic_distance: number | null;
+};
+
+type PerQueryResult = {
+  id: string;
+  query: string;
+  target_source: string;
+  tags: string[];
+  // Top-10 chunks the runner saw, plus a marker on which (if any)
+  // are labeled correct. Useful for failure analysis.
+  retrieved: Array<{
+    rank: number;
+    source: string;
+    source_id: string;
+    chunk_index: number;
+    score: number;
+    semantic_distance: number | null;
+    cosine_similarity: number | null;
+    is_correct: boolean;
+    above_floor: boolean;
+  }>;
+  // Standard retrieval@K (or null for out-of-corpus). For
+  // cross-source, "success" requires ALL correct chunks in top-K.
+  retrieval_at_1: boolean | null;
+  retrieval_at_3: boolean | null;
+  retrieval_at_5: boolean | null;
+  // 1-indexed rank of the first correct chunk in top-10, or null if
+  // not found (or out-of-corpus).
+  first_correct_rank: number | null;
+  reciprocal_rank: number | null;
+  // Out-of-corpus only: did the guardrail fire? (zero chunks above
+  // 0.3 cosine).
+  guardrail_fired: boolean | null;
+  chunks_above_floor: number;
+};
+
+function loadDataset(): Promise<Dataset> {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const path = resolvePath(here, '..', '..', 'evals', 'retrieval', 'queries.json');
+  return readFile(path, 'utf-8').then((raw) => JSON.parse(raw) as Dataset);
+}
+
+function isChunkCorrect(row: MatchRow, correct: ChunkRef[]): boolean {
+  return correct.some((c) => {
+    if (row.source !== c.source) return false;
+    if (c.source_id !== undefined && row.source_id !== c.source_id) return false;
+    return row.chunk_index === c.chunk_index;
+  });
+}
+
+function scoreQuery(q: Query, rows: MatchRow[]): PerQueryResult {
+  const isCrossSource = q.tags.includes('cross-source');
+  const isOutOfCorpus = q.tags.includes('out-of-corpus');
+
+  // Decorate every retrieved chunk with correctness + above-floor
+  // markers. Cosine similarity = 1 - semantic_distance; null when the
+  // chunk only surfaced via BM25.
+  const retrieved = rows.slice(0, TOP_K).map((r, idx) => {
+    const cosine =
+      r.semantic_distance === null ? null : 1 - r.semantic_distance;
+    return {
+      rank: idx + 1,
+      source: r.source,
+      source_id: r.source_id,
+      chunk_index: r.chunk_index,
+      score: r.score,
+      semantic_distance: r.semantic_distance,
+      cosine_similarity: cosine,
+      is_correct: isChunkCorrect(r, q.correct_chunks),
+      above_floor: cosine !== null && cosine >= COSINE_FLOOR,
+    };
+  });
+
+  const chunksAboveFloor = retrieved.filter((r) => r.above_floor).length;
+
+  if (isOutOfCorpus) {
+    return {
+      id: q.id,
+      query: q.query,
+      target_source: q.target_source,
+      tags: q.tags,
+      retrieved,
+      retrieval_at_1: null,
+      retrieval_at_3: null,
+      retrieval_at_5: null,
+      first_correct_rank: null,
+      reciprocal_rank: null,
+      guardrail_fired: chunksAboveFloor === 0,
+      chunks_above_floor: chunksAboveFloor,
+    };
+  }
+
+  // Standard / cross-source scoring. "Hit" semantics differ per tag.
+  const correctInTopK = (k: number): boolean => {
+    const slice = retrieved.slice(0, k).filter((r) => r.is_correct);
+    if (isCrossSource) {
+      // Every labeled correct chunk must be present
+      return q.correct_chunks.every((c) =>
+        slice.some(
+          (r) =>
+            r.source === c.source &&
+            (c.source_id === undefined || r.source_id === c.source_id) &&
+            r.chunk_index === c.chunk_index,
+        ),
+      );
+    }
+    return slice.length > 0;
+  };
+
+  const firstCorrect = retrieved.find((r) => r.is_correct);
+  const rank = firstCorrect ? firstCorrect.rank : null;
+
+  return {
+    id: q.id,
+    query: q.query,
+    target_source: q.target_source,
+    tags: q.tags,
+    retrieved,
+    retrieval_at_1: correctInTopK(1),
+    retrieval_at_3: correctInTopK(3),
+    retrieval_at_5: correctInTopK(5),
+    first_correct_rank: rank,
+    reciprocal_rank: rank !== null ? 1 / rank : 0,
+    guardrail_fired: null,
+    chunks_above_floor: chunksAboveFloor,
+  };
+}
+
+type Aggregate = {
+  count: number;
+  retrieval_at_1: number; // fraction in [0, 1]
+  retrieval_at_3: number;
+  retrieval_at_5: number;
+  mrr: number;
+};
+
+function aggregateLabeled(results: PerQueryResult[]): Aggregate {
+  const labeled = results.filter((r) => r.retrieval_at_1 !== null);
+  if (labeled.length === 0) {
+    return { count: 0, retrieval_at_1: 0, retrieval_at_3: 0, retrieval_at_5: 0, mrr: 0 };
+  }
+  const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+  return {
+    count: labeled.length,
+    retrieval_at_1: sum(labeled.map((r) => (r.retrieval_at_1 ? 1 : 0))) / labeled.length,
+    retrieval_at_3: sum(labeled.map((r) => (r.retrieval_at_3 ? 1 : 0))) / labeled.length,
+    retrieval_at_5: sum(labeled.map((r) => (r.retrieval_at_5 ? 1 : 0))) / labeled.length,
+    mrr: sum(labeled.map((r) => r.reciprocal_rank ?? 0)) / labeled.length,
+  };
+}
+
+function guardrailRate(results: PerQueryResult[]): { count: number; fired: number; rate: number } {
+  const ooc = results.filter((r) => r.guardrail_fired !== null);
+  const fired = ooc.filter((r) => r.guardrail_fired).length;
+  return {
+    count: ooc.length,
+    fired,
+    rate: ooc.length > 0 ? fired / ooc.length : 0,
+  };
+}
+
+function pct(x: number): string {
+  return `${(x * 100).toFixed(1)}%`;
+}
+
+function printSummary(results: PerQueryResult[]): void {
+  console.log('\n=== Per-query results ===');
+  for (const r of results) {
+    const tagStr = r.tags.join(',');
+    if (r.guardrail_fired !== null) {
+      const status = r.guardrail_fired ? 'GUARDRAIL_FIRED' : 'guardrail_silent';
+      console.log(
+        `  ${r.id.padEnd(4)} [${tagStr}] ${status} chunks_above_floor=${r.chunks_above_floor}  q="${r.query}"`,
+      );
+    } else {
+      const flags = [
+        r.retrieval_at_1 ? '@1' : '  ',
+        r.retrieval_at_3 ? '@3' : '  ',
+        r.retrieval_at_5 ? '@5' : '  ',
+      ].join(' ');
+      const rank = r.first_correct_rank ?? '-';
+      console.log(
+        `  ${r.id.padEnd(4)} [${tagStr}] ${flags}  first_rank=${rank}  q="${r.query}"`,
+      );
+    }
+  }
+
+  const overall = aggregateLabeled(results);
+  const guardrail = guardrailRate(results);
+  console.log('\n=== Overall (labeled queries only) ===');
+  console.log(`  labeled queries:   ${overall.count}`);
+  console.log(`  retrieval@1:       ${pct(overall.retrieval_at_1)}`);
+  console.log(`  retrieval@3:       ${pct(overall.retrieval_at_3)}`);
+  console.log(`  retrieval@5:       ${pct(overall.retrieval_at_5)}`);
+  console.log(`  MRR:               ${overall.mrr.toFixed(3)}`);
+  console.log('\n=== Out-of-corpus (guardrail) ===');
+  console.log(`  ooc queries:               ${guardrail.count}`);
+  console.log(`  guardrail fired:           ${guardrail.fired}`);
+  console.log(`  guardrail firing rate:     ${pct(guardrail.rate)}`);
+
+  // Per-tag breakdown — every tag that appears in the labeled subset.
+  console.log('\n=== Per-tag (labeled queries only) ===');
+  const allTags = new Set<string>();
+  for (const r of results.filter((r) => r.retrieval_at_1 !== null)) {
+    for (const t of r.tags) allTags.add(t);
+  }
+  const sortedTags = [...allTags].sort();
+  for (const tag of sortedTags) {
+    const slice = results.filter(
+      (r) => r.retrieval_at_1 !== null && r.tags.includes(tag),
+    );
+    if (slice.length === 0) continue;
+    const agg = aggregateLabeled(slice);
+    console.log(
+      `  ${tag.padEnd(18)} n=${agg.count.toString().padStart(2)}  @1=${pct(agg.retrieval_at_1).padStart(6)}  @3=${pct(agg.retrieval_at_3).padStart(6)}  @5=${pct(agg.retrieval_at_5).padStart(6)}  MRR=${agg.mrr.toFixed(3)}`,
+    );
+  }
+
+  // Failures: queries that didn't surface a correct chunk in top-5.
+  const failures = results.filter(
+    (r) => r.retrieval_at_5 === false,
+  );
+  if (failures.length > 0) {
+    console.log('\n=== Failures @5 (correct chunk not in top-5) ===');
+    for (const f of failures) {
+      const labels = f.tags.join(',');
+      console.log(
+        `  ${f.id} [${labels}]  first_rank=${f.first_correct_rank ?? 'none'}  q="${f.query}"`,
+      );
+    }
+  }
+
+  // Guardrail silences: out-of-corpus queries that DIDN'T fire the
+  // guardrail (fabrication risk).
+  const guardrailSilent = results.filter(
+    (r) => r.guardrail_fired === false,
+  );
+  if (guardrailSilent.length > 0) {
+    console.log('\n=== Guardrail silences (out-of-corpus queries with chunks above floor) ===');
+    for (const f of guardrailSilent) {
+      console.log(
+        `  ${f.id}  chunks_above_floor=${f.chunks_above_floor}  q="${f.query}"`,
+      );
+      const top = f.retrieved.filter((r) => r.above_floor).slice(0, 3);
+      for (const t of top) {
+        console.log(
+          `      rank=${t.rank} cosine=${t.cosine_similarity?.toFixed(3) ?? '-'}  ${t.source_id} #${t.chunk_index}`,
+        );
+      }
+    }
+  }
+}
+
+async function main(): Promise<void> {
+  const dataset = await loadDataset();
+  console.log(`loaded ${dataset.queries.length} queries from queries.json`);
+
+  console.log('embedding queries (1 Voyage batch)...');
+  const embeddings = await embed(
+    dataset.queries.map((q) => q.query),
+    'query',
+  );
+
+  const supabase = getSupabaseClient();
+  const results: PerQueryResult[] = [];
+  console.log(`running match_chunks against the three-tool baseline...`);
+  for (let i = 0; i < dataset.queries.length; i++) {
+    const q = dataset.queries[i];
+    const emb = embeddings[i];
+    const { data, error } = await supabase.rpc('match_chunks', {
+      query_embedding: emb,
+      query_text: q.query,
+      match_count: TOP_K,
+      source_filter: q.target_source,
+    });
+    if (error) {
+      console.error(`match_chunks failed for ${q.id}:`, error);
+      throw error;
+    }
+    const rows = (data ?? []) as MatchRow[];
+    results.push(scoreQuery(q, rows));
+  }
+
+  printSummary(results);
+
+  // Write detailed JSON for diffing across runs
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  const outPath = resolvePath(
+    dirname(fileURLToPath(import.meta.url)),
+    '..',
+    '..',
+    'evals',
+    'retrieval',
+    `results-${ts}.json`,
+  );
+  await mkdir(dirname(outPath), { recursive: true });
+  const overall = aggregateLabeled(results);
+  const guardrail = guardrailRate(results);
+  await writeFile(
+    outPath,
+    JSON.stringify(
+      {
+        run_at: new Date().toISOString(),
+        dataset_size: dataset.queries.length,
+        overall,
+        guardrail,
+        results,
+      },
+      null,
+      2,
+    ),
+    'utf-8',
+  );
+  console.log(`\nwrote results to ${outPath}`);
+}
+
+main().catch((err) => {
+  console.error('eval:retrieval failed:', err);
+  process.exit(1);
+});

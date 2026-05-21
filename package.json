@@ -21,6 +21,7 @@
     "backfill:readmes": "dotenv -e .env.local -- tsx scripts/rag/backfill-readmes.ts",
     "smoke:retrieval": "dotenv -e .env.local -- tsx scripts/rag/smoke-retrieval.ts",
     "smoke:chat": "dotenv -e .env.local -- tsx scripts/rag/smoke-chat.ts",
+    "eval:retrieval": "dotenv -e .env.local -- tsx scripts/eval/retrieval.ts",
     "predev": "npm run sync:prompt",
     "prebuild": "npm run sync:prompt"
   },

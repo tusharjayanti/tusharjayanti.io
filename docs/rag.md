@@ -217,6 +217,93 @@ A single GitHub App across the org-level account is cleaner long-term
 but overkill for six repos; this manual per-repo install is the right
 size today.
 
+## Retrieval evaluation (M2.6)
+
+A labeled query set + deterministic runner that measures whether the
+three-tool pipeline actually surfaces the right chunks. This is the
+measurement substrate every future RAG change is compared against —
+chunker tweaks, reranker work, tool consolidation, etc.
+
+**Dataset** lives at [`evals/retrieval/queries.json`](../evals/retrieval/queries.json).
+31 queries, each labeled with `target_source`, expected `correct_chunks`,
+and one or more tags (`realistic`, `adversarial`, `vocabulary-poor`,
+`single-source`, `cross-source`, `out-of-corpus`). Distribution: 15
+readme, 10 experience, 5 resume, 1 cross-source; 5 of those tagged
+`out-of-corpus` for guardrail probing.
+
+**Runner** is [`scripts/eval/retrieval.ts`](../scripts/eval/retrieval.ts),
+run via `npm run eval:retrieval`. Embeds all queries in one Voyage
+batch, calls `match_chunks` per query against the query's
+`target_source`, and computes:
+
+- `retrieval@1` / `@3` / `@5` — fraction of labeled queries where a
+  correct chunk appears in the top-K (standard scoring)
+- `MRR` — mean reciprocal rank, averaged over labeled queries
+- `guardrail_firing_rate` — for `out-of-corpus` queries, fraction
+  where zero chunks land above the production 0.3 cosine floor
+
+Scoring differs for the `cross-source` tag: success requires ALL
+correct chunks in top-K (single-tool retrieval can't satisfy this by
+design). Q31 is the canonical example — sub-spec 3's consolidation
+question will use the contrast between three-tool and unified
+retrieval on cross-source queries as its primary signal.
+
+Per-run output: stdout summary table + a JSON file under
+`evals/retrieval/results-<timestamp>.json` so deltas across runs are
+diff-able.
+
+### Baseline (2026-05-21)
+
+Run against the post-sub-spec-1 corpus (24 experience + 17 resume + 41
+readme chunks) and the post-sub-spec-1 no-match guardrail (0.3 cosine
+floor):
+
+| Metric | Value |
+|---|---|
+| retrieval@1 (labeled, n=26) | **69.2%** |
+| retrieval@3 | **84.6%** |
+| retrieval@5 | **84.6%** |
+| MRR | **0.774** |
+| guardrail firing rate (n=5) | **0.0%** |
+
+Per-tag breakdown:
+
+| Tag | n | @1 | @3 | @5 | MRR |
+|---|---|---|---|---|---|
+| experience | 8 | 100.0% | 100.0% | 100.0% | 1.000 |
+| single-source | 2 | 100.0% | 100.0% | 100.0% | 1.000 |
+| realistic | 20 | 80.0% | 95.0% | 95.0% | 0.874 |
+| resume | 4 | 75.0% | 75.0% | 75.0% | 0.750 |
+| readme | 13 | 53.8% | 84.6% | 84.6% | 0.690 |
+| vocabulary-poor | 7 | 57.1% | 71.4% | 71.4% | 0.663 |
+| adversarial | 2 | 50.0% | 50.0% | 50.0% | 0.500 |
+| cross-source | 1 | 0.0% | 0.0% | 0.0% | 0.143 |
+
+**Headline observations:**
+
+- **Experience retrieval is solid (100% across the board).** Six chunks
+  per role + clean H3 segmentation pay off for the experience corpus.
+- **Readme is the weak link at top-1** (53.8%) but recovers by top-5
+  (84.6%). The sliding-window-on-H2-only-READMEs structural issue from
+  M2.5 is the suspect — vox-agent and TensorflowChatbot lack H3s, so
+  their chunks are less semantically focused.
+- **Guardrail fires 0/5 on out-of-corpus queries.** Every OOC query
+  had chunks at 0.35–0.47 cosine — above the 0.3 production floor.
+  The threshold I picked in sub-spec 1's no-match guardrail is too
+  lenient for these query shapes. Production-side verification
+  succeeded (Rust query → guardrail fired) only because Sonnet
+  paraphrased the query to "Rust programming language" before
+  calling the tool; the eval uses the user's literal phrasing, which
+  cosine-scores higher. **Query-phrasing variance dominates threshold
+  behavior** — this is a real fabrication risk in production.
+- **Cross-source query Q31 fails by design** (first correct chunk at
+  rank 7 within the resume-only retrieval; the labeled experience
+  chunks are unreachable). Sub-spec 3 will compare this against a
+  unified retriever where all sources are searched at once.
+
+This baseline is the comparison point for sub-spec 3 (tool
+consolidation) and M2.7 (reranker).
+
 ## Operations
 
 Three commands cover day-to-day:
