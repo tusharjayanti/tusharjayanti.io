@@ -27,14 +27,13 @@ export const config = { runtime: 'nodejs' };
 
 const README_BASENAME = /^readme(\.md|\.markdown)?$/i;
 
-// Vercel's Node-runtime adapter doesn't expose `.text()` on the
-// request object — it's IncomingMessage-shaped, not Web Request.
-// Calling `req.text()` throws TypeError in production (caught in
-// post-deploy logs after sub-spec 3 shipped). Read as a stream
-// instead: collect raw chunks into Buffers and decode UTF-8 so we
-// recover the exact bytes GitHub signed. The .text() short-circuit
-// keeps the Web Request mocks in the unit-test suite working
-// without changing the mocked req shape.
+// Vercel's Node-runtime adapter doesn't expose Web-Request APIs on
+// the request object — it's IncomingMessage-shaped. Calling
+// `req.text()` or `req.headers.get(...)` throws TypeError in
+// production (caught in post-deploy logs after sub-spec 3 shipped).
+// Both helpers below short-circuit to the Web API when present
+// (preserving the test suite's Web Request mocks unchanged) and fall
+// through to the Node IncomingMessage shape when not.
 async function readRawBody(req: unknown): Promise<string> {
   const maybeText = (req as { text?: () => Promise<string> }).text;
   if (typeof maybeText === 'function') {
@@ -45,6 +44,25 @@ async function readRawBody(req: unknown): Promise<string> {
     chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
   }
   return Buffer.concat(chunks).toString('utf-8');
+}
+
+function getHeader(req: unknown, name: string): string | null {
+  const headers = (req as { headers?: unknown }).headers;
+  // Web Headers path: tests + Edge runtime.
+  if (typeof (headers as Headers | undefined)?.get === 'function') {
+    return (headers as Headers).get(name);
+  }
+  // Node IncomingMessage path: headers is a plain object with
+  // lowercase-normalized keys. Multi-valued headers arrive as arrays
+  // (e.g., Set-Cookie); single-valued as strings. GitHub never
+  // multi-values signature or event headers, but handle both shapes
+  // defensively.
+  const lower = name.toLowerCase();
+  const value = (
+    headers as Record<string, string | string[] | undefined> | undefined
+  )?.[lower];
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
 }
 
 type PushPayload = {
@@ -106,7 +124,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   // Read raw body once — we need the exact bytes for HMAC verification.
   const rawBody = await readRawBody(req);
-  const signature = req.headers.get('x-hub-signature-256');
+  const signature = getHeader(req, 'x-hub-signature-256');
   if (!verifySignature(rawBody, signature)) {
     console.warn('[github-webhook] signature verification failed');
     return new Response('invalid signature', { status: 401 });
@@ -115,7 +133,7 @@ export default async function handler(req: Request): Promise<Response> {
   // GitHub sends many event types over the same webhook endpoint; we
   // only care about `push`. Everything else is an explicit 200 no-op
   // so GitHub doesn't retry.
-  const event = req.headers.get('x-github-event');
+  const event = getHeader(req, 'x-github-event');
   if (event !== 'push') {
     console.log(`[github-webhook] ignoring event=${event}`);
     return new Response('event ignored', { status: 200 });
