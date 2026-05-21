@@ -184,6 +184,65 @@ Operator signal: when no-match fires, the handler emits
 `console.log('[rag] no_match', { query, source, threshold })` to
 Vercel runtime logs.
 
+### Threshold sweep — why 0.3 stays (M2.6.5)
+
+The retrieval eval (M2.6 sub-spec 2) surfaced that at the production
+`0.3` floor the guardrail fires on **0/5** out-of-corpus queries —
+the fabrication-prevention story was largely fiction. M2.6.5 tested
+whether tightening the threshold could fix this without nuking
+retrieval quality on real queries.
+
+Method: extended [`scripts/eval/retrieval.ts`](../scripts/eval/retrieval.ts)
+with a `--threshold=N` flag that filters chunks at the requested
+cosine floor before retrieval@k is computed (matching production
+behavior — chunks below the floor are invisible to the model). Swept
+0.30 / 0.35 / 0.40 / 0.45 / 0.50 against the same 31-query dataset.
+
+| Threshold | retrieval@1 | retrieval@5 | MRR | OOC firing rate |
+|---|---|---|---|---|
+| 0.30 | 69.2% | **84.6%** | 0.768 | **0%** |
+| 0.35 | 69.2% | 80.8% | 0.749 | 0% |
+| 0.40 | 65.4% | 76.9% | 0.705 | 60% |
+| 0.45 | 53.8% | **61.5%** | 0.571 | **80%** |
+| 0.50 | 30.8% | 34.6% | 0.327 | 100% |
+
+Decision rule (declared up front): find the highest threshold where
+`retrieval@5 ≥ 80%` AND `OOC firing rate ≥ 80%`. **No threshold
+satisfies both conditions.** The two signals move in opposite
+directions and never cross above the bars.
+
+Detail on the failure mode at the candidate "fix" points:
+
+- **0.45** gets the guardrail firing on 4/5 OOC queries but pushes
+  `retrieval@5` to 61.5% — 10 of 26 labeled queries (38%) lose their
+  correct chunk to the floor. Per-tag: `experience` drops 100% → 75%,
+  `resume` 75% → 50%, `single-source` 100% → 50%. Trading
+  fabrication risk on 4 OOC queries for "I don't have that
+  information" responses on 10 valid queries is the wrong trade.
+- **0.40** is the most balanced point and still misses both bars:
+  60% OOC firing, 76.9% `retrieval@5`. The corpus doesn't have a
+  threshold value that's both safe and accurate.
+
+Root cause: at 0.40–0.47 cosine, OOC queries (`"Tushar's blockchain
+work"` matches experience #20 at 0.374; `"How does vox-agent
+rate-limit requests?"` matches vox-agent #1 at 0.467) sit in the
+**same cosine band** as some legit vocabulary-poor or generic-
+phrasing valid queries. A scalar threshold can't separate them
+because they're not separable on the cosine axis.
+
+> **Cosine similarity is a continuous match-score, not a binary
+> relevance signal. At our corpus size, semantic-distance bands for
+> borderline-relevant and borderline-irrelevant chunks overlap, so a
+> scalar threshold cannot separate them. The reranker (M2.7) is the
+> architectural fix, not the next tuning iteration.**
+
+`RAG_MIN_COSINE_SIMILARITY` default stays at `0.3`. Raising it would
+shift the failure mode from "fabrication on OOC queries" to "refusing
+valid queries" without solving either. The `--threshold=N` runner
+support stays in place; revisit after M2.7's reranker score is
+available — the reranker score may replace cosine as the floor
+signal, or compose with it.
+
 ## Webhook setup (M2.5)
 
 The README ingest loop closes via [`POST /api/github-webhook`](../api/github-webhook.ts).

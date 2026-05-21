@@ -46,7 +46,7 @@ import { fileURLToPath } from 'node:url';
 import { embed } from '../../api/_voyage.js';
 import { getSupabaseClient } from '../../api/_supabase.js';
 
-const COSINE_FLOOR = 0.3;
+const DEFAULT_COSINE_FLOOR = 0.3;
 const TOP_K = 10;
 
 type Mode = 'three-tool' | 'unified';
@@ -60,6 +60,27 @@ function parseMode(): Mode {
     process.exit(2);
   }
   return value;
+}
+
+// Override the production cosine-similarity floor for this run. Used
+// by the M2.6.5 threshold sweep — sub-spec 2 found that at the
+// production default (0.3) the guardrail fires on 0/5 OOC queries,
+// so the sweep tests higher floors. Override applies to BOTH the
+// per-query retrieval@k computation (chunks below the floor are
+// dropped from the LLM-visible list, matching production) AND the
+// OOC guardrail firing rate.
+function parseThreshold(): number {
+  const arg = process.argv.find((a) => a.startsWith('--threshold='));
+  if (!arg) return DEFAULT_COSINE_FLOOR;
+  const value = arg.slice('--threshold='.length);
+  const parsed = Number.parseFloat(value);
+  if (Number.isNaN(parsed) || parsed < 0 || parsed > 1) {
+    console.error(
+      `invalid --threshold value: ${value}. expected number in [0, 1]`,
+    );
+    process.exit(2);
+  }
+  return parsed;
 }
 
 type ChunkRef = {
@@ -137,13 +158,20 @@ function isChunkCorrect(row: MatchRow, correct: ChunkRef[]): boolean {
   });
 }
 
-function scoreQuery(q: Query, rows: MatchRow[]): PerQueryResult {
+function scoreQuery(
+  q: Query,
+  rows: MatchRow[],
+  threshold: number,
+): PerQueryResult {
   const isCrossSource = q.tags.includes('cross-source');
   const isOutOfCorpus = q.tags.includes('out-of-corpus');
 
   // Decorate every retrieved chunk with correctness + above-floor
   // markers. Cosine similarity = 1 - semantic_distance; null when the
-  // chunk only surfaced via BM25.
+  // chunk only surfaced via BM25 (no semantic anchor) — those are
+  // treated as below-floor regardless of `threshold` because we want
+  // a semantic-relevance gate, not a lexical-only one (matches the
+  // production guardrail filter in api/_tools.ts).
   const retrieved = rows.slice(0, TOP_K).map((r, idx) => {
     const cosine =
       r.semantic_distance === null ? null : 1 - r.semantic_distance;
@@ -156,11 +184,17 @@ function scoreQuery(q: Query, rows: MatchRow[]): PerQueryResult {
       semantic_distance: r.semantic_distance,
       cosine_similarity: cosine,
       is_correct: isChunkCorrect(r, q.correct_chunks),
-      above_floor: cosine !== null && cosine >= COSINE_FLOOR,
+      above_floor: cosine !== null && cosine >= threshold,
     };
   });
 
-  const chunksAboveFloor = retrieved.filter((r) => r.above_floor).length;
+  // The LLM-visible list is what survived the threshold filter — this
+  // matches what api/_tools.ts hands to Sonnet as tool_result content.
+  // retrieval@k is measured against this filtered list (chunks below
+  // the floor are invisible to the model and can't count as "found"),
+  // and ranks are 1-indexed within it.
+  const visibleToModel = retrieved.filter((r) => r.above_floor);
+  const chunksAboveFloor = visibleToModel.length;
 
   if (isOutOfCorpus) {
     return {
@@ -180,10 +214,12 @@ function scoreQuery(q: Query, rows: MatchRow[]): PerQueryResult {
   }
 
   // Standard / cross-source scoring. "Hit" semantics differ per tag.
+  // Operates on visibleToModel — sub-spec 2 ran on `retrieved` (no
+  // threshold filter), which inflated retrieval@k vs. what the LLM
+  // actually saw. M2.6.5 sub-spec aligned this with production.
   const correctInTopK = (k: number): boolean => {
-    const slice = retrieved.slice(0, k).filter((r) => r.is_correct);
+    const slice = visibleToModel.slice(0, k).filter((r) => r.is_correct);
     if (isCrossSource) {
-      // Every labeled correct chunk must be present
       return q.correct_chunks.every((c) =>
         slice.some(
           (r) =>
@@ -196,8 +232,9 @@ function scoreQuery(q: Query, rows: MatchRow[]): PerQueryResult {
     return slice.length > 0;
   };
 
-  const firstCorrect = retrieved.find((r) => r.is_correct);
-  const rank = firstCorrect ? firstCorrect.rank : null;
+  // Re-rank to 1-indexed position within visibleToModel.
+  const firstCorrectIdx = visibleToModel.findIndex((r) => r.is_correct);
+  const rank = firstCorrectIdx >= 0 ? firstCorrectIdx + 1 : null;
 
   return {
     id: q.id,
@@ -342,9 +379,11 @@ function printSummary(results: PerQueryResult[]): void {
 
 async function main(): Promise<void> {
   const mode = parseMode();
+  const threshold = parseThreshold();
   const dataset = await loadDataset();
   console.log(`loaded ${dataset.queries.length} queries from queries.json`);
   console.log(`mode: ${mode}`);
+  console.log(`threshold: ${threshold}`);
 
   console.log('embedding queries (1 Voyage batch)...');
   const embeddings = await embed(
@@ -382,20 +421,21 @@ async function main(): Promise<void> {
       throw error;
     }
     const rows = (data ?? []) as MatchRow[];
-    results.push(scoreQuery(q, rows));
+    results.push(scoreQuery(q, rows, threshold));
   }
 
   printSummary(results);
 
   // Write detailed JSON for diffing across runs
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  const thrTag = `thr${threshold.toFixed(2)}`;
   const outPath = resolvePath(
     dirname(fileURLToPath(import.meta.url)),
     '..',
     '..',
     'evals',
     'retrieval',
-    `results-${mode}-${ts}.json`,
+    `results-${mode}-${thrTag}-${ts}.json`,
   );
   await mkdir(dirname(outPath), { recursive: true });
   const overall = aggregateLabeled(results);
@@ -406,6 +446,7 @@ async function main(): Promise<void> {
       {
         run_at: new Date().toISOString(),
         mode,
+        threshold,
         dataset_size: dataset.queries.length,
         overall,
         guardrail,
