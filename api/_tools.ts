@@ -92,6 +92,7 @@ export type ToolCallResult = {
     source: RetrievalSource;
     chunk_ids: number[];
     top_scores: number[];
+    no_match: boolean;
   };
 };
 
@@ -100,7 +101,34 @@ type MatchRow = {
   content: string;
   metadata: { h2_heading?: string; h3_heading?: string } | null;
   score: number;
+  semantic_distance: number | null;
 };
+
+// Cosine-similarity floor. Threshold is on `1 - semantic_distance`
+// (range 0–1), NOT on the RRF blended score (which saturates at ~0.033
+// with k=60 and would be unusable as a 0.3 threshold). The RRF score
+// still determines RANKING among surviving chunks; cosine is just the
+// quality floor. Filtering on cosine only — a chunk with weak semantic
+// match but strong BM25 hit is usually term-overlap without topic
+// relevance, which we'd rather treat as noise than surface.
+const DEFAULT_MIN_COSINE_SIMILARITY = 0.3;
+
+function getMinCosineSimilarity(): number {
+  const raw = process.env.RAG_MIN_COSINE_SIMILARITY;
+  if (raw === undefined) return DEFAULT_MIN_COSINE_SIMILARITY;
+  const parsed = Number.parseFloat(raw);
+  if (Number.isNaN(parsed)) return DEFAULT_MIN_COSINE_SIMILARITY;
+  return parsed;
+}
+
+// Sent to the model as tool_result when retrieval returns nothing
+// above the cosine-similarity floor. The MUST NOT line is the
+// fabrication guardrail — in-context tool_result instructions are more
+// reliably followed than system-prompt rules during the tool-use loop.
+// Per santifer's finding, this single change reduced hallucination
+// rate more than any retrieval tweak.
+export const NO_MATCH_TOOL_RESULT =
+  "No relevant content found for this query. You MUST NOT fabricate details about Tushar's experience, projects, or background. Say you don't have that information and suggest the user ask about a different topic or reach out directly via the contact form.";
 
 export function isToolName(name: string): name is ToolName {
   return (
@@ -130,14 +158,31 @@ export async function executeTool(
   }
 
   const rows = (data ?? []) as MatchRow[];
-  if (rows.length === 0) {
+  const threshold = getMinCosineSimilarity();
+  // Keep only chunks where the semantic-similarity floor passes.
+  // Chunks with null semantic_distance (BM25-only hits, see
+  // 0004_match_chunks_hybrid.sql) are dropped — no semantic anchor
+  // means they're likely term-overlap noise.
+  const filtered = rows.filter((r) => {
+    if (r.semantic_distance === null) return false;
+    return 1 - r.semantic_distance >= threshold;
+  });
+
+  if (filtered.length === 0) {
+    console.log('[rag] no_match', { query, source, threshold });
     return {
-      formatted: '[No relevant results found in this source.]',
-      metadata: { query, source, chunk_ids: [], top_scores: [] },
+      formatted: NO_MATCH_TOOL_RESULT,
+      metadata: {
+        query,
+        source,
+        chunk_ids: [],
+        top_scores: [],
+        no_match: true,
+      },
     };
   }
 
-  const formatted = rows
+  const formatted = filtered
     .map((row) => {
       const score = row.score.toFixed(4);
       const meta = row.metadata ?? {};
@@ -152,8 +197,9 @@ export async function executeTool(
     metadata: {
       query,
       source,
-      chunk_ids: rows.map((r) => r.chunk_index),
-      top_scores: rows.map((r) => r.score),
+      chunk_ids: filtered.map((r) => r.chunk_index),
+      top_scores: filtered.map((r) => r.score),
+      no_match: false,
     },
   };
 }

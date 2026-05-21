@@ -149,6 +149,41 @@ tools should fire only when the inline facts run out. M2.7 (context
 compression) will trim the inline facts once retrieval is the
 load-bearing path.
 
+## No-match fabrication guardrail
+
+Tool results are filtered through a cosine-similarity floor before
+they reach the model. Each row returned by `match_chunks` passes only
+when `(1 - semantic_distance) >= RAG_MIN_COSINE_SIMILARITY` (default
+`0.3`, configurable via env). The RRF blended `score` still
+determines ranking among surviving chunks; cosine is purely the
+quality floor.
+
+The threshold is on cosine similarity, **not on the RRF score**.
+RRF with `k = 60` saturates at ~0.033 (= 2 × 1/61 for a chunk that
+ranks #1 in both retrievers), so a 0.3 threshold on the RRF axis
+would filter every chunk on every query. Cosine similarity has the
+standard 0–1 range that makes "0.3 means marginal relevance" portable
+across retrieval algorithm choices.
+
+Filter is on cosine only, **not on BM25**. A chunk that scored well
+on BM25 but failed the cosine floor is usually term-overlap without
+topic relevance (e.g., "errors" in a chatbot README that has nothing
+to do with error handling) — better treated as noise than surfaced.
+
+When zero chunks survive the filter, the `tool_result` content
+becomes a fixed instruction (see
+[`NO_MATCH_TOOL_RESULT` in api/_tools.ts](../api/_tools.ts)) telling
+Sonnet **not to fabricate** and to redirect to contact. The
+instruction lives in the tool result rather than the system prompt —
+in-context tool-result text is more reliably followed during the
+tool-use loop than system-prompt rules. The chat handler tags the
+turn's trace with `rag_no_match: true` so M3 evals can surface
+fabrication-prone queries.
+
+Operator signal: when no-match fires, the handler emits
+`console.log('[rag] no_match', { query, source, threshold })` to
+Vercel runtime logs.
+
 ## Webhook setup (M2.5)
 
 The README ingest loop closes via [`POST /api/github-webhook`](../api/github-webhook.ts).

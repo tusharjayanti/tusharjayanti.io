@@ -95,6 +95,7 @@ async function finalizeTrace(
         rag_queries: ragMeta.rag_queries,
         rag_sources: ragMeta.rag_sources,
         rag_top_chunk_ids: ragMeta.rag_top_chunk_ids,
+        rag_no_match: ragMeta.rag_no_match,
       },
     });
     await lf.flushAsync();
@@ -193,6 +194,7 @@ type RagTraceMetadata = {
   rag_queries: string[];
   rag_sources: string[];
   rag_top_chunk_ids: string[];
+  rag_no_match: boolean;
 };
 
 export default async function handler(
@@ -248,6 +250,7 @@ export default async function handler(
     rag_queries: [],
     rag_sources: [],
     rag_top_chunk_ids: [],
+    rag_no_match: false,
   };
   let trace: LangfuseTraceClient | null = null;
   try {
@@ -641,6 +644,9 @@ export default async function handler(
               }
               for (const id of toolResult.metadata.chunk_ids) {
                 ragMeta.rag_top_chunk_ids.push(String(id));
+              }
+              if (toolResult.metadata.no_match) {
+                ragMeta.rag_no_match = true;
               }
               try {
                 span?.end({
