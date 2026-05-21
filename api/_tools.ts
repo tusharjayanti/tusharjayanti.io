@@ -1,8 +1,14 @@
-// Anthropic tool definitions for M2.4 RAG-over-chat. Two source-scoped
-// retrieval tools that wrap the M2.2 hybrid match_chunks RPC. Sonnet
-// picks one (or both) per turn; the chat handler executes the tool,
-// appends a tool_result block, and re-prompts Sonnet for the final
-// streamed answer.
+// Anthropic tool definitions for the RAG-over-chat loop. Three
+// source-scoped retrieval tools that wrap the M2.2 hybrid match_chunks
+// RPC. Sonnet picks one or more per turn; the chat handler executes
+// each, appends tool_result blocks, and re-prompts Sonnet for the
+// final streamed answer.
+//
+// - search_experience (M2.4) — detailed role writeups
+// - search_resume (M2.4)     — compact summaries
+// - search_readme (M2.5)     — GitHub project READMEs, ingested via
+//                              `ingestReadme` and refreshed on push
+//                              via `/api/github-webhook`
 //
 // `executeTool` performs the embed + RPC round-trip per call and is the
 // only callsite outside scripts/ that hits Voyage at retrieval time.
@@ -12,13 +18,18 @@ import { getSupabaseClient } from './_supabase.js';
 
 export const SEARCH_EXPERIENCE = 'search_experience';
 export const SEARCH_RESUME = 'search_resume';
+export const SEARCH_README = 'search_readme';
 
-export type ToolName = typeof SEARCH_EXPERIENCE | typeof SEARCH_RESUME;
-type RetrievalSource = 'experience' | 'resume';
+export type ToolName =
+  | typeof SEARCH_EXPERIENCE
+  | typeof SEARCH_RESUME
+  | typeof SEARCH_README;
+type RetrievalSource = 'experience' | 'resume' | 'readme';
 
 const TOOL_SOURCE_MAP: Record<ToolName, RetrievalSource> = {
   [SEARCH_EXPERIENCE]: 'experience',
   [SEARCH_RESUME]: 'resume',
+  [SEARCH_README]: 'readme',
 };
 
 const MATCH_COUNT = 3;
@@ -56,6 +67,22 @@ export const TOOLS = [
       required: ['query'],
     },
   },
+  {
+    name: SEARCH_README,
+    description:
+      "Search Tushar Jayanti's GitHub project READMEs for deep architecture and implementation details on his side projects (vox-agent, shortlist, tusharjayanti.io, calculator-agent, TensorflowChatbot, OpticalCharacterRecognition). Use this tool when the user asks how a specific project works internally, what its design decisions were, or for technical depth beyond what the resume covers. Returns the top 3 most relevant chunks.",
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        query: {
+          type: 'string',
+          description:
+            "The search query — usually the user's question paraphrased to focus on the relevant project or implementation detail.",
+        },
+      },
+      required: ['query'],
+    },
+  },
 ];
 
 export type ToolCallResult = {
@@ -76,7 +103,11 @@ type MatchRow = {
 };
 
 export function isToolName(name: string): name is ToolName {
-  return name === SEARCH_EXPERIENCE || name === SEARCH_RESUME;
+  return (
+    name === SEARCH_EXPERIENCE ||
+    name === SEARCH_RESUME ||
+    name === SEARCH_README
+  );
 }
 
 export async function executeTool(

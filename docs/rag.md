@@ -116,11 +116,12 @@ parameter.
 ## Tool-use integration (M2.4)
 
 `/api/chat` calls retrieval through Anthropic tool-use, not directly.
-Two source-scoped tools are exposed to Sonnet — `search_experience`
-(detailed role writeups) and `search_resume` (compact summaries) — and
-the model decides per-turn whether to call them. The tool definitions
-live in [`api/_tools.ts`](../api/_tools.ts); each executes one embed +
-one `match_chunks` RPC and formats the top-3 chunks as a single
+Three source-scoped tools are exposed to Sonnet — `search_experience`
+(detailed role writeups), `search_resume` (compact summaries), and
+`search_readme` (GitHub project READMEs, M2.5) — and the model decides
+per-turn whether to call any of them. The tool definitions live in
+[`api/_tools.ts`](../api/_tools.ts); each executes one embed + one
+`match_chunks` RPC and formats the top-3 chunks as a single
 `tool_result` text block.
 
 The chat handler runs one Anthropic streaming session per user turn,
@@ -147,6 +148,39 @@ substantial overlap between the inline facts and the corpus today, so
 tools should fire only when the inline facts run out. M2.7 (context
 compression) will trim the inline facts once retrieval is the
 load-bearing path.
+
+## Webhook setup (M2.5)
+
+The README ingest loop closes via [`POST /api/github-webhook`](../api/github-webhook.ts).
+GitHub pushes the event, the handler verifies the HMAC, filters to
+push-on-default-branch-touching-root-README from an allowlisted repo,
+and dispatches `ingestReadme` via Vercel's `waitUntil` so the response
+returns immediately (202 Accepted) while ingest runs in the background.
+Idempotent re-deliveries cost zero LLM tokens — the content_hash short-
+circuits both the Haiku summary call and the Voyage embed call.
+
+The webhook isn't installed in the 6 repos yet — that's a manual
+post-deploy step. For each repo in
+[`rag/ingest/readme-config.ts`](../rag/ingest/readme-config.ts), go to
+**Settings → Webhooks → Add webhook** with:
+
+- **Payload URL:** `https://tusharjayanti.io/api/github-webhook` (or
+  the Vercel preview URL during testing)
+- **Content type:** `application/json`
+- **Secret:** the value of `GITHUB_WEBHOOK_SECRET` in the Vercel
+  project's environment variables (matches the local `.env.local`)
+- **SSL verification:** Enable
+- **Which events:** "Just the push event"
+- **Active:** checked
+
+After saving, GitHub fires a `ping` event — the handler returns
+`200 event ignored` (only `push` is processed). Re-trigger from
+**Recent Deliveries** with a synthetic push to verify a real flow,
+or simply edit and push the README and watch Vercel function logs.
+
+A single GitHub App across the org-level account is cleaner long-term
+but overkill for six repos; this manual per-repo install is the right
+size today.
 
 ## Operations
 
