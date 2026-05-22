@@ -39,3 +39,30 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run build
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test
+
+  # Audit threshold = 'high'. voyageai 0.0.8 pulls 2 known qs
+  # vulnerabilities (1 low + 1 moderate, accepted pending upstream
+  # fix). 'moderate' would block CI on that known state immediately;
+  # 'high' gates on NEW high+ severity. Tighten to 'moderate' once
+  # voyageai upgrades.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm audit --audit-level=high
