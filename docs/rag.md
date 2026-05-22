@@ -4,6 +4,27 @@ Notes for me, not the README. The README explains _what_ ships. This
 file explains how I think about the primitives so I can answer "how
 does your retrieval work?" in an interview without hedging.
 
+## M2 numbering history
+
+The original plan was M2.6 = Haiku reranker, M2.7 = context
+compression, M2.8 = polish + the v0.3.0 tag. None of those numbers
+held. M2.6 ended up being RAG evaluation foundations — the no-match
+fabrication guardrail, the retrieval eval harness against 31
+labeled queries, and the unified-vs-three-tool consolidation
+decision; the reranker work was deferred. M2.6.5 was a single-
+purpose sub-milestone for the threshold sweep, which surfaced an
+architectural finding: at this corpus size cosine similarity alone
+cannot separate borderline-relevant from borderline-irrelevant
+chunks, so threshold tuning would never clear both retrieval@5 and
+OOC-firing gates simultaneously. That finding justified keeping the
+deferred reranker as the proper fix rather than continuing to tune
+thresholds. M2.7 then shipped the Haiku reranker — the original
+M2.6 scope, eval-gated against both metrics. M2.8 became the
+terminal-page ops snippet (visitor counter, Langfuse-sourced
+metrics, lock-contention test, tokens-aggregation fix), claiming
+the slot polish + tag was supposed to occupy. Context compression —
+the original M2.7 — is banked but not yet scheduled.
+
 ## RAG architecture (M2.1)
 
 M2.1 ships the foundation: a markdown corpus (`content/experience.md`)
