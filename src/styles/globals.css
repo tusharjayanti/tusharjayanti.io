@@ -188,10 +188,18 @@ button:hover {
   border-bottom-color: var(--accent);
 }
 
-.mode-toggle {
+.top-right-stack {
   position: fixed;
   top: 1rem;
   right: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  z-index: 10;
+}
+
+.mode-toggle {
   display: flex;
   gap: 0.25rem;
   background: var(--bg-elevated);
@@ -199,7 +207,69 @@ button:hover {
   border-radius: var(--radius);
   padding: 0.2rem;
   font-size: 0.8rem;
-  z-index: 10;
+}
+
+.ops-snippet {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  line-height: 1.4;
+  color: var(--fg-dim);
+  background: rgba(30, 30, 46, 0.6);
+  border: 0.5px solid #313244;
+  border-radius: 6px;
+  padding: 0.4rem 0.55rem;
+  width: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ops-snippet-title {
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+
+.ops-snippet-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ops-snippet-label {
+  color: var(--fg-dim);
+}
+
+.ops-snippet-value {
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-snippet-footer {
+  margin-top: 2px;
+  color: var(--fg-comment);
+}
+
+.ops-snippet--offline .ops-snippet-value,
+.ops-snippet--offline .ops-snippet-footer {
+  color: var(--fg-comment);
+}
+
+.ops-snippet--mobile {
+  width: auto;
+  white-space: nowrap;
+  text-align: right;
+}
+
+@media (max-width: 767px) {
+  .top-right-stack {
+    top: 0.6rem;
+    right: 0.75rem;
+    gap: 6px;
+  }
+  .ops-snippet {
+    font-size: 0.6rem;
+    padding: 0.25rem 0.5rem;
+  }
 }
 
 .mode-toggle a {

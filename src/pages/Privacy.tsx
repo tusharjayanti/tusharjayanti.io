@@ -11,15 +11,18 @@ export function Privacy() {
       <ul>
         <li>The text of your question and a short preview of the response.</li>
         <li>
-          A SHA-256 hash of your IP address (used for rate-limiting; the raw IP
-          is not stored).
+          A SHA-256 hash of your IP address (used for rate-limiting and for the
+          unique-visitor counter shown in the <code>ops/</code> widget; the raw
+          IP is never stored or logged).
         </li>
         <li>A timestamp.</li>
       </ul>
       <h2>Retention</h2>
       <p>
         Chat logs auto-expire after 7 days. A daily summary email is sent to me
-        and the underlying log entries are deleted afterwards.
+        and the underlying log entries are deleted afterwards. The
+        hashed-IP visitor counter auto-expires after 8 days (one rolling week
+        plus a one-day buffer).
       </p>
       <h2>Third parties</h2>
       <ul>

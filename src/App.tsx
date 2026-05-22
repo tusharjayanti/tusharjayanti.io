@@ -7,6 +7,7 @@ import {
 } from 'react-router';
 import { Footer } from './components/Footer';
 import { ModeToggle } from './components/ModeToggle';
+import { OpsSnippet } from './components/OpsSnippet';
 import { Wordmark } from './components/Wordmark';
 import { CV } from './modes/cv/CV';
 import { Terminal } from './modes/terminal/Terminal';
@@ -28,7 +29,12 @@ function AppShell() {
     location.pathname === '/terminal' || location.pathname === '/cv';
   return (
     <div className={`app-shell${isMode ? ' app-shell--mode' : ''}`}>
-      {isMode && <ModeToggle />}
+      {isMode && (
+        <div className="top-right-stack">
+          <ModeToggle />
+          <OpsSnippet />
+        </div>
+      )}
       <main className="app-main">
         {isMode && <Wordmark />}
         <Outlet />

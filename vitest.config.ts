@@ -7,6 +7,7 @@ export default defineConfig({
       'src/**/*.test.ts',
       'rag/**/*.test.ts',
       'scripts/**/*.test.mjs',
+      'middleware.test.ts',
     ],
   },
 });
