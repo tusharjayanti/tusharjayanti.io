@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useIsMobile } from '../lib/viewMode';
-import {
-  type OpsSnippet as Snippet,
-  buildOpsView,
-} from '../lib/opsSnippet';
+import { type OpsSnippet as Snippet, buildOpsView } from '../lib/opsSnippet';
 
 // Terminal-themed observability widget shown top-right on the
 // terminal/cv pages, stacked under the mode toggle. Pulls from

@@ -14,8 +14,16 @@
       "query": "How does vox-agent's hallucination detection work?",
       "target_source": "readme",
       "correct_chunks": [
-        { "source": "readme", "source_id": "tusharjayanti/vox-agent", "chunk_index": 1 },
-        { "source": "readme", "source_id": "tusharjayanti/vox-agent", "chunk_index": 0 }
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0
+        }
       ],
       "tags": ["realistic", "readme"]
     },
@@ -24,8 +32,16 @@
       "query": "What's the architecture of calculator-agent?",
       "target_source": "readme",
       "correct_chunks": [
-        { "source": "readme", "source_id": "tusharjayanti/calculator-agent", "chunk_index": 0 },
-        { "source": "readme", "source_id": "tusharjayanti/calculator-agent", "chunk_index": 2 }
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 0
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 2
+        }
       ],
       "tags": ["realistic", "readme"]
     },
@@ -34,8 +50,16 @@
       "query": "What's tusharjayanti.io built with?",
       "target_source": "readme",
       "correct_chunks": [
-        { "source": "readme", "source_id": "tusharjayanti/tusharjayanti.io", "chunk_index": 1 },
-        { "source": "readme", "source_id": "tusharjayanti/tusharjayanti.io", "chunk_index": 0 }
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 1
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 0
+        }
       ],
       "tags": ["realistic", "readme"]
     },
@@ -44,8 +68,16 @@
       "query": "what makes the customer-support agent reliable",
       "target_source": "readme",
       "correct_chunks": [
-        { "source": "readme", "source_id": "tusharjayanti/vox-agent", "chunk_index": 1 },
-        { "source": "readme", "source_id": "tusharjayanti/vox-agent", "chunk_index": 0 }
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0
+        }
       ],
       "tags": ["adversarial", "vocabulary-poor", "readme"]
     },
@@ -54,9 +86,21 @@
       "query": "how does this project handle errors",
       "target_source": "readme",
       "correct_chunks": [
-        { "source": "readme", "source_id": "tusharjayanti/vox-agent", "chunk_index": 1 },
-        { "source": "readme", "source_id": "tusharjayanti/tusharjayanti.io", "chunk_index": 12 },
-        { "source": "readme", "source_id": "tusharjayanti/tusharjayanti.io", "chunk_index": 5 }
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 12
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 5
+        }
       ],
       "tags": ["adversarial", "readme"]
     },
@@ -65,13 +109,41 @@
       "query": "Tushar's experience at DISCO",
       "target_source": "experience",
       "correct_chunks": [
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 0 },
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 1 },
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 2 },
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 3 },
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 4 },
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 5 },
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 6 }
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 0
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 1
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 2
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 3
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 4
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 5
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 6
+        }
       ],
       "tags": ["realistic", "experience"]
     },
@@ -80,8 +152,16 @@
       "query": "Tell me how vox-agent catches AI mistakes",
       "target_source": "readme",
       "correct_chunks": [
-        { "source": "readme", "source_id": "tusharjayanti/vox-agent", "chunk_index": 1 },
-        { "source": "readme", "source_id": "tusharjayanti/vox-agent", "chunk_index": 0 }
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0
+        }
       ],
       "tags": ["realistic", "vocabulary-poor", "readme"]
     },
@@ -90,8 +170,16 @@
       "query": "How is calculator-agent structured?",
       "target_source": "readme",
       "correct_chunks": [
-        { "source": "readme", "source_id": "tusharjayanti/calculator-agent", "chunk_index": 0 },
-        { "source": "readme", "source_id": "tusharjayanti/calculator-agent", "chunk_index": 2 }
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 0
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 2
+        }
       ],
       "tags": ["realistic", "vocabulary-poor", "readme"]
     },
@@ -100,8 +188,16 @@
       "query": "show me the AI evaluation project",
       "target_source": "readme",
       "correct_chunks": [
-        { "source": "readme", "source_id": "tusharjayanti/vox-agent", "chunk_index": 0 },
-        { "source": "readme", "source_id": "tusharjayanti/vox-agent", "chunk_index": 1 }
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1
+        }
       ],
       "tags": ["vocabulary-poor", "readme"]
     },
@@ -110,9 +206,21 @@
       "query": "which of these projects use Python",
       "target_source": "readme",
       "correct_chunks": [
-        { "source": "readme", "source_id": "tusharjayanti/OpticalCharacterRecognition", "chunk_index": 0 },
-        { "source": "readme", "source_id": "tusharjayanti/vox-agent", "chunk_index": 0 },
-        { "source": "readme", "source_id": "tusharjayanti/calculator-agent", "chunk_index": 1 }
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/OpticalCharacterRecognition",
+          "chunk_index": 0
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 1
+        }
       ],
       "tags": ["realistic", "readme"]
     },
@@ -121,7 +229,11 @@
       "query": "What's the multi-agent architecture in shortlist?",
       "target_source": "readme",
       "correct_chunks": [
-        { "source": "readme", "source_id": "tusharjayanti/shortlist", "chunk_index": 0 }
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 0
+        }
       ],
       "tags": ["realistic", "readme"]
     },
@@ -130,8 +242,16 @@
       "query": "How does shortlist score jobs?",
       "target_source": "readme",
       "correct_chunks": [
-        { "source": "readme", "source_id": "tusharjayanti/shortlist", "chunk_index": 4 },
-        { "source": "readme", "source_id": "tusharjayanti/shortlist", "chunk_index": 1 }
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 4
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 1
+        }
       ],
       "tags": ["realistic", "readme"]
     },
@@ -140,9 +260,21 @@
       "query": "explain the resume helper tool",
       "target_source": "readme",
       "correct_chunks": [
-        { "source": "readme", "source_id": "tusharjayanti/shortlist", "chunk_index": 4 },
-        { "source": "readme", "source_id": "tusharjayanti/shortlist", "chunk_index": 5 },
-        { "source": "readme", "source_id": "tusharjayanti/shortlist", "chunk_index": 7 }
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 4
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 5
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 7
+        }
       ],
       "tags": ["vocabulary-poor", "readme"]
     },
@@ -165,8 +297,16 @@
       "query": "what does the OCR project preprocess?",
       "target_source": "readme",
       "correct_chunks": [
-        { "source": "readme", "source_id": "tusharjayanti/OpticalCharacterRecognition", "chunk_index": 0 },
-        { "source": "readme", "source_id": "tusharjayanti/OpticalCharacterRecognition", "chunk_index": 1 }
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/OpticalCharacterRecognition",
+          "chunk_index": 0
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/OpticalCharacterRecognition",
+          "chunk_index": 1
+        }
       ],
       "tags": ["realistic", "readme"]
     },
@@ -175,7 +315,11 @@
       "query": "Tushar's gRPC migration at DISCO",
       "target_source": "experience",
       "correct_chunks": [
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 1 }
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 1
+        }
       ],
       "tags": ["realistic", "experience"]
     },
@@ -184,7 +328,11 @@
       "query": "What was the Reserve Release feature?",
       "target_source": "experience",
       "correct_chunks": [
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 11 }
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 11
+        }
       ],
       "tags": ["realistic", "single-source", "experience"]
     },
@@ -193,7 +341,11 @@
       "query": "How did Tushar reduce p99 latency?",
       "target_source": "experience",
       "correct_chunks": [
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 3 }
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 3
+        }
       ],
       "tags": ["realistic", "experience"]
     },
@@ -202,7 +354,11 @@
       "query": "Tushar's Kafka work at USAA",
       "target_source": "experience",
       "correct_chunks": [
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 16 }
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 16
+        }
       ],
       "tags": ["realistic", "experience"]
     },
@@ -211,10 +367,26 @@
       "query": "What did Tushar build at PurpleToko?",
       "target_source": "experience",
       "correct_chunks": [
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 7 },
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 8 },
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 9 },
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 10 }
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 7
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 8
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 9
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 10
+        }
       ],
       "tags": ["realistic", "single-source", "experience"]
     },
@@ -223,8 +395,16 @@
       "query": "Tushar's experience with high-throughput financial systems",
       "target_source": "experience",
       "correct_chunks": [
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 11 },
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 16 }
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 11
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 16
+        }
       ],
       "tags": ["vocabulary-poor", "experience"]
     },
@@ -233,7 +413,11 @@
       "query": "Tushar's monolith decomposition story",
       "target_source": "experience",
       "correct_chunks": [
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 14 }
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 14
+        }
       ],
       "tags": ["realistic", "experience"]
     },
@@ -300,8 +484,16 @@
       "target_source": "resume",
       "correct_chunks": [
         { "source": "resume", "source_id": "resume.md", "chunk_index": 1 },
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 2 },
-        { "source": "experience", "source_id": "experience.md", "chunk_index": 5 }
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 2
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 5
+        }
       ],
       "tags": ["cross-source", "realistic"]
     }

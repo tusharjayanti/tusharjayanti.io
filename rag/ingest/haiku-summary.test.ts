@@ -23,9 +23,8 @@ vi.mock('../../api/_langfuse.js', () => ({
   makeSystemPromptHandle: () => null,
 }));
 
-const { summarizeChunk, HAIKU_MODEL, SUMMARY_MAX_CHARS } = await import(
-  './haiku-summary.js'
-);
+const { summarizeChunk, HAIKU_MODEL, SUMMARY_MAX_CHARS } =
+  await import('./haiku-summary.js');
 
 function fakeResponse(text: string, inputTokens = 200, outputTokens = 30) {
   return {

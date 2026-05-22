@@ -209,12 +209,16 @@ async function defaultJudge(
   return text;
 }
 
-function buildUserPrompt(query: string, items: Array<{ id: number; content: string }>): string {
+function buildUserPrompt(
+  query: string,
+  items: Array<{ id: number; content: string }>,
+): string {
   const chunkLines = items
     .map((it) => {
-      const c = it.content.length > MAX_CHUNK_CHARS
-        ? it.content.slice(0, MAX_CHUNK_CHARS).trimEnd() + '…'
-        : it.content;
+      const c =
+        it.content.length > MAX_CHUNK_CHARS
+          ? it.content.slice(0, MAX_CHUNK_CHARS).trimEnd() + '…'
+          : it.content;
       return `[${it.id}] ${c}`;
     })
     .join('\n');
@@ -226,7 +230,9 @@ export async function rerankChunks<T extends RerankerCandidate>(
   chunks: T[],
   opts: RerankOpts = {},
 ): Promise<T[]> {
-  const cosineMin = opts.cosinePreFilter ?? getEnvFloat('RAG_MIN_COSINE_SIMILARITY', DEFAULT_COSINE_PRE_FILTER);
+  const cosineMin =
+    opts.cosinePreFilter ??
+    getEnvFloat('RAG_MIN_COSINE_SIMILARITY', DEFAULT_COSINE_PRE_FILTER);
   const topN = opts.topN ?? getEnvInt('RAG_RERANK_N', DEFAULT_RERANK_N);
   const skipBelow = opts.skipBelow ?? DEFAULT_SKIP_RERANK_BELOW;
   const judge = opts.judge ?? defaultJudge;

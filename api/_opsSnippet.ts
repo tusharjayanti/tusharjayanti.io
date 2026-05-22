@@ -180,11 +180,7 @@ export async function getOpsSnippet(
     console.error('[ops/snippet] cache GET failed:', err);
     cached = null;
   }
-  if (
-    cached &&
-    !cached.is_offline &&
-    isFresh(cached.last_aggregated_at, now)
-  ) {
+  if (cached && !cached.is_offline && isFresh(cached.last_aggregated_at, now)) {
     return cached;
   }
 

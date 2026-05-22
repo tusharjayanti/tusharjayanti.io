@@ -186,7 +186,12 @@ function fakeAnthropicToolUseStream(
     yield {
       type: 'content_block_start',
       index: nextIndex,
-      content_block: { type: 'tool_use', id: toolId, name: toolName, input: {} },
+      content_block: {
+        type: 'tool_use',
+        id: toolId,
+        name: toolName,
+        input: {},
+      },
     };
     yield {
       type: 'content_block_delta',
@@ -508,7 +513,9 @@ describe('chat handler — q length cap (50,000 chars)', () => {
   });
 
   it('accepts a 49,999-character q without validation failure', async () => {
-    mocks.messagesCreate.mockResolvedValue(fakeAnthropicStream('processed long input'));
+    mocks.messagesCreate.mockResolvedValue(
+      fakeAnthropicStream('processed long input'),
+    );
     const longQ = 'x'.repeat(49_999);
     const res = (await handler(makeRequest(longQ), ctx)) as Response;
     await drainStream(res);
@@ -563,7 +570,8 @@ describe('chat handler — M2.4 tool-use', () => {
 
   it('executes a search_experience tool call and continues with a streamed answer', async () => {
     mocks.executeTool.mockResolvedValue({
-      formatted: '[Source: experience, score: 0.0328]\nDISCO > Identity migration\nfake chunk body',
+      formatted:
+        '[Source: experience, score: 0.0328]\nDISCO > Identity migration\nfake chunk body',
       metadata: {
         query: 'identity platform migration',
         source: 'experience',

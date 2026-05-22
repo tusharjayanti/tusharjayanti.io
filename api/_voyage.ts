@@ -6,11 +6,7 @@
 // per Voyage's own guidance. Used by the M2.1.3 chunker and the M2.2
 // retrieval path.
 
-import {
-  VoyageAIClient,
-  VoyageAIError,
-  VoyageAITimeoutError,
-} from 'voyageai';
+import { VoyageAIClient, VoyageAIError, VoyageAITimeoutError } from 'voyageai';
 
 export const VOYAGE_MODEL = 'voyage-3';
 export const VOYAGE_DIMENSION = 1024;

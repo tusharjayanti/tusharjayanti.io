@@ -96,14 +96,14 @@ export const TOOLS = [
   {
     name: FETCH_URL,
     description:
-      "Fetch the text content of a public web URL the user has pasted into the chat — typically a job description, article, or external page they want discussed. Returns the page content as markdown for token efficiency. The user must have included the URL in their message; do NOT invent URLs. Use this when the user provides a URL and the answer requires reading that page. Fetched content is for THIS turn only and is not persisted. Very long pages are truncated at ~150K tokens with a notice appended.",
+      'Fetch the text content of a public web URL the user has pasted into the chat — typically a job description, article, or external page they want discussed. Returns the page content as markdown for token efficiency. The user must have included the URL in their message; do NOT invent URLs. Use this when the user provides a URL and the answer requires reading that page. Fetched content is for THIS turn only and is not persisted. Very long pages are truncated at ~150K tokens with a notice appended.',
     input_schema: {
       type: 'object' as const,
       properties: {
         url: {
           type: 'string',
           description:
-            'The HTTP or HTTPS URL to fetch, taken verbatim from the user\'s message.',
+            "The HTTP or HTTPS URL to fetch, taken verbatim from the user's message.",
         },
       },
       required: ['url'],
@@ -230,9 +230,7 @@ async function executeFetchUrl(url: string): Promise<ToolCallResult> {
   }
   const header =
     `[Fetched: ${result.sourceUrl}]\n` +
-    (result.truncated !== 'none'
-      ? `[Truncation: ${result.truncated}]\n`
-      : '');
+    (result.truncated !== 'none' ? `[Truncation: ${result.truncated}]\n` : '');
   return {
     formatted: header + '\n' + result.content,
     metadata: {

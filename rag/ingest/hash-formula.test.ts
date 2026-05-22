@@ -23,10 +23,7 @@ function legacyHash(content: string, embedding_text: string): string {
     .digest('hex');
 }
 
-function makeChunk(
-  content: string,
-  embedding_text: string,
-): MarkdownChunk {
+function makeChunk(content: string, embedding_text: string): MarkdownChunk {
   return {
     chunk_index: 0,
     content,
@@ -39,7 +36,8 @@ describe('hashChunk — source-conditional', () => {
   it('matches the deployed formula byte-for-byte for source=experience', () => {
     const chunk = makeChunk(
       'DISCO body. ' + 'word '.repeat(50),
-      'DISCO (Senior Software Engineer)\n## Identity platform migration\nDISCO body. ' + 'word '.repeat(50),
+      'DISCO (Senior Software Engineer)\n## Identity platform migration\nDISCO body. ' +
+        'word '.repeat(50),
     );
     const newHash = hashChunk(chunk, 'experience');
     const oldHash = legacyHash(chunk.content, chunk.embedding_text);

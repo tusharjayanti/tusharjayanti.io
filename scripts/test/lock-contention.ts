@@ -78,13 +78,12 @@ async function fireConcurrent(n: number): Promise<SnippetBody[]> {
   const promises: Array<Promise<SnippetBody>> = [];
   for (let i = 0; i < n; i++) {
     promises.push(
-      fetch(snippetUrl)
-        .then(async (r) => {
-          if (!r.ok) {
-            throw new Error(`GET returned ${r.status}: ${await r.text()}`);
-          }
-          return (await r.json()) as SnippetBody;
-        }),
+      fetch(snippetUrl).then(async (r) => {
+        if (!r.ok) {
+          throw new Error(`GET returned ${r.status}: ${await r.text()}`);
+        }
+        return (await r.json()) as SnippetBody;
+      }),
     );
   }
   return Promise.all(promises);

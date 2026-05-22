@@ -67,7 +67,9 @@ describe('middleware (visitor counter)', () => {
     const [key, field] = mocks.hset.mock.calls[0]!;
     expect(key).toMatch(/^ops:visitors:\d{4}-\d{2}-\d{2}$/);
     // Field is { <16-hex>: 1 }
-    expect(Object.keys(field as Record<string, unknown>)[0]).toMatch(/^[0-9a-f]{16}$/);
+    expect(Object.keys(field as Record<string, unknown>)[0]).toMatch(
+      /^[0-9a-f]{16}$/,
+    );
   });
 
   it('skips bot UAs entirely (no waitUntil, no Redis call)', async () => {

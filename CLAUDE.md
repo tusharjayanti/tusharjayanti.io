@@ -105,7 +105,7 @@ Precedence:
 - Wiring: `/api/chat` calls retrieval via Anthropic tool-use. Two source-scoped tools (`search_experience`, `search_resume`) defined in `api/_tools.ts` and exposed in the Anthropic request. Sonnet picks one or both per turn; the handler runs ONE client-facing streaming session per user turn that internally iterates rounds — text deltas stream immediately, tool_use blocks accumulate, then tools execute and a follow-up round continues on the same stream. Cap is 3 rounds per turn. Langfuse: one `sonnet-response` generation per Anthropic call, one `tool-execution` span per tool firing, plus trace metadata `rag_retrieved` / `rag_queries` / `rag_sources` / `rag_top_chunk_ids` for the M3 dashboard.
 - Known: H2-preamble lines (`**Dates:** ...`, `**Tech stack:** ...`) are dropped by the chunker — they aren't inside any H3 section. Banked for M3 retrieval-data review.
 - Known: Supabase free-tier auto-pauses after 7 days inactivity (~30s cold start on first request after pause).
-- Known: service_role grants don't auto-apply on user-created tables under `sb_secret_*` keys (codified in `0002_chunks_grants.sql`).
+- Known: service*role grants don't auto-apply on user-created tables under `sb_secret*\*`keys (codified in`0002_chunks_grants.sql`).
 
 ## Guiding principle
 

@@ -19,10 +19,7 @@
 import { fetchReadme } from '../clients/github.js';
 import { chunkMarkdown, type MarkdownChunk } from '../chunking/markdown.js';
 import { embed } from '../../api/_voyage.js';
-import {
-  getSupabaseClient,
-  type ChunkInput,
-} from '../../api/_supabase.js';
+import { getSupabaseClient, type ChunkInput } from '../../api/_supabase.js';
 import { summarizeChunk } from './haiku-summary.js';
 import { hashChunk, sha256Hex } from './markdown.js';
 
@@ -204,11 +201,7 @@ export async function ingestReadme(
       ...chunk,
       embedding_text: finalEmbeddingText,
     };
-    const targetHash = hashChunk(
-      candidateChunk,
-      'readme',
-      summaryInputHash,
-    );
+    const targetHash = hashChunk(candidateChunk, 'readme', summaryInputHash);
 
     toWrite.push({
       chunkIndex: i,

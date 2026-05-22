@@ -20,9 +20,9 @@ export function Privacy() {
       <h2>Retention</h2>
       <p>
         Chat logs auto-expire after 7 days. A daily summary email is sent to me
-        and the underlying log entries are deleted afterwards. The
-        hashed-IP visitor counter auto-expires after 8 days (one rolling week
-        plus a one-day buffer).
+        and the underlying log entries are deleted afterwards. The hashed-IP
+        visitor counter auto-expires after 8 days (one rolling week plus a
+        one-day buffer).
       </p>
       <h2>Third parties</h2>
       <ul>

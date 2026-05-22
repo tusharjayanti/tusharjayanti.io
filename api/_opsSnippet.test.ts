@@ -23,7 +23,7 @@ function makeRedis(overrides: Partial<SnippetRedis> = {}): SnippetRedis & {
   return {
     _store: store,
     _hashes: hashes,
-    get: async <T,>(key: string) => (store.get(key) as T) ?? null,
+    get: async <T>(key: string) => (store.get(key) as T) ?? null,
     set: async (key, value) => {
       store.set(key, value);
       return 'OK';

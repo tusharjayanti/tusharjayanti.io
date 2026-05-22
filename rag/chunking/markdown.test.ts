@@ -19,10 +19,7 @@ describe('chunkMarkdown (hierarchical: experience / resume)', () => {
   it('returns an empty array when only an H1 is present (no H2/H3)', () => {
     expect(chunkMarkdown('# Title', 'experience')).toEqual([]);
     expect(
-      chunkMarkdown(
-        '# Title\n\nSome prose\n\nMore prose',
-        'experience',
-      ),
+      chunkMarkdown('# Title\n\nSome prose\n\nMore prose', 'experience'),
     ).toEqual([]);
   });
 
@@ -84,7 +81,9 @@ describe('chunkMarkdown (hierarchical: experience / resume)', () => {
     ]);
     // Every chunk's embedding_text starts with the heading path.
     for (const c of chunks) {
-      expect(c.embedding_text.startsWith(`Company A\n## ${c.metadata.h3_heading}\n`)).toBe(true);
+      expect(
+        c.embedding_text.startsWith(`Company A\n## ${c.metadata.h3_heading}\n`),
+      ).toBe(true);
       // Content has no heading prefix.
       expect(c.content.startsWith('Company A')).toBe(false);
       expect(c.content.startsWith('## ')).toBe(false);
@@ -173,20 +172,13 @@ describe('chunkMarkdown (hierarchical: experience / resume)', () => {
 
   it('drops H3 headings with no body and never emits content equal to just the heading lines', () => {
     const body = 'body for role 2. ' + 'word '.repeat(50);
-    const md = [
-      '## Company A',
-      '### Role 1',
-      '### Role 2',
-      body,
-    ].join('\n');
+    const md = ['## Company A', '### Role 1', '### Role 2', body].join('\n');
 
     const chunks = chunkMarkdown(md, 'experience');
     expect(chunks).toHaveLength(1);
     expect(chunks[0].metadata.h3_heading).toBe('Role 2');
     expect(chunks[0].content).toBe(body);
-    expect(chunks[0].embedding_text).toBe(
-      `Company A\n## Role 2\n${body}`,
-    );
+    expect(chunks[0].embedding_text).toBe(`Company A\n## Role 2\n${body}`);
 
     // EOF without body should also drop the trailing heading.
     const trailing = ['## Company A', '### Role 1'].join('\n');
@@ -200,11 +192,14 @@ describe('chunkMarkdown (hierarchical: experience / resume)', () => {
     expect(chunks).toHaveLength(1);
     expect(chunks[0].metadata.h2_heading).toBe('Summary');
     expect(chunks[0].metadata.h3_heading).toBe('Senior engineer');
-    expect(chunks[0].embedding_text.startsWith('Summary\n## Senior engineer\n')).toBe(true);
+    expect(
+      chunks[0].embedding_text.startsWith('Summary\n## Senior engineer\n'),
+    ).toBe(true);
   });
 
   it('min-merges a too-short H3 body into the previous sibling under the same H2', () => {
-    const longBody = 'A long-enough body. ' + 'sentence sentence sentence. '.repeat(15);
+    const longBody =
+      'A long-enough body. ' + 'sentence sentence sentence. '.repeat(15);
     const shortBody = 'tiny.';
     const md = [
       '## Company A',
@@ -250,7 +245,8 @@ describe('chunkMarkdown (hierarchical: experience / resume)', () => {
   });
 
   it('keeps a too-short orphan H3 under its own H2 when no merge target exists under that H2', () => {
-    const longBody = 'A long-enough body. ' + 'sentence sentence sentence. '.repeat(15);
+    const longBody =
+      'A long-enough body. ' + 'sentence sentence sentence. '.repeat(15);
     const shortBody = 'tiny.';
     // The short H3 lives under Company A; the next H3 is under Company B
     // so backward AND forward merge under the same H2 both fail.
@@ -332,7 +328,9 @@ describe('chunkSlidingWindow (readme)', () => {
     let cursor = 0;
     for (const c of chunks) {
       expect(c.metadata.start_offset).toBe(cursor);
-      expect(c.content).toBe(text.slice(c.metadata.start_offset, c.metadata.end_offset));
+      expect(c.content).toBe(
+        text.slice(c.metadata.start_offset, c.metadata.end_offset),
+      );
       cursor = c.metadata.end_offset;
     }
     expect(cursor).toBe(text.length);
@@ -360,7 +358,13 @@ describe('chunkSlidingWindow (readme)', () => {
     // would split it mid-block. Then assert the fence ends up in a
     // single chunk's content.
     const lead = 'lead prose. '.repeat(110); // ~1300 chars
-    const fenceBody = ['```ts', 'const x = 1;', 'const y = 2;', 'const z = 3;', '```'].join('\n');
+    const fenceBody = [
+      '```ts',
+      'const x = 1;',
+      'const y = 2;',
+      'const z = 3;',
+      '```',
+    ].join('\n');
     const tail = '\n\ntail prose after fence.';
     const text = lead + fenceBody + tail;
     const chunks = chunkSlidingWindow(text);

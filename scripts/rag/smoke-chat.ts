@@ -31,9 +31,7 @@ function parseArgs(): Args {
     else positionals.push(a);
   }
   if (positionals.length === 0) {
-    console.error(
-      'usage: tsx scripts/rag/smoke-chat.ts <query> [--no-stream]',
-    );
+    console.error('usage: tsx scripts/rag/smoke-chat.ts <query> [--no-stream]');
     process.exit(2);
   }
   return { query: positionals.join(' '), stream };

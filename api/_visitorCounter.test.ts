@@ -15,7 +15,9 @@ import {
 
 describe('isBotUserAgent', () => {
   it('returns true for common bot UA substrings', () => {
-    expect(isBotUserAgent('Mozilla/5.0 (compatible; Googlebot/2.1)')).toBe(true);
+    expect(isBotUserAgent('Mozilla/5.0 (compatible; Googlebot/2.1)')).toBe(
+      true,
+    );
     expect(isBotUserAgent('Slackbot-LinkExpanding 1.0')).toBe(true);
     expect(isBotUserAgent('discordbot/2.0')).toBe(true);
     expect(isBotUserAgent('SomeCustomBot/1.0')).toBe(true);
@@ -94,7 +96,10 @@ describe('recordVisitor', () => {
     const day = '2026-05-22';
     await recordVisitor(fake, 'abcdef1234567890', day);
     expect(calls).toEqual([
-      { op: 'hset', args: ['ops:visitors:2026-05-22', { abcdef1234567890: 1 }] },
+      {
+        op: 'hset',
+        args: ['ops:visitors:2026-05-22', { abcdef1234567890: 1 }],
+      },
       { op: 'expire', args: ['ops:visitors:2026-05-22', 60 * 60 * 24 * 8] },
     ]);
   });
@@ -108,9 +113,6 @@ describe('recordVisitor', () => {
     await recordVisitor(fake, 'deadbeefdeadbeef');
     expect(captured).toHaveBeenCalledOnce();
     const expectedKey = visitorHashKey(todayUtc());
-    expect(captured).toHaveBeenCalledWith(
-      expectedKey,
-      expect.any(Object),
-    );
+    expect(captured).toHaveBeenCalledWith(expectedKey, expect.any(Object));
   });
 });

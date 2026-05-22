@@ -31,9 +31,7 @@ const SECRET = 'sha256-test-secret-please-rotate';
 const ALLOWLISTED_REPO = 'tusharjayanti/vox-agent';
 
 function sign(body: string): string {
-  return (
-    'sha256=' + createHmac('sha256', SECRET).update(body).digest('hex')
-  );
+  return 'sha256=' + createHmac('sha256', SECRET).update(body).digest('hex');
 }
 
 type MockRes = {
@@ -200,10 +198,7 @@ describe('github-webhook', () => {
     const handler = await loadHandler();
     const body = pushPayload({});
     const res = makeRes();
-    await handler(
-      makeReq({ body, signature: sign(body), event: 'ping' }),
-      res,
-    );
+    await handler(makeReq({ body, signature: sign(body), event: 'ping' }), res);
     expect(res._status).toBe(200);
     expect(res._body).toBe('event ignored');
     expect(mocks.waitUntil).not.toHaveBeenCalled();
@@ -213,10 +208,7 @@ describe('github-webhook', () => {
     const handler = await loadHandler();
     const body = 'not-json {';
     const res = makeRes();
-    await handler(
-      makeReq({ body, signature: sign(body), event: 'push' }),
-      res,
-    );
+    await handler(makeReq({ body, signature: sign(body), event: 'push' }), res);
     expect(res._status).toBe(400);
     expect(mocks.waitUntil).not.toHaveBeenCalled();
   });
@@ -225,10 +217,7 @@ describe('github-webhook', () => {
     const handler = await loadHandler();
     const body = pushPayload({ full_name: 'someone-else/random-repo' });
     const res = makeRes();
-    await handler(
-      makeReq({ body, signature: sign(body), event: 'push' }),
-      res,
-    );
+    await handler(makeReq({ body, signature: sign(body), event: 'push' }), res);
     expect(res._status).toBe(200);
     expect(res._body).toBe('not in allowlist');
     expect(mocks.waitUntil).not.toHaveBeenCalled();
@@ -241,10 +230,7 @@ describe('github-webhook', () => {
       ref: 'refs/heads/feature-branch',
     });
     const res = makeRes();
-    await handler(
-      makeReq({ body, signature: sign(body), event: 'push' }),
-      res,
-    );
+    await handler(makeReq({ body, signature: sign(body), event: 'push' }), res);
     expect(res._status).toBe(200);
     expect(res._body).toBe('not default branch');
     expect(mocks.waitUntil).not.toHaveBeenCalled();
@@ -257,10 +243,7 @@ describe('github-webhook', () => {
       added: ['src/new-file.ts'],
     });
     const res = makeRes();
-    await handler(
-      makeReq({ body, signature: sign(body), event: 'push' }),
-      res,
-    );
+    await handler(makeReq({ body, signature: sign(body), event: 'push' }), res);
     expect(res._status).toBe(200);
     expect(res._body).toBe('README not touched');
     expect(mocks.waitUntil).not.toHaveBeenCalled();
@@ -273,10 +256,7 @@ describe('github-webhook', () => {
       added: ['README.md'],
     });
     const res = makeRes();
-    await handler(
-      makeReq({ body, signature: sign(body), event: 'push' }),
-      res,
-    );
+    await handler(makeReq({ body, signature: sign(body), event: 'push' }), res);
     expect(res._status).toBe(202);
     expect(mocks.waitUntil).toHaveBeenCalledTimes(1);
   });
@@ -285,10 +265,7 @@ describe('github-webhook', () => {
     const handler = await loadHandler();
     const body = pushPayload({ modified: ['readme.markdown'] });
     const res = makeRes();
-    await handler(
-      makeReq({ body, signature: sign(body), event: 'push' }),
-      res,
-    );
+    await handler(makeReq({ body, signature: sign(body), event: 'push' }), res);
     expect(res._status).toBe(202);
     expect(mocks.waitUntil).toHaveBeenCalledTimes(1);
   });
@@ -298,10 +275,7 @@ describe('github-webhook', () => {
     delete process.env.GITHUB_WEBHOOK_SECRET;
     const body = pushPayload({});
     const res = makeRes();
-    await handler(
-      makeReq({ body, signature: sign(body), event: 'push' }),
-      res,
-    );
+    await handler(makeReq({ body, signature: sign(body), event: 'push' }), res);
     expect(res._status).toBe(401);
   });
 });

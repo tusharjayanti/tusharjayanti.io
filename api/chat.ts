@@ -547,7 +547,8 @@ export default async function handler(
             if (!acc) continue;
             let input: unknown = {};
             try {
-              input = acc.jsonBuffer.length > 0 ? JSON.parse(acc.jsonBuffer) : {};
+              input =
+                acc.jsonBuffer.length > 0 ? JSON.parse(acc.jsonBuffer) : {};
             } catch (err) {
               console.error(
                 '[chat] tool input JSON parse failed:',
@@ -586,14 +587,17 @@ export default async function handler(
           messages.push({ role: 'assistant', content: result.contentBlocks });
 
           const toolUseBlocks = result.contentBlocks.filter(
-            (b): b is { type: 'tool_use'; id: string; name: string; input: unknown } =>
-              b.type === 'tool_use',
+            (
+              b,
+            ): b is {
+              type: 'tool_use';
+              id: string;
+              name: string;
+              input: unknown;
+            } => b.type === 'tool_use',
           );
 
-          if (
-            result.stopReason !== 'tool_use' ||
-            toolUseBlocks.length === 0
-          ) {
+          if (result.stopReason !== 'tool_use' || toolUseBlocks.length === 0) {
             // Sonnet finished without (or done with) tool calls. Exit loop.
             break;
           }
@@ -685,7 +689,9 @@ export default async function handler(
               });
               try {
                 span?.end({
-                  output: { error: err instanceof Error ? err.message : String(err) },
+                  output: {
+                    error: err instanceof Error ? err.message : String(err),
+                  },
                 });
               } catch {
                 // swallow

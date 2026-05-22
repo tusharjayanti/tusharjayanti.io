@@ -49,9 +49,11 @@ describe('fetchUrl', () => {
       const html = '<html><body><h1>Hello</h1><p>World</p></body></html>';
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockResolvedValue(
-          htmlResponse(html, { url: 'https://example.com/' }),
-        ),
+        vi
+          .fn()
+          .mockResolvedValue(
+            htmlResponse(html, { url: 'https://example.com/' }),
+          ),
       );
 
       const result = await fetchUrl('https://example.com/');
@@ -180,7 +182,10 @@ describe('fetchUrl', () => {
       vi.stubGlobal(
         'fetch',
         vi.fn().mockResolvedValue(
-          htmlResponse('not found', { status: 404, url: 'https://example.com/' }),
+          htmlResponse('not found', {
+            status: 404,
+            url: 'https://example.com/',
+          }),
         ),
       );
       const result = await fetchUrl('https://example.com/');
@@ -190,9 +195,11 @@ describe('fetchUrl', () => {
     it('returns an error string for 5xx responses', async () => {
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockResolvedValue(
-          htmlResponse('boom', { status: 503, url: 'https://example.com/' }),
-        ),
+        vi
+          .fn()
+          .mockResolvedValue(
+            htmlResponse('boom', { status: 503, url: 'https://example.com/' }),
+          ),
       );
       const result = await fetchUrl('https://example.com/');
       expect(result).toEqual({ error: 'URL not accessible (HTTP 503)' });
@@ -235,10 +242,7 @@ describe('fetchUrl', () => {
       // fetch() throws an AbortError when the controller aborts.
       const abortError = new Error('aborted');
       abortError.name = 'AbortError';
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockRejectedValue(abortError),
-      );
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError));
       const result = await fetchUrl('https://example.com/');
       expect(result).toEqual({
         error: 'URL took too long to load (8s exceeded)',
@@ -263,7 +267,8 @@ describe('fetchUrl', () => {
       // Body whose ReadableStream yields more bytes than the cap.
       // We synthesize a stream that emits a 6MB-ish blob in one chunk
       // so the cap-handling slices it.
-      const oversized = '<html><body>' + 'x'.repeat(RAW_BYTE_CAP + 1024) + '</body></html>';
+      const oversized =
+        '<html><body>' + 'x'.repeat(RAW_BYTE_CAP + 1024) + '</body></html>';
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           controller.enqueue(new TextEncoder().encode(oversized));
@@ -298,16 +303,20 @@ describe('fetchUrl', () => {
       const html = '<html><body>' + para.repeat(repeats) + '</body></html>';
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockResolvedValue(
-          htmlResponse(html, { url: 'https://example.com/' }),
-        ),
+        vi
+          .fn()
+          .mockResolvedValue(
+            htmlResponse(html, { url: 'https://example.com/' }),
+          ),
       );
 
       const result = await fetchUrl('https://example.com/');
       expect('error' in result).toBe(false);
       if ('error' in result) return;
       expect(result.truncated).toBe('markdown');
-      expect(result.content.length).toBeLessThanOrEqual(MARKDOWN_CHAR_CAP + 200);
+      expect(result.content.length).toBeLessThanOrEqual(
+        MARKDOWN_CHAR_CAP + 200,
+      );
       expect(result.content).toMatch(/Page content was very long/);
     });
   });

@@ -31,9 +31,9 @@ vi.mock('./haiku-summary.js', () => ({
 }));
 
 vi.mock('../../api/_supabase.js', async () => {
-  const actual = await vi.importActual<
-    typeof import('../../api/_supabase.js')
-  >('../../api/_supabase.js');
+  const actual = await vi.importActual<typeof import('../../api/_supabase.js')>(
+    '../../api/_supabase.js',
+  );
   return {
     ...actual,
     getSupabaseClient: () => ({ from: mocks.supabaseFrom }),
@@ -201,7 +201,9 @@ describe('ingestReadme', () => {
     expect(mocks.summarizeChunk.mock.calls[0]![0].next).not.toBeNull();
     // Last chunk: next=null
     const lastCall =
-      mocks.summarizeChunk.mock.calls[mocks.summarizeChunk.mock.calls.length - 1]!;
+      mocks.summarizeChunk.mock.calls[
+        mocks.summarizeChunk.mock.calls.length - 1
+      ]!;
     expect(lastCall[0].next).toBeNull();
   });
 

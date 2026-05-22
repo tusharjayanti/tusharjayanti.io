@@ -13,7 +13,8 @@
 // obvious noise — googlebot, slackbot, link-preview crawlers etc.
 // IPs are never stored raw; we only ever persist the hash.
 
-const BOT_UA = /bot|crawler|spider|crawling|preview|googlebot|bingbot|slackbot|discordbot/i;
+const BOT_UA =
+  /bot|crawler|spider|crawling|preview|googlebot|bingbot|slackbot|discordbot/i;
 const HASH_PREFIX_LEN = 16;
 const VISITOR_HASH_TTL_SECONDS = 60 * 60 * 24 * 8; // 8 days
 

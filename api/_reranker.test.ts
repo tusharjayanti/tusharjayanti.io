@@ -40,10 +40,7 @@ describe('parseRerankerOutput', () => {
   });
 
   it('tolerates extra whitespace, brackets, and trailing commas', () => {
-    const m = parseRerankerOutput(
-      '  [1]:yes,    2:NO , [3]:Yes,',
-      [1, 2, 3],
-    );
+    const m = parseRerankerOutput('  [1]:yes,    2:NO , [3]:Yes,', [1, 2, 3]);
     expect(m.get(1)).toBe('yes');
     expect(m.get(2)).toBe('no');
     expect(m.get(3)).toBe('yes');
@@ -240,10 +237,7 @@ describe('rerankChunks', () => {
 
   it('returns nothing when every chunk fails the cosine pre-filter', async () => {
     const judge = vi.fn();
-    const items = [
-      chunk('a', 1, 0.05),
-      chunk('b', 1, 0.1),
-    ];
+    const items = [chunk('a', 1, 0.05), chunk('b', 1, 0.1)];
     const out = await rerankChunks('q', items, { judge });
     expect(out).toEqual([]);
     expect(judge).not.toHaveBeenCalled();

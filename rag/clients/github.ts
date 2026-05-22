@@ -27,7 +27,10 @@ export function getGithubClient(): Octokit {
 // a UTF-8 string. Throws on 404 with a clear "README not found"
 // message so the backfill can surface which repo failed; other errors
 // (network, rate limit, auth) propagate untouched.
-export async function fetchReadme(owner: string, repo: string): Promise<string> {
+export async function fetchReadme(
+  owner: string,
+  repo: string,
+): Promise<string> {
   const client = getGithubClient();
   try {
     const { data } = await client.repos.getReadme({ owner, repo });

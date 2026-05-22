@@ -19,10 +19,7 @@
 
 import type { ChunkSource } from '../../api/_supabase.js';
 
-import {
-  chunkHierarchical,
-  type HierarchicalChunk,
-} from './hierarchical.js';
+import { chunkHierarchical, type HierarchicalChunk } from './hierarchical.js';
 import {
   chunkSlidingWindow,
   type SlidingWindowChunk,

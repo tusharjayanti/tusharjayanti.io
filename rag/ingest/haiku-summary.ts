@@ -143,7 +143,9 @@ export async function summarizeChunk(
   const userMessage = buildUserMessage(opts);
 
   const lf = getLangfuse();
-  let generation: ReturnType<NonNullable<ReturnType<typeof getLangfuse>>['generation']> | null = null;
+  let generation: ReturnType<
+    NonNullable<ReturnType<typeof getLangfuse>>['generation']
+  > | null = null;
   try {
     generation =
       lf?.generation({

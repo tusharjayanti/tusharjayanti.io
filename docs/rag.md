@@ -54,7 +54,7 @@ Two invariants matter operationally:
   idempotency** — ingest only re-embeds when the hash changes.
   Re-running `npm run ingest:experience` against an unchanged file
   reports `27 chunks, 0 created, 0 updated, 27 unchanged, 0 tokens
-  embedded`. Voyage credit isn't spent on no-op runs.
+embedded`. Voyage credit isn't spent on no-op runs.
 
 ## Chunking
 
@@ -126,7 +126,7 @@ function over-retrieves top-20 from each retriever independently,
 joins them on chunk id, and returns the top-`match_count` rows by
 fused `score`. Each row carries `semantic_rank`, `bm25_rank`,
 `semantic_distance`, and `bm25_score` alongside the fused `score`, so
-callers and the M2.6 reranker can see *why* a row landed (semantic
+callers and the M2.6 reranker can see _why_ a row landed (semantic
 neighbor, lexical match, or both) and act on it. A `null` rank means
 that retriever didn't see the chunk in its top-20. Keeping the
 ranking inside an RPC, rather than expressing it as a client-side
@@ -193,7 +193,7 @@ to do with error handling) — better treated as noise than surfaced.
 
 When zero chunks survive the filter, the `tool_result` content
 becomes a fixed instruction (see
-[`NO_MATCH_TOOL_RESULT` in api/_tools.ts](../api/_tools.ts)) telling
+[`NO_MATCH_TOOL_RESULT` in api/\_tools.ts](../api/_tools.ts)) telling
 Sonnet **not to fabricate** and to redirect to contact. The
 instruction lives in the tool result rather than the system prompt —
 in-context tool-result text is more reliably followed during the
@@ -219,13 +219,13 @@ cosine floor before retrieval@k is computed (matching production
 behavior — chunks below the floor are invisible to the model). Swept
 0.30 / 0.35 / 0.40 / 0.45 / 0.50 against the same 31-query dataset.
 
-| Threshold | retrieval@1 | retrieval@5 | MRR | OOC firing rate |
-|---|---|---|---|---|
-| 0.30 | 69.2% | **84.6%** | 0.768 | **0%** |
-| 0.35 | 69.2% | 80.8% | 0.749 | 0% |
-| 0.40 | 65.4% | 76.9% | 0.705 | 60% |
-| 0.45 | 53.8% | **61.5%** | 0.571 | **80%** |
-| 0.50 | 30.8% | 34.6% | 0.327 | 100% |
+| Threshold | retrieval@1 | retrieval@5 | MRR   | OOC firing rate |
+| --------- | ----------- | ----------- | ----- | --------------- |
+| 0.30      | 69.2%       | **84.6%**   | 0.768 | **0%**          |
+| 0.35      | 69.2%       | 80.8%       | 0.749 | 0%              |
+| 0.40      | 65.4%       | 76.9%       | 0.705 | 60%             |
+| 0.45      | 53.8%       | **61.5%**   | 0.571 | **80%**         |
+| 0.50      | 30.8%       | 34.6%       | 0.327 | 100%            |
 
 Decision rule (declared up front): find the highest threshold where
 `retrieval@5 ≥ 80%` AND `OOC firing rate ≥ 80%`. **No threshold
@@ -338,26 +338,26 @@ Run against the post-sub-spec-1 corpus (24 experience + 17 resume + 41
 readme chunks) and the post-sub-spec-1 no-match guardrail (0.3 cosine
 floor):
 
-| Metric | Value |
-|---|---|
+| Metric                      | Value     |
+| --------------------------- | --------- |
 | retrieval@1 (labeled, n=26) | **69.2%** |
-| retrieval@3 | **84.6%** |
-| retrieval@5 | **84.6%** |
-| MRR | **0.774** |
-| guardrail firing rate (n=5) | **0.0%** |
+| retrieval@3                 | **84.6%** |
+| retrieval@5                 | **84.6%** |
+| MRR                         | **0.774** |
+| guardrail firing rate (n=5) | **0.0%**  |
 
 Per-tag breakdown:
 
-| Tag | n | @1 | @3 | @5 | MRR |
-|---|---|---|---|---|---|
-| experience | 8 | 100.0% | 100.0% | 100.0% | 1.000 |
-| single-source | 2 | 100.0% | 100.0% | 100.0% | 1.000 |
-| realistic | 20 | 80.0% | 95.0% | 95.0% | 0.874 |
-| resume | 4 | 75.0% | 75.0% | 75.0% | 0.750 |
-| readme | 13 | 53.8% | 84.6% | 84.6% | 0.690 |
-| vocabulary-poor | 7 | 57.1% | 71.4% | 71.4% | 0.663 |
-| adversarial | 2 | 50.0% | 50.0% | 50.0% | 0.500 |
-| cross-source | 1 | 0.0% | 0.0% | 0.0% | 0.143 |
+| Tag             | n   | @1     | @3     | @5     | MRR   |
+| --------------- | --- | ------ | ------ | ------ | ----- |
+| experience      | 8   | 100.0% | 100.0% | 100.0% | 1.000 |
+| single-source   | 2   | 100.0% | 100.0% | 100.0% | 1.000 |
+| realistic       | 20  | 80.0%  | 95.0%  | 95.0%  | 0.874 |
+| resume          | 4   | 75.0%  | 75.0%  | 75.0%  | 0.750 |
+| readme          | 13  | 53.8%  | 84.6%  | 84.6%  | 0.690 |
+| vocabulary-poor | 7   | 57.1%  | 71.4%  | 71.4%  | 0.663 |
+| adversarial     | 2   | 50.0%  | 50.0%  | 50.0%  | 0.500 |
+| cross-source    | 1   | 0.0%   | 0.0%   | 0.0%   | 0.143 |
 
 **Headline observations:**
 
@@ -403,22 +403,22 @@ modes against the same 31-query dataset.
 
 ### Side-by-side comparison
 
-| Metric | Three-tool | Unified | Δ |
-|---|---|---|---|
-| retrieval@1 | 69.2% | 61.5% | **−7.7pp** |
-| retrieval@3 | 84.6% | 80.8% | −3.8pp |
-| **retrieval@5** | **84.6%** | **80.8%** | **−3.8pp** |
-| **MRR** | **0.774** | **0.710** | **−8.3%** |
-| guardrail firing rate (OOC) | 0% | 0% | (unchanged) |
+| Metric                      | Three-tool | Unified   | Δ           |
+| --------------------------- | ---------- | --------- | ----------- |
+| retrieval@1                 | 69.2%      | 61.5%     | **−7.7pp**  |
+| retrieval@3                 | 84.6%      | 80.8%     | −3.8pp      |
+| **retrieval@5**             | **84.6%**  | **80.8%** | **−3.8pp**  |
+| **MRR**                     | **0.774**  | **0.710** | **−8.3%**   |
+| guardrail firing rate (OOC) | 0%         | 0%        | (unchanged) |
 
 Per-tag, the regression concentrates on the tags that ought to have
 benefited:
 
-| Tag | n | Three-tool @1 / MRR | Unified @1 / MRR |
-|---|---|---|---|
-| readme | 13 | 53.8% / 0.690 | 46.2% / 0.612 |
-| vocabulary-poor | 7 | 57.1% / 0.663 | **42.9% / 0.541** |
-| **cross-source (Q31)** | 1 | rank=7, MRR=0.143 | **rank=NONE in top-10, MRR=0.000** |
+| Tag                    | n   | Three-tool @1 / MRR | Unified @1 / MRR                   |
+| ---------------------- | --- | ------------------- | ---------------------------------- |
+| readme                 | 13  | 53.8% / 0.690       | 46.2% / 0.612                      |
+| vocabulary-poor        | 7   | 57.1% / 0.663       | **42.9% / 0.541**                  |
+| **cross-source (Q31)** | 1   | rank=7, MRR=0.143   | **rank=NONE in top-10, MRR=0.000** |
 
 **Decision rule:** unified retrieval@5 (80.8%) < three-tool (84.6%);
 unified MRR (0.710) is 8.3% below three-tool (0.774), exceeds the 5%
@@ -442,9 +442,9 @@ The argument inverts here because:
   detailed H3-anchored stories with concrete narrative content.
   README chunks are sliding-window slices of project docs with
   embedded code fences and structural markdown. A query about a
-  *story* ("Tushar's Reserve Release work") is structurally a
+  _story_ ("Tushar's Reserve Release work") is structurally a
   better match for experience chunks than for the resume summary
-  paragraph; a query about *high-level qualifications* ("what
+  paragraph; a query about _high-level qualifications_ ("what
   databases does Tushar know") is structurally a better match for
   resume than for any specific experience chunk.
 - **The LLM has reliable domain signal.** Sonnet picks `search_resume`
@@ -562,22 +562,22 @@ to the user.
 Two metrics, declared up front, measured by
 `npm run eval:retrieval -- --rerank`:
 
-| Metric | Required | M2.7 result | Status |
-|---|---|---|---|
-| retrieval@5 (overall, n=26 labeled) | ≥ 80% | **84.6%** | ✓ |
-| OOC firing rate (n=5 OOC queries) | ≥ 4/5 (80%) | **4/5 (80%)** | ✓ |
+| Metric                              | Required    | M2.7 result   | Status |
+| ----------------------------------- | ----------- | ------------- | ------ |
+| retrieval@5 (overall, n=26 labeled) | ≥ 80%       | **84.6%**     | ✓      |
+| OOC firing rate (n=5 OOC queries)   | ≥ 4/5 (80%) | **4/5 (80%)** | ✓      |
 
 Per-tag deltas vs. the M2.6 baseline:
 
-| Tag | M2.6 @5 / MRR | M2.7 @5 / MRR | Δ |
-|---|---|---|---|
-| experience | 100% / 1.000 | 87.5% / 0.875 | regressed on Q6 |
-| resume | 75% / 0.750 | 75% / 0.750 | unchanged |
-| readme | 84.6% / 0.690 | **92.3% / 0.808** | improved |
-| vocabulary-poor | 71.4% / 0.663 | **85.7% / 0.714** | improved |
-| realistic | 95% / 0.874 | 90% / 0.875 | -5pp on @5 (Q6) |
-| adversarial | 50% / 0.500 | 50% / 0.500 | unchanged |
-| cross-source | 0% / 0.143 | 0% / 0.000 | structural |
+| Tag             | M2.6 @5 / MRR | M2.7 @5 / MRR     | Δ               |
+| --------------- | ------------- | ----------------- | --------------- |
+| experience      | 100% / 1.000  | 87.5% / 0.875     | regressed on Q6 |
+| resume          | 75% / 0.750   | 75% / 0.750       | unchanged       |
+| readme          | 84.6% / 0.690 | **92.3% / 0.808** | improved        |
+| vocabulary-poor | 71.4% / 0.663 | **85.7% / 0.714** | improved        |
+| realistic       | 95% / 0.874   | 90% / 0.875       | -5pp on @5 (Q6) |
+| adversarial     | 50% / 0.500   | 50% / 0.500       | unchanged       |
+| cross-source    | 0% / 0.143    | 0% / 0.000        | structural      |
 
 Notable: the OOC subset shifted from 0/5 → 4/5 firing. Q14
 (`"How does vox-agent rate-limit requests?"`) is the one silent
@@ -586,6 +586,7 @@ discuss rate-limiting (just not in vox-agent). Reasonable
 interpretation; banked for follow-up.
 
 **Banked findings** (to followups.md / future work):
+
 - **Q6 regression**: `"Tushar's experience at DISCO"` was 100% at
   every k pre-M2.7; reranker now drops all 7 DISCO experience
   chunks. Likely Haiku reading the query as too vague to materially

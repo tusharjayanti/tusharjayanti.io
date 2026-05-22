@@ -103,10 +103,7 @@ function verifySignature(rawBody: string, signature: string | null): boolean {
 // subdirectory ("docs/README.md") doesn't count.
 function readmeTouched(payload: PushPayload): boolean {
   for (const commit of payload.commits ?? []) {
-    const files = [
-      ...(commit.added ?? []),
-      ...(commit.modified ?? []),
-    ];
+    const files = [...(commit.added ?? []), ...(commit.modified ?? [])];
     for (const file of files) {
       if (README_BASENAME.test(file)) return true;
     }
@@ -190,10 +187,7 @@ export default async function handler(
         );
       })
       .catch((err) => {
-        console.error(
-          `[github-webhook] ingest failed for ${repoSlug}:`,
-          err,
-        );
+        console.error(`[github-webhook] ingest failed for ${repoSlug}:`, err);
       }),
   );
 

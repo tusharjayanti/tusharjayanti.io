@@ -21,10 +21,7 @@
       "id": "Q1",
       "query": "How does vox-agent's hallucination detection work?",
       "target_source": "readme",
-      "tags": [
-        "realistic",
-        "readme"
-      ],
+      "tags": ["realistic", "readme"],
       "retrieved": [
         {
           "rank": 1,
@@ -72,10 +69,7 @@
       "id": "Q2",
       "query": "What's the architecture of calculator-agent?",
       "target_source": "readme",
-      "tags": [
-        "realistic",
-        "readme"
-      ],
+      "tags": ["realistic", "readme"],
       "retrieved": [
         {
           "rank": 1,
@@ -101,10 +95,7 @@
       "id": "Q3",
       "query": "What's tusharjayanti.io built with?",
       "target_source": "readme",
-      "tags": [
-        "realistic",
-        "readme"
-      ],
+      "tags": ["realistic", "readme"],
       "retrieved": [
         {
           "rank": 1,
@@ -141,11 +132,7 @@
       "id": "Q4",
       "query": "what makes the customer-support agent reliable",
       "target_source": "readme",
-      "tags": [
-        "adversarial",
-        "vocabulary-poor",
-        "readme"
-      ],
+      "tags": ["adversarial", "vocabulary-poor", "readme"],
       "retrieved": [
         {
           "rank": 1,
@@ -182,10 +169,7 @@
       "id": "Q5",
       "query": "how does this project handle errors",
       "target_source": "readme",
-      "tags": [
-        "adversarial",
-        "readme"
-      ],
+      "tags": ["adversarial", "readme"],
       "retrieved": [
         {
           "rank": 1,
@@ -211,10 +195,7 @@
       "id": "Q6",
       "query": "Tushar's experience at DISCO",
       "target_source": "experience",
-      "tags": [
-        "realistic",
-        "experience"
-      ],
+      "tags": ["realistic", "experience"],
       "retrieved": [],
       "retrieval_at_1": false,
       "retrieval_at_3": false,
@@ -228,11 +209,7 @@
       "id": "Q7",
       "query": "Tell me how vox-agent catches AI mistakes",
       "target_source": "readme",
-      "tags": [
-        "realistic",
-        "vocabulary-poor",
-        "readme"
-      ],
+      "tags": ["realistic", "vocabulary-poor", "readme"],
       "retrieved": [
         {
           "rank": 1,
@@ -269,11 +246,7 @@
       "id": "Q8",
       "query": "How is calculator-agent structured?",
       "target_source": "readme",
-      "tags": [
-        "realistic",
-        "vocabulary-poor",
-        "readme"
-      ],
+      "tags": ["realistic", "vocabulary-poor", "readme"],
       "retrieved": [
         {
           "rank": 1,
@@ -299,10 +272,7 @@
       "id": "Q9",
       "query": "show me the AI evaluation project",
       "target_source": "readme",
-      "tags": [
-        "vocabulary-poor",
-        "readme"
-      ],
+      "tags": ["vocabulary-poor", "readme"],
       "retrieved": [
         {
           "rank": 1,
@@ -339,10 +309,7 @@
       "id": "Q10",
       "query": "which of these projects use Python",
       "target_source": "readme",
-      "tags": [
-        "realistic",
-        "readme"
-      ],
+      "tags": ["realistic", "readme"],
       "retrieved": [
         {
           "rank": 1,
@@ -390,10 +357,7 @@
       "id": "Q11",
       "query": "What's the multi-agent architecture in shortlist?",
       "target_source": "readme",
-      "tags": [
-        "realistic",
-        "readme"
-      ],
+      "tags": ["realistic", "readme"],
       "retrieved": [
         {
           "rank": 1,
@@ -452,10 +416,7 @@
       "id": "Q12",
       "query": "How does shortlist score jobs?",
       "target_source": "readme",
-      "tags": [
-        "realistic",
-        "readme"
-      ],
+      "tags": ["realistic", "readme"],
       "retrieved": [
         {
           "rank": 1,
@@ -481,10 +442,7 @@
       "id": "Q13",
       "query": "explain the resume helper tool",
       "target_source": "readme",
-      "tags": [
-        "vocabulary-poor",
-        "readme"
-      ],
+      "tags": ["vocabulary-poor", "readme"],
       "retrieved": [
         {
           "rank": 1,
@@ -532,10 +490,7 @@
       "id": "Q14",
       "query": "How does vox-agent rate-limit requests?",
       "target_source": "readme",
-      "tags": [
-        "out-of-corpus",
-        "readme"
-      ],
+      "tags": ["out-of-corpus", "readme"],
       "retrieved": [
         {
           "rank": 1,
@@ -561,10 +516,7 @@
       "id": "Q15",
       "query": "How does the job-search agent handle audio?",
       "target_source": "readme",
-      "tags": [
-        "out-of-corpus",
-        "readme"
-      ],
+      "tags": ["out-of-corpus", "readme"],
       "retrieved": [],
       "retrieval_at_1": null,
       "retrieval_at_3": null,
@@ -578,10 +530,7 @@
       "id": "Q16",
       "query": "what does the OCR project preprocess?",
       "target_source": "readme",
-      "tags": [
-        "realistic",
-        "readme"
-      ],
+      "tags": ["realistic", "readme"],
       "retrieved": [
         {
           "rank": 1,
@@ -607,10 +556,7 @@
       "id": "Q17",
       "query": "Tushar's gRPC migration at DISCO",
       "target_source": "experience",
-      "tags": [
-        "realistic",
-        "experience"
-      ],
+      "tags": ["realistic", "experience"],
       "retrieved": [
         {
           "rank": 1,
@@ -636,11 +582,7 @@
       "id": "Q18",
       "query": "What was the Reserve Release feature?",
       "target_source": "experience",
-      "tags": [
-        "realistic",
-        "single-source",
-        "experience"
-      ],
+      "tags": ["realistic", "single-source", "experience"],
       "retrieved": [
         {
           "rank": 1,
@@ -666,10 +608,7 @@
       "id": "Q19",
       "query": "How did Tushar reduce p99 latency?",
       "target_source": "experience",
-      "tags": [
-        "realistic",
-        "experience"
-      ],
+      "tags": ["realistic", "experience"],
       "retrieved": [
         {
           "rank": 1,
@@ -695,10 +634,7 @@
       "id": "Q20",
       "query": "Tushar's Kafka work at USAA",
       "target_source": "experience",
-      "tags": [
-        "realistic",
-        "experience"
-      ],
+      "tags": ["realistic", "experience"],
       "retrieved": [
         {
           "rank": 1,
@@ -724,11 +660,7 @@
       "id": "Q21",
       "query": "What did Tushar build at PurpleToko?",
       "target_source": "experience",
-      "tags": [
-        "realistic",
-        "single-source",
-        "experience"
-      ],
+      "tags": ["realistic", "single-source", "experience"],
       "retrieved": [
         {
           "rank": 1,
@@ -787,10 +719,7 @@
       "id": "Q22",
       "query": "Tushar's experience with high-throughput financial systems",
       "target_source": "experience",
-      "tags": [
-        "vocabulary-poor",
-        "experience"
-      ],
+      "tags": ["vocabulary-poor", "experience"],
       "retrieved": [
         {
           "rank": 1,
@@ -849,10 +778,7 @@
       "id": "Q23",
       "query": "Tushar's monolith decomposition story",
       "target_source": "experience",
-      "tags": [
-        "realistic",
-        "experience"
-      ],
+      "tags": ["realistic", "experience"],
       "retrieved": [
         {
           "rank": 1,
@@ -878,10 +804,7 @@
       "id": "Q24",
       "query": "Tushar's experience with Rust programming",
       "target_source": "experience",
-      "tags": [
-        "out-of-corpus",
-        "experience"
-      ],
+      "tags": ["out-of-corpus", "experience"],
       "retrieved": [],
       "retrieval_at_1": null,
       "retrieval_at_3": null,
@@ -895,10 +818,7 @@
       "id": "Q25",
       "query": "Tushar's blockchain work",
       "target_source": "experience",
-      "tags": [
-        "out-of-corpus",
-        "experience"
-      ],
+      "tags": ["out-of-corpus", "experience"],
       "retrieved": [],
       "retrieval_at_1": null,
       "retrieval_at_3": null,
@@ -912,10 +832,7 @@
       "id": "Q26",
       "query": "what databases does Tushar know",
       "target_source": "resume",
-      "tags": [
-        "realistic",
-        "resume"
-      ],
+      "tags": ["realistic", "resume"],
       "retrieved": [
         {
           "rank": 1,
@@ -941,10 +858,7 @@
       "id": "Q27",
       "query": "what languages does Tushar code in",
       "target_source": "resume",
-      "tags": [
-        "realistic",
-        "resume"
-      ],
+      "tags": ["realistic", "resume"],
       "retrieved": [
         {
           "rank": 1,
@@ -970,10 +884,7 @@
       "id": "Q28",
       "query": "Tushar's cloud and AWS experience",
       "target_source": "resume",
-      "tags": [
-        "realistic",
-        "resume"
-      ],
+      "tags": ["realistic", "resume"],
       "retrieved": [
         {
           "rank": 1,
@@ -1010,10 +921,7 @@
       "id": "Q29",
       "query": "Does Tushar have a PhD?",
       "target_source": "resume",
-      "tags": [
-        "out-of-corpus",
-        "resume"
-      ],
+      "tags": ["out-of-corpus", "resume"],
       "retrieved": [],
       "retrieval_at_1": null,
       "retrieval_at_3": null,
@@ -1027,10 +935,7 @@
       "id": "Q30",
       "query": "what's Tushar currently building",
       "target_source": "resume",
-      "tags": [
-        "vocabulary-poor",
-        "resume"
-      ],
+      "tags": ["vocabulary-poor", "resume"],
       "retrieved": [
         {
           "rank": 1,
@@ -1067,10 +972,7 @@
       "id": "Q31",
       "query": "Tushar's Python experience",
       "target_source": "resume",
-      "tags": [
-        "cross-source",
-        "realistic"
-      ],
+      "tags": ["cross-source", "realistic"],
       "retrieved": [
         {
           "rank": 1,

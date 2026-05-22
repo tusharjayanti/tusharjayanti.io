@@ -113,8 +113,16 @@ describe('executeTool — no-match guardrail', () => {
   it('passes through normally when every chunk is above the cosine floor', async () => {
     mocks.rpc.mockResolvedValue({
       data: [
-        row({ chunk_index: 0, semantic_distance: PASSING_DISTANCE, score: 0.0328 }),
-        row({ chunk_index: 1, semantic_distance: PASSING_DISTANCE, score: 0.0161 }),
+        row({
+          chunk_index: 0,
+          semantic_distance: PASSING_DISTANCE,
+          score: 0.0328,
+        }),
+        row({
+          chunk_index: 1,
+          semantic_distance: PASSING_DISTANCE,
+          score: 0.0161,
+        }),
       ],
       error: null,
     });
@@ -133,7 +141,9 @@ describe('executeTool — no-match guardrail', () => {
       ],
       error: null,
     });
-    const result = await executeTool('search_experience', { query: 'spacex stories' });
+    const result = await executeTool('search_experience', {
+      query: 'spacex stories',
+    });
     expect(result.metadata.no_match).toBe(true);
     expect(result.metadata.chunk_ids).toEqual([]);
     expect(result.metadata.top_scores).toEqual([]);
@@ -165,7 +175,9 @@ describe('executeTool — no-match guardrail', () => {
       data: [row({ chunk_index: 0, semantic_distance: null })],
       error: null,
     });
-    const result = await executeTool('search_readme', { query: 'lexical-only term' });
+    const result = await executeTool('search_readme', {
+      query: 'lexical-only term',
+    });
     expect(result.metadata.no_match).toBe(true);
     expect(result.formatted).toBe(NO_MATCH_TOOL_RESULT);
   });
@@ -201,9 +213,11 @@ describe('executeTool — fetch_url', () => {
   });
 
   it('FETCH_URL constant is in TOOLS and recognized by isToolName', async () => {
-    const { FETCH_URL: FU, TOOLS: T, isToolName: isT } = await import(
-      './_tools.js'
-    );
+    const {
+      FETCH_URL: FU,
+      TOOLS: T,
+      isToolName: isT,
+    } = await import('./_tools.js');
     expect(T.map((t) => t.name)).toContain(FU);
     expect(isT('fetch_url')).toBe(true);
   });
@@ -212,10 +226,13 @@ describe('executeTool — fetch_url', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
-        new Response('<html><body><h1>Job Posting</h1><p>Backend role.</p></body></html>', {
-          status: 200,
-          headers: new Headers({ 'content-type': 'text/html' }),
-        }),
+        new Response(
+          '<html><body><h1>Job Posting</h1><p>Backend role.</p></body></html>',
+          {
+            status: 200,
+            headers: new Headers({ 'content-type': 'text/html' }),
+          },
+        ),
       ),
     );
     // Response.url is read-only when constructed plainly — defineProperty
@@ -229,7 +246,9 @@ describe('executeTool — fetch_url', () => {
           headers: new Headers({ 'content-type': 'text/html' }),
         },
       );
-      Object.defineProperty(res, 'url', { value: 'https://example.com/job/42' });
+      Object.defineProperty(res, 'url', {
+        value: 'https://example.com/job/42',
+      });
       return res;
     });
 
@@ -256,7 +275,9 @@ describe('executeTool — fetch_url', () => {
           status: 404,
           headers: new Headers({ 'content-type': 'text/html' }),
         });
-        Object.defineProperty(res, 'url', { value: 'https://example.com/missing' });
+        Object.defineProperty(res, 'url', {
+          value: 'https://example.com/missing',
+        });
         return res;
       }),
     );

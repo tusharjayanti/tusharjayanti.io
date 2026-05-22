@@ -24,7 +24,9 @@ export const config = {
   matcher: ['/', '/terminal', '/cv'],
 };
 
-export default async function middleware(req: Request): Promise<Response | undefined> {
+export default async function middleware(
+  req: Request,
+): Promise<Response | undefined> {
   // Skip bots — kills the obvious crawler noise so the visitor count
   // reflects real traffic. Imperfect (no IP reverse-lookup, no
   // behavioral fingerprinting); we accept the residual noise.

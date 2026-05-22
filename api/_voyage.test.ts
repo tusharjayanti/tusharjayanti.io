@@ -53,7 +53,10 @@ function makeEmbedding(dim = 1024, fill = 0): number[] {
   return new Array<number>(dim).fill(fill);
 }
 
-function embedResponse(count: number, dim = 1024): {
+function embedResponse(
+  count: number,
+  dim = 1024,
+): {
   data: { embedding: number[]; index: number }[];
 } {
   return {
@@ -70,7 +73,9 @@ async function loadEmbed(): Promise<typeof import('./_voyage.js').embed> {
   return mod.embed;
 }
 
-async function loadVoyageError(): Promise<typeof import('voyageai').VoyageAIError> {
+async function loadVoyageError(): Promise<
+  typeof import('voyageai').VoyageAIError
+> {
   const mod = await import('voyageai');
   return mod.VoyageAIError;
 }

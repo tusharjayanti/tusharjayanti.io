@@ -56,11 +56,11 @@ Two upstream signals shaped the decision space:
 ### Storage: Supabase pgvector (chosen) vs. Upstash Vector vs. self-hosted Postgres
 
 - **Supabase pgvector:** one database for vector and (later) BM25;
-  managed Postgres with reasonable free tier; service_role key fits
+  managed Postgres with reasonable free tier; service*role key fits
   Edge runtime; migrations via `supabase db push`. Costs: free-tier
   auto-pause after 7 days inactivity; service_role grants don't
-  auto-apply on user-created tables under the new `sb_secret_*` key
-  format (codified in [`0002_chunks_grants.sql`](../../supabase/migrations/0002_chunks_grants.sql)).
+  auto-apply on user-created tables under the new `sb_secret*\*` key
+format (codified in [`0002_chunks_grants.sql`](../../supabase/migrations/0002_chunks_grants.sql)).
 - **Upstash Vector:** same vendor as the existing Redis store; clean
   Edge SDK. Cons: no obvious path to add BM25 to the same store, so
   M2.2 would need a second vendor or a different hybrid strategy. The
@@ -124,7 +124,7 @@ Specifics:
 - Asymmetric Voyage embeddings: `input_type='document'` at ingest,
   `input_type='query'` at retrieval.
 - Retrieval via [`match_chunks(query_embedding, match_count,
-  source_filter)`](../../supabase/migrations/0003_match_chunks.sql);
+source_filter)`](../../supabase/migrations/0003_match_chunks.sql);
   returns `score = 1 - cosine_distance`.
 - Ingest is idempotent via SHA-256 `content_hash` per chunk; no-op
   runs consume zero Voyage tokens.

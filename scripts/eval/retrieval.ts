@@ -45,10 +45,7 @@ import { fileURLToPath } from 'node:url';
 
 import { embed } from '../../api/_voyage.js';
 import { getSupabaseClient } from '../../api/_supabase.js';
-import {
-  rerankChunks,
-  type RerankerCandidate,
-} from '../../api/_reranker.js';
+import { rerankChunks, type RerankerCandidate } from '../../api/_reranker.js';
 
 const DEFAULT_COSINE_FLOOR = 0.3;
 const TOP_K = 10;
@@ -60,7 +57,9 @@ function parseMode(): Mode {
   if (!arg) return 'three-tool';
   const value = arg.slice('--mode='.length);
   if (value !== 'three-tool' && value !== 'unified') {
-    console.error(`invalid --mode value: ${value}. expected three-tool|unified`);
+    console.error(
+      `invalid --mode value: ${value}. expected three-tool|unified`,
+    );
     process.exit(2);
   }
   return value;
@@ -159,14 +158,22 @@ type PerQueryResult = {
 
 function loadDataset(): Promise<Dataset> {
   const here = dirname(fileURLToPath(import.meta.url));
-  const path = resolvePath(here, '..', '..', 'evals', 'retrieval', 'queries.json');
+  const path = resolvePath(
+    here,
+    '..',
+    '..',
+    'evals',
+    'retrieval',
+    'queries.json',
+  );
   return readFile(path, 'utf-8').then((raw) => JSON.parse(raw) as Dataset);
 }
 
 function isChunkCorrect(row: MatchRow, correct: ChunkRef[]): boolean {
   return correct.some((c) => {
     if (row.source !== c.source) return false;
-    if (c.source_id !== undefined && row.source_id !== c.source_id) return false;
+    if (c.source_id !== undefined && row.source_id !== c.source_id)
+      return false;
     return row.chunk_index === c.chunk_index;
   });
 }
@@ -276,19 +283,32 @@ type Aggregate = {
 function aggregateLabeled(results: PerQueryResult[]): Aggregate {
   const labeled = results.filter((r) => r.retrieval_at_1 !== null);
   if (labeled.length === 0) {
-    return { count: 0, retrieval_at_1: 0, retrieval_at_3: 0, retrieval_at_5: 0, mrr: 0 };
+    return {
+      count: 0,
+      retrieval_at_1: 0,
+      retrieval_at_3: 0,
+      retrieval_at_5: 0,
+      mrr: 0,
+    };
   }
   const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
   return {
     count: labeled.length,
-    retrieval_at_1: sum(labeled.map((r) => (r.retrieval_at_1 ? 1 : 0))) / labeled.length,
-    retrieval_at_3: sum(labeled.map((r) => (r.retrieval_at_3 ? 1 : 0))) / labeled.length,
-    retrieval_at_5: sum(labeled.map((r) => (r.retrieval_at_5 ? 1 : 0))) / labeled.length,
+    retrieval_at_1:
+      sum(labeled.map((r) => (r.retrieval_at_1 ? 1 : 0))) / labeled.length,
+    retrieval_at_3:
+      sum(labeled.map((r) => (r.retrieval_at_3 ? 1 : 0))) / labeled.length,
+    retrieval_at_5:
+      sum(labeled.map((r) => (r.retrieval_at_5 ? 1 : 0))) / labeled.length,
     mrr: sum(labeled.map((r) => r.reciprocal_rank ?? 0)) / labeled.length,
   };
 }
 
-function guardrailRate(results: PerQueryResult[]): { count: number; fired: number; rate: number } {
+function guardrailRate(results: PerQueryResult[]): {
+  count: number;
+  fired: number;
+  rate: number;
+} {
   const ooc = results.filter((r) => r.guardrail_fired !== null);
   const fired = ooc.filter((r) => r.guardrail_fired).length;
   return {
@@ -356,9 +376,7 @@ function printSummary(results: PerQueryResult[]): void {
   }
 
   // Failures: queries that didn't surface a correct chunk in top-5.
-  const failures = results.filter(
-    (r) => r.retrieval_at_5 === false,
-  );
+  const failures = results.filter((r) => r.retrieval_at_5 === false);
   if (failures.length > 0) {
     console.log('\n=== Failures @5 (correct chunk not in top-5) ===');
     for (const f of failures) {
@@ -371,11 +389,11 @@ function printSummary(results: PerQueryResult[]): void {
 
   // Guardrail silences: out-of-corpus queries that DIDN'T fire the
   // guardrail (fabrication risk).
-  const guardrailSilent = results.filter(
-    (r) => r.guardrail_fired === false,
-  );
+  const guardrailSilent = results.filter((r) => r.guardrail_fired === false);
   if (guardrailSilent.length > 0) {
-    console.log('\n=== Guardrail silences (out-of-corpus queries with chunks above floor) ===');
+    console.log(
+      '\n=== Guardrail silences (out-of-corpus queries with chunks above floor) ===',
+    );
     for (const f of guardrailSilent) {
       console.log(
         `  ${f.id}  chunks_above_floor=${f.chunks_above_floor}  q="${f.query}"`,
@@ -406,7 +424,9 @@ async function main(): Promise<void> {
 
   const rerank = parseRerank();
   if (rerank) {
-    console.log('rerank: ON (M2.7 reranker; threshold floor effectively 0 for scoring)');
+    console.log(
+      'rerank: ON (M2.7 reranker; threshold floor effectively 0 for scoring)',
+    );
   }
 
   const supabase = getSupabaseClient();
@@ -419,7 +439,8 @@ async function main(): Promise<void> {
   for (let i = 0; i < dataset.queries.length; i++) {
     const q = dataset.queries[i];
     const emb = embeddings[i];
-    const rpcName = mode === 'three-tool' ? 'match_chunks' : 'match_chunks_unified';
+    const rpcName =
+      mode === 'three-tool' ? 'match_chunks' : 'match_chunks_unified';
     const rpcArgs: Record<string, unknown> =
       mode === 'three-tool'
         ? {
