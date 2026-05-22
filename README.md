@@ -31,9 +31,10 @@
 A production LLMOps demo built around a real chat agent on Claude
 Sonnet 4.6. M1 shipped Langfuse observability — every chat turn becomes
 a structured, queryable trace with token, cost, and prompt-version
-fidelity. M2 is in progress: agentic RAG over the experience corpus
-today, project READMEs and resume next, with eval gates and
-closed-loop scoring landing in M3+.
+fidelity. M2 shipped agentic RAG over experience, resume, and project
+READMEs, with a Haiku-based reranker, a no-match fabrication
+guardrail, and a terminal-page ops snippet; eval gates and
+closed-loop scoring land in M3+.
 
 ---
 
@@ -163,7 +164,7 @@ scoring on the response, and no detection of paraphrased prompt
 extraction (the model summarizing the system prompt without emitting
 the canary verbatim). The output-side canary scrubber shipped in Phase
 0.1 — see "What's built today." LLM-judge quality scoring is deferred
-to M4 (online Haiku scoring via `waitUntil`).
+to M5 (online Haiku scoring via `waitUntil`).
 
 ---
 
@@ -286,10 +287,15 @@ Each trace's generation links to the version that produced it.
 
 ### What this isn't (yet)
 
-- No dashboard or visualization — Langfuse UI is the read interface for
-  now. Custom `/ops` dashboard is M3.
+- The terminal-page ops snippet exposes a minimal public observability
+  surface (visitor count, queries, tokens, tools/turn, last-aggregated
+  timestamp). Full `/ops` dashboard is M4 — private, basic-auth-gated,
+  expands the same data sources with per-tool breakdown, cost split,
+  latency percentiles, retrieval eval results, and a recent-queries
+  tail. Langfuse UI remains the read interface for deep trace
+  inspection.
 - No quality scoring on traces — `score` is part of the schema but
-  unpopulated. M4 (online Haiku scoring) and M3 (eval CI gate) write
+  unpopulated. M5 (online Haiku scoring) and M3 (eval CI gate) write
   scores.
 - Trace updates (output text, post-stream tags) intermittently fail to
   land in Langfuse Cloud due to a known v3 SDK bug on Edge runtime where
@@ -303,9 +309,9 @@ Each trace's generation links to the version that produced it.
   more often. The v4 OTel-based SDK eliminates this — migration tracked
   in followups.md.
 - No closed loop from low-scored traces to auto-generated eval cases —
-  M5 territory.
+  M6 territory.
 - The existing Redis chat log keeps writing in parallel. Cutover happens
-  when M3's dashboard reads from Langfuse reliably.
+  when M4's dashboard reads from Langfuse reliably.
 
 ### Operational notes
 
@@ -333,20 +339,9 @@ Status legend: `[ ]` queued, `[~]` in progress, `[x]` shipped.
   [Cost optimization](#cost-optimization) for the mechanism, the
   three-bucket token breakdown, and measured numbers from production.
 
-- `[ ]` **Agentic RAG over resume, project docs, and GitHub READMEs.**
-  Tarvis currently answers from a static system prompt with role facts
-  inlined. Tool-use-gated retrieval lets the model decide _whether_ to
-  retrieve (cutting unnecessary searches) and lets the knowledge base
-  grow without bloating the prompt.
-
 - `[ ]` **Smart model routing.** A cheap Haiku classifier routes
   greetings to Haiku, standard questions to Sonnet, complex multi-step
   questions to Sonnet at higher budget. Real cost discipline at scale.
-
-- `[ ]` **URL fetching via Anthropic tool use.** Right now Tarvis can't
-  read a job description if you paste a URL. A real reviewer hit this
-  while testing the site. Implementation: scoped tool use with a domain
-  allowlist and SSRF protection.
 
 ### Bot defense
 
@@ -371,6 +366,15 @@ Status legend: `[ ]` queued, `[~]` in progress, `[x]` shipped.
 
 ### Recently shipped
 
+- `[x]` **M2 — agentic RAG with hybrid retrieval, reranker, and ops
+  snippet.** Tool-use-gated retrieval over experience / resume /
+  READMEs, semantic + BM25 hybrid with RRF, Haiku 4.5 listwise
+  reranker (with verdict-based out-of-corpus detection), no-match
+  fabrication guardrail, `fetch_url` tool with SSRF protection,
+  retrieval eval harness (31 labeled queries, retrieval@5 84.6%),
+  terminal-page ops snippet with hashed-IP visitor counter and
+  Langfuse-sourced metrics. v0.3.0. Sub-milestone breakdown in
+  [`docs/rag.md`](docs/rag.md).
 - `[x]` **M1 — Langfuse observability foundation.** Trace/generation/tag
   taxonomy, prompt versioning, cost computation. v0.2.0.
 - `[x]` **Phase 0.2 — Canary rotation and leak alerting.** Per-deploy
@@ -464,8 +468,7 @@ still has the `rewrites` block. That's almost always the bug.
 ## Status
 
 - **M1** (observability foundation) — shipped at `v0.2.0`. Langfuse tracing, prompt versioning, cost computation. Details in [`docs/observability.md`](docs/observability.md), rationale in [`docs/decisions/0001-observability-foundation.md`](docs/decisions/0001-observability-foundation.md).
-- **M2.1** (RAG foundation) — shipped at `HEAD`. Schema, contextual chunker, Voyage embeddings, `match_chunks` RPC. Details in [`docs/rag.md`](docs/rag.md), rationale in [`docs/decisions/0002-agentic-rag.md`](docs/decisions/0002-agentic-rag.md). Not yet wired into `/api/chat`.
-- **M2.2–M2.8** — in progress; ships at `v0.3.0`. BM25 hybrid (M2.2), resume ingest (M2.3), tool-use integration (M2.4), README auto-sync (M2.5), Haiku reranking (M2.6), context compression (M2.7).
+- **M2** (agentic RAG + observability surface) — shipped at `v0.3.0`. Hybrid retrieval (semantic + BM25), Haiku reranker, multi-source ingest (experience, resume, READMEs), tool-use integration, no-match guardrail, `fetch_url` tool, eval harness, terminal-page ops snippet. Details in [`docs/rag.md`](docs/rag.md), rationale in [`docs/decisions/0002-agentic-rag.md`](docs/decisions/0002-agentic-rag.md).
 - **M3–M6** — roadmap. Eval CI gate, `/ops` dashboard, online Haiku scoring, closed-loop eval generation.
 
 ---
