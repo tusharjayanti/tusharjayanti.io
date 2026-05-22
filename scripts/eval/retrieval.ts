@@ -45,6 +45,10 @@ import { fileURLToPath } from 'node:url';
 
 import { embed } from '../../api/_voyage.js';
 import { getSupabaseClient } from '../../api/_supabase.js';
+import {
+  rerankChunks,
+  type RerankerCandidate,
+} from '../../api/_reranker.js';
 
 const DEFAULT_COSINE_FLOOR = 0.3;
 const TOP_K = 10;
@@ -60,6 +64,15 @@ function parseMode(): Mode {
     process.exit(2);
   }
   return value;
+}
+
+// M2.7 flag — when set, the eval pipes match_chunks output through
+// the production reranker (api/_reranker.ts) before scoring. The
+// "visible to the model" list becomes the reranker's diversified
+// top-N, which is what production tool_results contain. Off by
+// default so the M2.6 baseline runner stays reproducible.
+function parseRerank(): boolean {
+  return process.argv.includes('--rerank');
 }
 
 // Override the production cosine-similarity floor for this run. Used
@@ -391,6 +404,11 @@ async function main(): Promise<void> {
     'query',
   );
 
+  const rerank = parseRerank();
+  if (rerank) {
+    console.log('rerank: ON (M2.7 reranker; threshold floor effectively 0 for scoring)');
+  }
+
   const supabase = getSupabaseClient();
   const results: PerQueryResult[] = [];
   console.log(
@@ -420,8 +438,22 @@ async function main(): Promise<void> {
       console.error(`${rpcName} failed for ${q.id}:`, error);
       throw error;
     }
-    const rows = (data ?? []) as MatchRow[];
-    results.push(scoreQuery(q, rows, threshold));
+    let rows = (data ?? []) as MatchRow[];
+    let effectiveThreshold = threshold;
+    if (rerank) {
+      // Pipe match_chunks output through the production reranker.
+      // The reranker owns the cosine pre-filter (default 0.15) + the
+      // Haiku verdict pass; its output is what the model would see
+      // in tool_result. We override the eval's per-row threshold to
+      // 0 so scoreQuery's own pre-filter doesn't double-clip.
+      const reranked = await rerankChunks(
+        q.query,
+        rows as unknown as Array<MatchRow & RerankerCandidate>,
+      );
+      rows = reranked as unknown as MatchRow[];
+      effectiveThreshold = 0;
+    }
+    results.push(scoreQuery(q, rows, effectiveThreshold));
   }
 
   printSummary(results);
@@ -429,13 +461,14 @@ async function main(): Promise<void> {
   // Write detailed JSON for diffing across runs
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
   const thrTag = `thr${threshold.toFixed(2)}`;
+  const rerankTag = rerank ? '-rerank' : '';
   const outPath = resolvePath(
     dirname(fileURLToPath(import.meta.url)),
     '..',
     '..',
     'evals',
     'retrieval',
-    `results-${mode}-${thrTag}-${ts}.json`,
+    `results-${mode}-${thrTag}${rerankTag}-${ts}.json`,
   );
   await mkdir(dirname(outPath), { recursive: true });
   const overall = aggregateLabeled(results);
@@ -447,6 +480,7 @@ async function main(): Promise<void> {
         run_at: new Date().toISOString(),
         mode,
         threshold,
+        rerank,
         dataset_size: dataset.queries.length,
         overall,
         guardrail,

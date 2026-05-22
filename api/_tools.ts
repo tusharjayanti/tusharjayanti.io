@@ -16,6 +16,7 @@
 import { embed } from './_voyage.js';
 import { getSupabaseClient } from './_supabase.js';
 import { fetchUrl } from './_webFetch.js';
+import { rerankChunks } from './_reranker.js';
 
 export const SEARCH_EXPERIENCE = 'search_experience';
 export const SEARCH_RESUME = 'search_resume';
@@ -39,13 +40,15 @@ const SEARCH_SOURCE_MAP: Record<
   [SEARCH_README]: 'readme',
 };
 
-const MATCH_COUNT = 3;
+// M2.7: K=10 over-retrieve, reranker drops "no" verdicts and
+// diversifies to N=5 for the final tool_result. Pre-M2.7 was K=N=3.
+const MATCH_COUNT = 10;
 
 export const TOOLS = [
   {
     name: SEARCH_EXPERIENCE,
     description:
-      "Search Tushar Jayanti's experience writeups for detailed technical stories about his work at DISCO (identity platform migration, p99 latency reduction, gRPC migration), PurpleToko (0-to-1 e-commerce backend), Transcend Street Solutions (financial systems, Reserve Release feature), and Baanyan/USAA (Kafka event-driven services). Use this tool when the user asks about specific roles, technical decisions, architectural choices, or detailed engineering work. Returns the top 3 most relevant chunks.",
+      "Search Tushar Jayanti's experience writeups for detailed technical stories about his work at DISCO (identity platform migration, p99 latency reduction, gRPC migration), PurpleToko (0-to-1 e-commerce backend), Transcend Street Solutions (financial systems, Reserve Release feature), and Baanyan/USAA (Kafka event-driven services). Use this tool when the user asks about specific roles, technical decisions, architectural choices, or detailed engineering work. Returns the top 5 most relevant chunks after Haiku-based relevance filtering.",
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -61,7 +64,7 @@ export const TOOLS = [
   {
     name: SEARCH_RESUME,
     description:
-      "Search Tushar Jayanti's resume for compact summaries of his roles, skills, education, and projects. Use this tool when the user asks about high-level qualifications, what technologies he knows, his education, or current projects. The resume contains the elevator-pitch versions of his work; use search_experience for deeper technical stories. Returns the top 3 most relevant chunks.",
+      "Search Tushar Jayanti's resume for compact summaries of his roles, skills, education, and projects. Use this tool when the user asks about high-level qualifications, what technologies he knows, his education, or current projects. The resume contains the elevator-pitch versions of his work; use search_experience for deeper technical stories. Returns the top 5 most relevant chunks after Haiku-based relevance filtering.",
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -77,7 +80,7 @@ export const TOOLS = [
   {
     name: SEARCH_README,
     description:
-      "Search Tushar Jayanti's GitHub project READMEs for deep architecture and implementation details on his side projects (vox-agent, shortlist, tusharjayanti.io, calculator-agent, TensorflowChatbot, OpticalCharacterRecognition). Use this tool when the user asks how a specific project works internally, what its design decisions were, or for technical depth beyond what the resume covers. Returns the top 3 most relevant chunks.",
+      "Search Tushar Jayanti's GitHub project READMEs for deep architecture and implementation details on his side projects (vox-agent, shortlist, tusharjayanti.io, calculator-agent, TensorflowChatbot, OpticalCharacterRecognition). Use this tool when the user asks how a specific project works internally, what its design decisions were, or for technical depth beyond what the resume covers. Returns the top 5 most relevant chunks after Haiku-based relevance filtering.",
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -129,6 +132,7 @@ export type ToolCallResult = {
 };
 
 type MatchRow = {
+  source_id: string;
   chunk_index: number;
   content: string;
   metadata: { h2_heading?: string; h3_heading?: string } | null;
@@ -136,22 +140,13 @@ type MatchRow = {
   semantic_distance: number | null;
 };
 
-// Cosine-similarity floor. Threshold is on `1 - semantic_distance`
-// (range 0–1), NOT on the RRF blended score (which saturates at ~0.033
-// with k=60 and would be unusable as a 0.3 threshold). The RRF score
-// still determines RANKING among surviving chunks; cosine is just the
-// quality floor. Filtering on cosine only — a chunk with weak semantic
-// match but strong BM25 hit is usually term-overlap without topic
-// relevance, which we'd rather treat as noise than surface.
-const DEFAULT_MIN_COSINE_SIMILARITY = 0.3;
-
-function getMinCosineSimilarity(): number {
-  const raw = process.env.RAG_MIN_COSINE_SIMILARITY;
-  if (raw === undefined) return DEFAULT_MIN_COSINE_SIMILARITY;
-  const parsed = Number.parseFloat(raw);
-  if (Number.isNaN(parsed)) return DEFAULT_MIN_COSINE_SIMILARITY;
-  return parsed;
-}
+// M2.7: the cosine floor is now a cost-control PRE-FILTER, not the
+// relevance signal — those duties moved to the reranker. Default
+// drops from 0.3 → 0.15 (configurable via RAG_MIN_COSINE_SIMILARITY)
+// because the threshold now exists only to skip obvious noise before
+// paying for Haiku, not to separate borderline-relevant from
+// borderline-irrelevant. The reranker handles that separation via
+// binary verdicts.
 
 // Sent to the model as tool_result when retrieval returns nothing
 // above the cosine-similarity floor. The MUST NOT line is the
@@ -275,18 +270,17 @@ async function executeSearch(
   }
 
   const rows = (data ?? []) as MatchRow[];
-  const threshold = getMinCosineSimilarity();
-  // Keep only chunks where the semantic-similarity floor passes.
-  // Chunks with null semantic_distance (BM25-only hits, see
-  // 0004_match_chunks_hybrid.sql) are dropped — no semantic anchor
-  // means they're likely term-overlap noise.
-  const filtered = rows.filter((r) => {
-    if (r.semantic_distance === null) return false;
-    return 1 - r.semantic_distance >= threshold;
-  });
 
-  if (filtered.length === 0) {
-    console.log('[rag] no_match', { query, source, threshold });
+  // M2.7: the reranker owns the cosine pre-filter (default 0.15)
+  // AND the Haiku verdict pass that decides which chunks reach the
+  // tool_result. An empty return means either everything failed
+  // pre-filter (low cosine) or Haiku marked every survivor "no"
+  // (out-of-corpus). Both paths trigger the no_match guardrail
+  // here.
+  const reranked = await rerankChunks(query, rows);
+
+  if (reranked.length === 0) {
+    console.log('[rag] no_match', { query, source });
     return {
       formatted: NO_MATCH_TOOL_RESULT,
       metadata: {
@@ -299,7 +293,7 @@ async function executeSearch(
     };
   }
 
-  const formatted = filtered
+  const formatted = reranked
     .map((row) => {
       const score = row.score.toFixed(4);
       const meta = row.metadata ?? {};
@@ -314,8 +308,8 @@ async function executeSearch(
     metadata: {
       query,
       source,
-      chunk_ids: filtered.map((r) => r.chunk_index),
-      top_scores: filtered.map((r) => r.score),
+      chunk_ids: reranked.map((r) => r.chunk_index),
+      top_scores: reranked.map((r) => r.score),
       no_match: false,
     },
   };

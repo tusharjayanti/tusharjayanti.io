@@ -1,0 +1,1140 @@
+{
+  "run_at": "2026-05-22T09:08:51.662Z",
+  "mode": "three-tool",
+  "threshold": 0.3,
+  "rerank": true,
+  "dataset_size": 31,
+  "overall": {
+    "count": 26,
+    "retrieval_at_1": 0.7307692307692307,
+    "retrieval_at_3": 0.8461538461538461,
+    "retrieval_at_5": 0.8461538461538461,
+    "mrr": 0.7884615384615384
+  },
+  "guardrail": {
+    "count": 5,
+    "fired": 4,
+    "rate": 0.8
+  },
+  "results": [
+    {
+      "id": "Q1",
+      "query": "How does vox-agent's hallucination detection work?",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.559489704309666,
+          "cosine_similarity": 0.44051029569033395,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.563399169647644,
+          "cosine_similarity": 0.436600830352356,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 2,
+          "score": 0.015625,
+          "semantic_distance": 0.632951218871808,
+          "cosine_similarity": 0.36704878112819195,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 3
+    },
+    {
+      "id": "Q2",
+      "query": "What's the architecture of calculator-agent?",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 2,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.51632827325722,
+          "cosine_similarity": 0.48367172674278003,
+          "is_correct": true,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 1
+    },
+    {
+      "id": "Q3",
+      "query": "What's tusharjayanti.io built with?",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 1,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.53021427989006,
+          "cosine_similarity": 0.46978572010994,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 13,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.68778685112956,
+          "cosine_similarity": 0.31221314887044005,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 2
+    },
+    {
+      "id": "Q4",
+      "query": "what makes the customer-support agent reliable",
+      "target_source": "readme",
+      "tags": [
+        "adversarial",
+        "vocabulary-poor",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.527860536341053,
+          "cosine_similarity": 0.472139463658947,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.630667466839174,
+          "cosine_similarity": 0.36933253316082604,
+          "is_correct": true,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 2
+    },
+    {
+      "id": "Q5",
+      "query": "how does this project handle errors",
+      "target_source": "readme",
+      "tags": [
+        "adversarial",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0,
+          "score": 0.015625,
+          "semantic_distance": 0.747892074475398,
+          "cosine_similarity": 0.25210792552460204,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": false,
+      "retrieval_at_5": false,
+      "first_correct_rank": null,
+      "reciprocal_rank": 0,
+      "guardrail_fired": null,
+      "chunks_above_floor": 1
+    },
+    {
+      "id": "Q6",
+      "query": "Tushar's experience at DISCO",
+      "target_source": "experience",
+      "tags": [
+        "realistic",
+        "experience"
+      ],
+      "retrieved": [],
+      "retrieval_at_1": false,
+      "retrieval_at_3": false,
+      "retrieval_at_5": false,
+      "first_correct_rank": null,
+      "reciprocal_rank": 0,
+      "guardrail_fired": null,
+      "chunks_above_floor": 0
+    },
+    {
+      "id": "Q7",
+      "query": "Tell me how vox-agent catches AI mistakes",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "vocabulary-poor",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.529412332703152,
+          "cosine_similarity": 0.470587667296848,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 2,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.633417058986934,
+          "cosine_similarity": 0.366582941013066,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 2
+    },
+    {
+      "id": "Q8",
+      "query": "How is calculator-agent structured?",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "vocabulary-poor",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 0,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.497595533656941,
+          "cosine_similarity": 0.502404466343059,
+          "is_correct": true,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 1
+    },
+    {
+      "id": "Q9",
+      "query": "show me the AI evaluation project",
+      "target_source": "readme",
+      "tags": [
+        "vocabulary-poor",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 2,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.54552298784256,
+          "cosine_similarity": 0.45447701215743996,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.578427604892336,
+          "cosine_similarity": 0.421572395107664,
+          "is_correct": true,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 2,
+      "reciprocal_rank": 0.5,
+      "guardrail_fired": null,
+      "chunks_above_floor": 2
+    },
+    {
+      "id": "Q10",
+      "query": "which of these projects use Python",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/TensorflowChatbot",
+          "chunk_index": 0,
+          "score": 0.0327868852459016,
+          "semantic_distance": 0.671486625494165,
+          "cosine_similarity": 0.32851337450583495,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/OpticalCharacterRecognition",
+          "chunk_index": 0,
+          "score": 0.0320020481310804,
+          "semantic_distance": 0.68086963891983,
+          "cosine_similarity": 0.31913036108017,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "readme",
+          "source_id": "tusharjayanti/OpticalCharacterRecognition",
+          "chunk_index": 2,
+          "score": 0.0315136476426799,
+          "semantic_distance": 0.731634752056911,
+          "cosine_similarity": 0.268365247943089,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 2,
+      "reciprocal_rank": 0.5,
+      "guardrail_fired": null,
+      "chunks_above_floor": 3
+    },
+    {
+      "id": "Q11",
+      "query": "What's the multi-agent architecture in shortlist?",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 0,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.485268115997314,
+          "cosine_similarity": 0.514731884002686,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.66572380057488,
+          "cosine_similarity": 0.33427619942512,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 2,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.591142575877017,
+          "cosine_similarity": 0.408857424122983,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 7,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.695205665206232,
+          "cosine_similarity": 0.30479433479376805,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 4
+    },
+    {
+      "id": "Q12",
+      "query": "How does shortlist score jobs?",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 4,
+          "score": 0.0151515151515152,
+          "semantic_distance": 0.548186719417572,
+          "cosine_similarity": 0.451813280582428,
+          "is_correct": true,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 1
+    },
+    {
+      "id": "Q13",
+      "query": "explain the resume helper tool",
+      "target_source": "readme",
+      "tags": [
+        "vocabulary-poor",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 2,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.567066468842798,
+          "cosine_similarity": 0.432933531157202,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 4,
+          "score": 0.0149253731343284,
+          "semantic_distance": 0.642740219831467,
+          "cosine_similarity": 0.357259780168533,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 0,
+          "score": 0.0144927536231884,
+          "semantic_distance": 0.671593189239502,
+          "cosine_similarity": 0.32840681076049805,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 2,
+      "reciprocal_rank": 0.5,
+      "guardrail_fired": null,
+      "chunks_above_floor": 3
+    },
+    {
+      "id": "Q14",
+      "query": "How does vox-agent rate-limit requests?",
+      "target_source": "readme",
+      "tags": [
+        "out-of-corpus",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 2,
+          "score": 0.0147058823529412,
+          "semantic_distance": 0.654069738939051,
+          "cosine_similarity": 0.34593026106094904,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": null,
+      "retrieval_at_3": null,
+      "retrieval_at_5": null,
+      "first_correct_rank": null,
+      "reciprocal_rank": null,
+      "guardrail_fired": false,
+      "chunks_above_floor": 1
+    },
+    {
+      "id": "Q15",
+      "query": "How does the job-search agent handle audio?",
+      "target_source": "readme",
+      "tags": [
+        "out-of-corpus",
+        "readme"
+      ],
+      "retrieved": [],
+      "retrieval_at_1": null,
+      "retrieval_at_3": null,
+      "retrieval_at_5": null,
+      "first_correct_rank": null,
+      "reciprocal_rank": null,
+      "guardrail_fired": true,
+      "chunks_above_floor": 0
+    },
+    {
+      "id": "Q16",
+      "query": "what does the OCR project preprocess?",
+      "target_source": "readme",
+      "tags": [
+        "realistic",
+        "readme"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "readme",
+          "source_id": "tusharjayanti/OpticalCharacterRecognition",
+          "chunk_index": 1,
+          "score": 0.015625,
+          "semantic_distance": 0.706830620765686,
+          "cosine_similarity": 0.29316937923431396,
+          "is_correct": true,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 1
+    },
+    {
+      "id": "Q17",
+      "query": "Tushar's gRPC migration at DISCO",
+      "target_source": "experience",
+      "tags": [
+        "realistic",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 1,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.425931070689486,
+          "cosine_similarity": 0.574068929310514,
+          "is_correct": true,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 1
+    },
+    {
+      "id": "Q18",
+      "query": "What was the Reserve Release feature?",
+      "target_source": "experience",
+      "tags": [
+        "realistic",
+        "single-source",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 11,
+          "score": 0.0327868852459016,
+          "semantic_distance": 0.561724841594696,
+          "cosine_similarity": 0.43827515840530396,
+          "is_correct": true,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 1
+    },
+    {
+      "id": "Q19",
+      "query": "How did Tushar reduce p99 latency?",
+      "target_source": "experience",
+      "tags": [
+        "realistic",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 3,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.519702553749081,
+          "cosine_similarity": 0.48029744625091897,
+          "is_correct": true,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 1
+    },
+    {
+      "id": "Q20",
+      "query": "Tushar's Kafka work at USAA",
+      "target_source": "experience",
+      "tags": [
+        "realistic",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 16,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.364461535609685,
+          "cosine_similarity": 0.635538464390315,
+          "is_correct": true,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 1
+    },
+    {
+      "id": "Q21",
+      "query": "What did Tushar build at PurpleToko?",
+      "target_source": "experience",
+      "tags": [
+        "realistic",
+        "single-source",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 10,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.493376835983301,
+          "cosine_similarity": 0.5066231640166989,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 8,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.527344629983444,
+          "cosine_similarity": 0.472655370016556,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 9,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.559023340853155,
+          "cosine_similarity": 0.44097665914684503,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 7,
+          "score": 0.015625,
+          "semantic_distance": 0.561764316611418,
+          "cosine_similarity": 0.438235683388582,
+          "is_correct": true,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 4
+    },
+    {
+      "id": "Q22",
+      "query": "Tushar's experience with high-throughput financial systems",
+      "target_source": "experience",
+      "tags": [
+        "vocabulary-poor",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 16,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.533840588607648,
+          "cosine_similarity": 0.46615941139235195,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 14,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.565373114899022,
+          "cosine_similarity": 0.434626885100978,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 11,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.592681933321719,
+          "cosine_similarity": 0.40731806667828097,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 15,
+          "score": 0.015625,
+          "semantic_distance": 0.59880702509796,
+          "cosine_similarity": 0.40119297490204,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 4
+    },
+    {
+      "id": "Q23",
+      "query": "Tushar's monolith decomposition story",
+      "target_source": "experience",
+      "tags": [
+        "realistic",
+        "experience"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 14,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.501945346593857,
+          "cosine_similarity": 0.49805465340614297,
+          "is_correct": true,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 1
+    },
+    {
+      "id": "Q24",
+      "query": "Tushar's experience with Rust programming",
+      "target_source": "experience",
+      "tags": [
+        "out-of-corpus",
+        "experience"
+      ],
+      "retrieved": [],
+      "retrieval_at_1": null,
+      "retrieval_at_3": null,
+      "retrieval_at_5": null,
+      "first_correct_rank": null,
+      "reciprocal_rank": null,
+      "guardrail_fired": true,
+      "chunks_above_floor": 0
+    },
+    {
+      "id": "Q25",
+      "query": "Tushar's blockchain work",
+      "target_source": "experience",
+      "tags": [
+        "out-of-corpus",
+        "experience"
+      ],
+      "retrieved": [],
+      "retrieval_at_1": null,
+      "retrieval_at_3": null,
+      "retrieval_at_5": null,
+      "first_correct_rank": null,
+      "reciprocal_rank": null,
+      "guardrail_fired": true,
+      "chunks_above_floor": 0
+    },
+    {
+      "id": "Q26",
+      "query": "what databases does Tushar know",
+      "target_source": "resume",
+      "tags": [
+        "realistic",
+        "resume"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 3,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.597332847197863,
+          "cosine_similarity": 0.40266715280213705,
+          "is_correct": true,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 1
+    },
+    {
+      "id": "Q27",
+      "query": "what languages does Tushar code in",
+      "target_source": "resume",
+      "tags": [
+        "realistic",
+        "resume"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 1,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.549474047108711,
+          "cosine_similarity": 0.45052595289128905,
+          "is_correct": true,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 1
+    },
+    {
+      "id": "Q28",
+      "query": "Tushar's cloud and AWS experience",
+      "target_source": "resume",
+      "tags": [
+        "realistic",
+        "resume"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 4,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.483405559265944,
+          "cosine_similarity": 0.516594440734056,
+          "is_correct": true,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 7,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.608796781825827,
+          "cosine_similarity": 0.39120321817417303,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": true,
+      "retrieval_at_3": true,
+      "retrieval_at_5": true,
+      "first_correct_rank": 1,
+      "reciprocal_rank": 1,
+      "guardrail_fired": null,
+      "chunks_above_floor": 2
+    },
+    {
+      "id": "Q29",
+      "query": "Does Tushar have a PhD?",
+      "target_source": "resume",
+      "tags": [
+        "out-of-corpus",
+        "resume"
+      ],
+      "retrieved": [],
+      "retrieval_at_1": null,
+      "retrieval_at_3": null,
+      "retrieval_at_5": null,
+      "first_correct_rank": null,
+      "reciprocal_rank": null,
+      "guardrail_fired": true,
+      "chunks_above_floor": 0
+    },
+    {
+      "id": "Q30",
+      "query": "what's Tushar currently building",
+      "target_source": "resume",
+      "tags": [
+        "vocabulary-poor",
+        "resume"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 11,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.624099932664636,
+          "cosine_similarity": 0.37590006733536396,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.665279865264893,
+          "cosine_similarity": 0.334720134735107,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": false,
+      "retrieval_at_5": false,
+      "first_correct_rank": null,
+      "reciprocal_rank": 0,
+      "guardrail_fired": null,
+      "chunks_above_floor": 2
+    },
+    {
+      "id": "Q31",
+      "query": "Tushar's Python experience",
+      "target_source": "resume",
+      "tags": [
+        "cross-source",
+        "realistic"
+      ],
+      "retrieved": [
+        {
+          "rank": 1,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 14,
+          "score": 0.0163934426229508,
+          "semantic_distance": 0.588117080572756,
+          "cosine_similarity": 0.411882919427244,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 2,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 12,
+          "score": 0.0161290322580645,
+          "semantic_distance": 0.609779280132671,
+          "cosine_similarity": 0.390220719867329,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 3,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 13,
+          "score": 0.0158730158730159,
+          "semantic_distance": 0.619988675712526,
+          "cosine_similarity": 0.380011324287474,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 4,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 10,
+          "score": 0.015625,
+          "semantic_distance": 0.647081215592659,
+          "cosine_similarity": 0.35291878440734104,
+          "is_correct": false,
+          "above_floor": true
+        },
+        {
+          "rank": 5,
+          "source": "resume",
+          "source_id": "resume.md",
+          "chunk_index": 11,
+          "score": 0.0153846153846154,
+          "semantic_distance": 0.677944669784763,
+          "cosine_similarity": 0.322055330215237,
+          "is_correct": false,
+          "above_floor": true
+        }
+      ],
+      "retrieval_at_1": false,
+      "retrieval_at_3": false,
+      "retrieval_at_5": false,
+      "first_correct_rank": null,
+      "reciprocal_rank": 0,
+      "guardrail_fired": null,
+      "chunks_above_floor": 5
+    }
+  ]
+}

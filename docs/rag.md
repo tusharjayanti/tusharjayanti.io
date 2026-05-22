@@ -476,6 +476,109 @@ The migration ([`0008_match_chunks_unified.sql`](../supabase/migrations/0008_mat
 and the `--mode=unified` runner support stay in place — both are
 cheap to retain and ready for the future revisit.
 
+## Reranker architecture (M2.7, 2026-05-22)
+
+M2.6.5 proved that a scalar cosine threshold cannot separate
+borderline-relevant from borderline-irrelevant chunks at this
+corpus size — the bands overlap at 0.35–0.47, so any single
+threshold value trades off retrieval@5 against guardrail firing
+rate without ever clearing both. **M2.7 introduces a Haiku-based
+listwise reranker as the architectural fix**: cosine becomes a
+cost-control pre-filter, and the reranker is the sole relevance
+authority.
+
+### Semantic shift: cosine = pre-filter, reranker = relevance
+
+`RAG_MIN_COSINE_SIMILARITY` default drops from `0.3` to **`0.15`**.
+The threshold's job changes:
+
+- **Pre-M2.7**: relevance signal. Chunks above the floor were
+  surfaced; chunks below triggered the no-match guardrail.
+- **Post-M2.7**: cost-control pre-filter. Chunks above the floor
+  are sent to the reranker for a binary yes/no verdict; chunks
+  below are dropped without paying for Haiku.
+
+If the two roles ever blur in code, the design has drifted.
+
+### Pipeline
+
+```
+match_chunks (top-K=10)
+  → cosine pre-filter @ 0.15 (drops obvious off-topic)
+  → if ≤3 survivors: skip Haiku, diversify, return
+  → else: seeded shuffle → Haiku listwise verdict
+  → drop "no" verdicts
+  → if zero survive: NO_MATCH_TOOL_RESULT
+  → else: santifer two-pass diversification → top-N=5
+```
+
+Reranker implementation lives in
+[`api/_reranker.ts`](../api/_reranker.ts). Tool wrappers in
+`api/_tools.ts` call `rerankChunks(query, chunks)` before formatting
+the `tool_result`. All three source-scoped tools
+(`search_experience`, `search_resume`, `search_readme`) flow through
+the same reranker — no per-source carve-outs.
+
+**Model:** `claude-haiku-4-5-20251001`, listwise prompt with
+`max_tokens: 80` (≈10 chunks × 7 chars per `<id>:<verdict>` pair).
+Chunks are truncated to 200 chars before sending — saves input
+tokens without measurably hurting verdict quality (santifer's
+finding).
+
+**Position-bias mitigation:** query-seeded Fisher-Yates shuffle of
+the candidate list before sending to Haiku. Seed = first 4 bytes of
+SHA-256 of the query, so the same query produces the same shuffle
+across runs (deterministic eval). Single-pass — multi-pass
+averaging is premature at K=10.
+
+**Failure mode:** any Haiku error (timeout, parse failure, 5xx) →
+log + fall back to the pre-filter top-N slice, diversified. Same
+philosophy as the M2.8 cache lock: gracefully degrade, never throw
+to the user.
+
+### Eval gate (M2.7 acceptance)
+
+Two metrics, declared up front, measured by
+`npm run eval:retrieval -- --rerank`:
+
+| Metric | Required | M2.7 result | Status |
+|---|---|---|---|
+| retrieval@5 (overall, n=26 labeled) | ≥ 80% | **84.6%** | ✓ |
+| OOC firing rate (n=5 OOC queries) | ≥ 4/5 (80%) | **4/5 (80%)** | ✓ |
+
+Per-tag deltas vs. the M2.6 baseline:
+
+| Tag | M2.6 @5 / MRR | M2.7 @5 / MRR | Δ |
+|---|---|---|---|
+| experience | 100% / 1.000 | 87.5% / 0.875 | regressed on Q6 |
+| resume | 75% / 0.750 | 75% / 0.750 | unchanged |
+| readme | 84.6% / 0.690 | **92.3% / 0.808** | improved |
+| vocabulary-poor | 71.4% / 0.663 | **85.7% / 0.714** | improved |
+| realistic | 95% / 0.874 | 90% / 0.875 | -5pp on @5 (Q6) |
+| adversarial | 50% / 0.500 | 50% / 0.500 | unchanged |
+| cross-source | 0% / 0.143 | 0% / 0.000 | structural |
+
+Notable: the OOC subset shifted from 0/5 → 4/5 firing. Q14
+(`"How does vox-agent rate-limit requests?"`) is the one silent
+case — Haiku said "yes" to a `tusharjayanti.io` chunk that does
+discuss rate-limiting (just not in vox-agent). Reasonable
+interpretation; banked for follow-up.
+
+**Banked findings** (to followups.md / future work):
+- **Q6 regression**: `"Tushar's experience at DISCO"` was 100% at
+  every k pre-M2.7; reranker now drops all 7 DISCO experience
+  chunks. Likely Haiku reading the query as too vague to materially
+  answer until a specific topic is named. Tuning options: loosen
+  the system prompt's strictness on broad role queries, or re-label
+  Q6 with explicit topical sub-chunks. Net effect doesn't break the
+  gate (overall @5 unchanged at 84.6%) but it's a real behavioral
+  shift to watch.
+- **Q14 silence**: described above. Defensible Haiku judgment
+  rather than a clear bug.
+
+The reranker is the relevance authority. M2.7 ships; tuning
+iterates on the prompt and corpus, not on the threshold.
+
 ## Operations
 
 Three commands cover day-to-day:

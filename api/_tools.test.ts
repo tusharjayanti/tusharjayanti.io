@@ -1,4 +1,7 @@
-// executeTool dispatch + no-match guardrail tests.
+// executeTool dispatch + no-match guardrail tests. M2.7 moved the
+// cosine pre-filter into the reranker module; these tests still
+// drive the pre-filter logic since the reranker's skip-condition
+// (≤3 candidates) bypasses Haiku for these small fixtures.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
@@ -20,18 +23,21 @@ vi.mock('./_supabase.js', () => ({
 const { executeTool, isToolName, SEARCH_README, TOOLS, NO_MATCH_TOOL_RESULT } =
   await import('./_tools.js');
 
-// semantic_distance values to drive cosine-similarity threshold tests.
-// Cosine similarity = 1 - semantic_distance. With the default 0.3
-// floor, distance 0.1 passes (sim 0.9), distance 0.8 fails (sim 0.2).
+// semantic_distance values to drive cosine-similarity pre-filter
+// tests. Cosine similarity = 1 - semantic_distance. With the M2.7
+// default 0.15 pre-filter, distance 0.1 passes (sim 0.9), distance
+// 0.9 fails (sim 0.1).
 const PASSING_DISTANCE = 0.1;
-const FAILING_DISTANCE = 0.8;
+const FAILING_DISTANCE = 0.9;
 
 function row(opts: {
   chunk_index?: number;
   semantic_distance: number | null;
   score?: number;
+  source_id?: string;
 }) {
   return {
+    source_id: opts.source_id ?? `src-${opts.chunk_index ?? 0}`,
     chunk_index: opts.chunk_index ?? 0,
     content: `fake chunk body ${opts.chunk_index ?? 0}`,
     metadata: {
@@ -73,7 +79,7 @@ describe('executeTool — dispatch', () => {
     expect(fnName).toBe('match_chunks');
     expect(args).toMatchObject({
       query_text: 'how does vox-agent work',
-      match_count: 3,
+      match_count: 10,
       source_filter: 'readme',
     });
     expect(args.query_embedding).toHaveLength(1024);
