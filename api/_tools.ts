@@ -29,7 +29,7 @@ export type ToolName =
   | typeof SEARCH_README
   | typeof FETCH_URL;
 type RetrievalSource = 'experience' | 'resume' | 'readme';
-export type ToolSource = RetrievalSource | 'web';
+export type ToolSource = RetrievalSource | 'url';
 
 const SEARCH_SOURCE_MAP: Record<
   Exclude<ToolName, typeof FETCH_URL>,
@@ -177,7 +177,7 @@ export async function executeTool(
         formatted: 'Invalid input: fetch_url requires a `url` string.',
         metadata: {
           query: '',
-          source: 'web',
+          source: 'url',
           chunk_ids: [],
           top_scores: [],
           no_match: true,
@@ -216,7 +216,7 @@ async function executeFetchUrl(url: string): Promise<ToolCallResult> {
       formatted: `[fetch_url error] ${result.error}`,
       metadata: {
         query: url,
-        source: 'web',
+        source: 'url',
         chunk_ids: [],
         top_scores: [],
         no_match: true,
@@ -237,7 +237,7 @@ async function executeFetchUrl(url: string): Promise<ToolCallResult> {
     formatted: header + '\n' + result.content,
     metadata: {
       query: url,
-      source: 'web',
+      source: 'url',
       chunk_ids: [],
       top_scores: [],
       no_match: false,

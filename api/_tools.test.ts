@@ -236,7 +236,7 @@ describe('executeTool — fetch_url', () => {
     const result = await executeTool('fetch_url', {
       url: 'https://example.com/job/42',
     });
-    expect(result.metadata.source).toBe('web');
+    expect(result.metadata.source).toBe('url');
     expect(result.metadata.no_match).toBe(false);
     expect(result.metadata.fetch_url?.error).toBeNull();
     expect(result.metadata.fetch_url?.truncated).toBe('none');
