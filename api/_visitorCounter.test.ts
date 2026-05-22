@@ -25,6 +25,16 @@ describe('isBotUserAgent', () => {
     expect(isBotUserAgent('crawler-something')).toBe(true);
   });
 
+  it('returns true for curl-class verification UAs', () => {
+    expect(isBotUserAgent('curl/8.7.1')).toBe(true);
+    expect(isBotUserAgent('Wget/1.21.4 (darwin23.0.0)')).toBe(true);
+    expect(isBotUserAgent('node-fetch/2.7.0')).toBe(true);
+    expect(isBotUserAgent('python-requests/2.31.0')).toBe(true);
+    // Go's stdlib HTTP client emits "Go-http-client/2.0" by default —
+    // the canonical "http-client" substring match.
+    expect(isBotUserAgent('Go-http-client/2.0')).toBe(true);
+  });
+
   it('returns false for human browser UAs', () => {
     expect(
       isBotUserAgent(

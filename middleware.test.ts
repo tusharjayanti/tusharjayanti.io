@@ -33,10 +33,12 @@ async function loadMiddleware() {
 function makeReq(
   ua: string | null,
   forwardedFor: string | null = '203.0.113.45',
+  host: string | null = 'tusharjayanti.io',
 ): Request {
   const headers: Record<string, string> = {};
   if (ua !== null) headers['user-agent'] = ua;
   if (forwardedFor !== null) headers['x-forwarded-for'] = forwardedFor;
+  if (host !== null) headers['host'] = host;
   return new Request('https://tusharjayanti.io/', { method: 'GET', headers });
 }
 
@@ -89,5 +91,70 @@ describe('middleware (visitor counter)', () => {
     const handler = await loadMiddleware();
     const result = await handler(makeReq('Mozilla/5.0 (Macintosh) Chrome/120'));
     expect(result).toBeUndefined();
+  });
+
+  it('increments on the production apex host', async () => {
+    const handler = await loadMiddleware();
+    await handler(
+      makeReq(
+        'Mozilla/5.0 (Macintosh) Chrome/120',
+        '203.0.113.45',
+        'tusharjayanti.io',
+      ),
+    );
+    expect(mocks.waitUntil).toHaveBeenCalledOnce();
+  });
+
+  it('increments on the www subdomain', async () => {
+    const handler = await loadMiddleware();
+    await handler(
+      makeReq(
+        'Mozilla/5.0 (Macintosh) Chrome/120',
+        '203.0.113.45',
+        'www.tusharjayanti.io',
+      ),
+    );
+    expect(mocks.waitUntil).toHaveBeenCalledOnce();
+  });
+
+  it('skips Vercel preview deploy hosts', async () => {
+    const handler = await loadMiddleware();
+    await handler(
+      makeReq(
+        'Mozilla/5.0 (Macintosh) Chrome/120',
+        '203.0.113.45',
+        'tusharjayanti-abc123-tusharjayantis-projects.vercel.app',
+      ),
+    );
+    expect(mocks.waitUntil).not.toHaveBeenCalled();
+  });
+
+  it('skips a host that only contains the production domain as a substring', async () => {
+    // Defends against the trap that motivated `Set.has()` over
+    // `.includes()` — preview slugs / phishing hosts that embed the
+    // production domain string but aren't the production host.
+    const handler = await loadMiddleware();
+    await handler(
+      makeReq(
+        'Mozilla/5.0 (Macintosh) Chrome/120',
+        '203.0.113.45',
+        'evil-tusharjayanti.io.attacker.example',
+      ),
+    );
+    expect(mocks.waitUntil).not.toHaveBeenCalled();
+  });
+
+  it('skips when the host header is missing', async () => {
+    const handler = await loadMiddleware();
+    await handler(
+      makeReq('Mozilla/5.0 (Macintosh) Chrome/120', '203.0.113.45', null),
+    );
+    expect(mocks.waitUntil).not.toHaveBeenCalled();
+  });
+
+  it('skips curl-class user agents', async () => {
+    const handler = await loadMiddleware();
+    await handler(makeReq('curl/8.7.1'));
+    expect(mocks.waitUntil).not.toHaveBeenCalled();
   });
 });
