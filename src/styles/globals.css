@@ -569,6 +569,13 @@ button:hover {
   padding-block: 0.15rem;
 }
 
+.term-history {
+  font-family: var(--font-mono);
+  font-size: inherit;
+  margin: 0;
+  white-space: pre;
+}
+
 .term-command-line {
   display: flex;
   gap: 0.4rem;

@@ -70,8 +70,14 @@ export function Terminal() {
     const trimmed = raw.trim();
     if (!trimmed) return;
     append({ kind: 'command', text: trimmed });
+    // Compute the post-dispatch history synchronously so the `history`
+    // command sees its own invocation at the bottom of the list (bash
+    // semantics). setHistory is async; passing the closure-captured
+    // `history` value into the command context would be one step stale.
+    let nextHistory = history;
     if (opts.addToHistory) {
-      setHistory((prev) => [...prev, trimmed]);
+      nextHistory = [...history, trimmed];
+      setHistory(nextHistory);
     }
     // Known commands ignore chatSignal; for the chat fallback we need a real
     // signal. Callers that omit it (autoplay's whoami, mobile chip taps) get a
@@ -88,6 +94,8 @@ export function Terminal() {
         clear: clearScrollback,
         startedAt: startedAtRef.current,
         chatSignal: signal,
+        history: nextHistory,
+        clearHistory: () => setHistory([]),
       });
       return;
     }

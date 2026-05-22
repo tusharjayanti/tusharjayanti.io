@@ -38,6 +38,12 @@ export type CommandContext = {
   clear: () => void;
   startedAt: number;
   chatSignal: AbortSignal;
+  // User-typed command history for the current session. Excludes the
+  // autoplay `whoami` (Terminal.tsx calls dispatch with
+  // addToHistory:false for autoplay). The `history` command reads
+  // this array; `clearHistory` resets it for the `history -c` flag.
+  history: string[];
+  clearHistory: () => void;
 };
 
 export type Command = {
@@ -199,6 +205,13 @@ const help: Command = {
             <span className="term-cmd">status</span>
             <span className="term-dim"> current status</span>
           </div>
+          <div className="term-line">
+            <span className="term-cmd">history</span>
+            <span className="term-dim">
+              {' '}
+              show this session's commands; <code>history -c</code> clears
+            </span>
+          </div>
           <div className="term-line">&nbsp;</div>
           <div className="term-line">
             for anything else, just ask. I am trained well, and can answer
@@ -226,6 +239,37 @@ const clear: Command = {
   summary: 'clear the screen',
   run: ({ clear: doClear }) => {
     doClear();
+  },
+};
+
+// bash-style right-aligned numbering: a 4-char field padded with
+// spaces, two spaces, then the command. Numbers don't reset when the
+// scrollback is cleared — same as bash, where `clear` clears the
+// screen but not the history list.
+export function formatHistory(entries: string[]): string {
+  return entries
+    .map((cmd, i) => `${String(i + 1).padStart(4, ' ')}  ${cmd}`)
+    .join('\n');
+}
+
+const history: Command = {
+  name: 'history',
+  summary: 'show session command history',
+  run: ({ args, history: entries, append, clearHistory }) => {
+    if (args[0] === '-c') {
+      // Silent like bash. Subsequent `history` shows just that next
+      // command, since `history -c` itself was added to the array
+      // before this `run` fired and the clear wipes everything
+      // including itself.
+      clearHistory();
+      return;
+    }
+    append({
+      kind: 'output',
+      node: (
+        <pre className="term-history">{formatHistory(entries)}</pre>
+      ),
+    });
   },
 };
 
@@ -266,6 +310,7 @@ export const commands: Record<string, Command> = {
   help,
   clear,
   status,
+  history,
 };
 
 export const commandNames = Object.keys(commands);
