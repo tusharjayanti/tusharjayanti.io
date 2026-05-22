@@ -37,6 +37,7 @@ const lf = vi.hoisted(() => {
   const client = {
     trace: vi.fn(() => trace),
     flushAsync: vi.fn(() => Promise.resolve()),
+    shutdownAsync: vi.fn(() => Promise.resolve()),
   };
   return { client, trace, generation, span };
 });
@@ -365,7 +366,7 @@ describe('chat handler — Langfuse tracing', () => {
     );
     expect(finalUpdate.output).toBe('hello back');
     expect(finalUpdate.tags).toEqual([]);
-    expect(lf.client.flushAsync).toHaveBeenCalled();
+    expect(lf.client.shutdownAsync).toHaveBeenCalled();
   });
 
   it('on rate limit, tags the trace and skips generation', async () => {
@@ -382,7 +383,7 @@ describe('chat handler — Langfuse tracing', () => {
     );
     expect(finalUpdate.tags).toEqual(['rate-limited']);
     expect(typeof finalUpdate.output).toBe('string');
-    expect(lf.client.flushAsync).toHaveBeenCalled();
+    expect(lf.client.shutdownAsync).toHaveBeenCalled();
   });
 
   it('on injection detection, tags the trace and skips generation', async () => {
@@ -400,7 +401,7 @@ describe('chat handler — Langfuse tracing', () => {
       lf.trace.update,
     );
     expect(finalUpdate.tags).toEqual(['injection-detected']);
-    expect(lf.client.flushAsync).toHaveBeenCalled();
+    expect(lf.client.shutdownAsync).toHaveBeenCalled();
   });
 
   it('on a successful chat, the generation includes the prompt linkage', async () => {

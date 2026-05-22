@@ -81,8 +81,21 @@ async function fireAndForget(
   await promise.catch(() => undefined);
 }
 
-// Update trace with final tags + output + RAG metadata, then flush.
-// Wrapped in try-catch so Langfuse failures never break user-facing chat.
+// Update trace with final tags + output + RAG metadata, then drain
+// the SDK. `shutdownAsync` is the right call on Vercel (not
+// `flushAsync` alone): it clears the periodic flush timer, calls
+// flushAsync to push the queue, awaits the in-flight
+// `pendingIngestionPromises` (the actual HTTP round-trips — this is
+// the bit `flushAsync` alone doesn't wait for on Vercel's tight
+// termination window), then flushes any events that arrived during
+// the wait. Wrapped in try-catch so Langfuse failures never break
+// user-facing chat.
+//
+// Singleton lifecycle: shutdownAsync doesn't invalidate the client's
+// send methods, only stops the periodic timer. Combined with our
+// `flushAt: 1` config (every event triggers a flush regardless), a
+// warm-reused function instance still ingests correctly on the next
+// request.
 async function finalizeTrace(
   lf: Langfuse | null,
   trace: LangfuseTraceClient | null,
@@ -103,7 +116,7 @@ async function finalizeTrace(
         rag_no_match: ragMeta.rag_no_match,
       },
     });
-    await lf.flushAsync();
+    await lf.shutdownAsync();
   } catch (err) {
     console.error('[langfuse] trace finalize failed:', err);
   }
@@ -297,10 +310,11 @@ export default async function handler(
     );
     checkAndSendSpike(resOrCtx);
     tags.push('rate-limited');
-    await fireAndForget(
-      resOrCtx,
-      finalizeTrace(lf, trace, tags, RATE_LIMIT_TEXT, ragMeta),
-    );
+    // Direct await (no fireAndForget/waitUntil) so the Langfuse SDK's
+    // pending HTTP ingestions finish before Vercel reclaims the
+    // function. The user has already taken their hit on the 429 path;
+    // the extra ~200ms of function uptime is invisible to them.
+    await finalizeTrace(lf, trace, tags, RATE_LIMIT_TEXT, ragMeta);
     const body =
       JSON.stringify({ type: 'error', message: RATE_LIMIT_TEXT }) +
       '\n' +
@@ -331,10 +345,7 @@ export default async function handler(
             console.error('[chat] chat log write failed:', err);
           }),
         );
-        await fireAndForget(
-          resOrCtx,
-          finalizeTrace(lf, trace, tags, REFUSAL_TEXT, ragMeta),
-        );
+        await finalizeTrace(lf, trace, tags, REFUSAL_TEXT, ragMeta);
         controller.close();
       },
     });
@@ -765,10 +776,10 @@ export default async function handler(
             console.error('[chat] chat log write failed:', err);
           }),
         );
-        await fireAndForget(
-          resOrCtx,
-          finalizeTrace(lf, trace, tags, accumulated, ragMeta),
-        );
+        // Direct await: drains Langfuse SDK's pendingIngestionPromises
+        // before the stream closes and Vercel reclaims the function.
+        // Stream content is already enqueued; TTFT/response unaffected.
+        await finalizeTrace(lf, trace, tags, accumulated, ragMeta);
         void ttftMs;
         controller.close();
       }
