@@ -389,8 +389,6 @@ Status legend: `[ ]` queued, `[~]` in progress, `[x]` shipped.
 - `[x]` Tarvis chat endpoint: NDJSON streaming, input-side regex
   prefilter and canary check, voice-consistent error handling,
   shrug-thread signature.
-- `[x]` SPA routing fix on Vercel (see "Deliberate decisions" below
-  for the rationale).
 - `[x]` IP-based rate limiting (40/hr, hour-bucketed) and daily
   digest cron with error-spike alerts.
 
@@ -407,50 +405,6 @@ Status legend: `[ ]` queued, `[~]` in progress, `[x]` shipped.
 
 The list above is what's actually next, in roughly the order it'll
 happen. It updates as items ship.
-
----
-
-## Deliberate decisions
-
-Engineering rationale for the non-obvious choices.
-
-<!--
-  As features ship, add new subsections here matching the SPA pattern:
-  - "### Prompt caching — content-block over string-form system prompt"
-  - "### URL handling — why tool_use over a regex fetcher"
-  - "### Eval CI gate — why deterministic over LLM-as-judge"
-  Each section: one-line context → the decision → tradeoff → debugging note.
--->
-
-### SPA routing — rewrite in committed `vercel.json`
-
-**The decision.** The SPA rewrite that makes `/terminal` and `/cv` work
-on hard-refresh lives directly in `vercel.json`:
-
-```json
-{ "source": "/((?!api/|.*\\.).+)", "destination": "/index.html" }
-```
-
-Dot-exclusion regex. Skips `/api/*` and any path with a dot (assets,
-Vite dev modules). Serves `index.html` for dot-free non-API paths.
-
-**Why not build-time injection.** Tried that (injecting the rewrite
-inside `vercel-build`). It doesn't work: Vercel reads `vercel.json`
-_before_ running the build script, so the injection is always too
-late. Don't reintroduce it.
-
-**The tradeoff.** `vercel dev` reads the same `vercel.json` locally and
-the rewrite catches Vite's on-demand dev modules (`/src/main.tsx`,
-`/@vite/client`), crashing the dev server with "invalid JS syntax at
-index.html." So local dev is split: `npm run dev` (Vite, port 5173)
-for frontend, `npm run dev:edge` (Vercel dev, port 3000) for `/api/*`
-curl testing only.
-
-**Known limitation.** Routes with a dot in the path (`/v1.2/changelog`)
-won't be rewritten. Keep route paths dot-free.
-
-**If `/terminal` is 404ing in production:** check that `vercel.json`
-still has the `rewrites` block. That's almost always the bug.
 
 ---
 
