@@ -21,7 +21,7 @@ export const config = {
   // Only the page routes the spec calls out. /cv and direct-link
   // entries to non-matched routes don't count today; revisit if/when
   // the v0.3.0 widget moves to the cv view too.
-  matcher: ['/', '/terminal'],
+  matcher: ['/', '/terminal', '/cv'],
 };
 
 export default async function middleware(req: Request): Promise<Response | undefined> {
