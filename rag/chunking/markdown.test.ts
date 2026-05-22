@@ -221,6 +221,34 @@ describe('chunkMarkdown (hierarchical: experience / resume)', () => {
     expect(chunks[0].content).toContain(shortBody);
   });
 
+  it('back-merges a small H3 even when its immediate predecessor was just absorbed as a merge (tombstone walk-back)', () => {
+    // Regression for the Baanyan > Frontend 71-char orphan. Sequence:
+    //   [long] [small A] [small B]
+    // Pass 1 absorbs A into long; B's i-1 is now a tombstone. Without
+    // walk-back, B is stranded as an orphan. With walk-back, B finds
+    // long (i-2 live) and merges.
+    const longBody =
+      'A long-enough body. ' + 'sentence sentence sentence. '.repeat(15);
+    const smallA = 'observability bits, short body.';
+    const smallB = 'frontend bits, also short.';
+    const md = [
+      '## Company A',
+      '### Long role',
+      longBody,
+      '### Observability',
+      smallA,
+      '### Frontend',
+      smallB,
+    ].join('\n');
+    const chunks = chunkMarkdown(md, 'experience');
+    // All three collapse into one chunk under Company A.
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0].metadata.h2_heading).toBe('Company A');
+    expect(chunks[0].content).toContain(longBody);
+    expect(chunks[0].content).toContain(smallA);
+    expect(chunks[0].content).toContain(smallB);
+  });
+
   it('keeps a too-short orphan H3 under its own H2 when no merge target exists under that H2', () => {
     const longBody = 'A long-enough body. ' + 'sentence sentence sentence. '.repeat(15);
     const shortBody = 'tiny.';

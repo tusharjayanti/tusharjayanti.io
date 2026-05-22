@@ -211,15 +211,27 @@ function applyMinMerge(chunks: HierarchicalChunk[]): HierarchicalChunk[] {
   const result: HierarchicalChunk[] = chunks.map((c) => ({ ...c }));
 
   // Forward pass for backward-merge: walk from index 1 upward; if the
-  // current chunk is small AND the previous chunk shares the same H2,
-  // merge current into previous. Collapse by marking current as a
-  // tombstone with empty content; filter at the end.
+  // current chunk is small AND the most recent LIVE previous chunk
+  // shares the same H2, merge current into that previous chunk.
+  // Collapse by marking current as a tombstone with empty content;
+  // filter at the end.
+  //
+  // The "skip tombstones" walk-back matters when a sequence of small
+  // siblings collapses left-to-right under the same H2. Without it,
+  // the second-to-last small chunk merges into the first big one and
+  // becomes a tombstone, and the last small chunk's `i-1` neighbour
+  // is now empty — the loop would bail and leave it as a stranded
+  // orphan (the Baanyan > Frontend 71-char bug). The forward-merge
+  // pass already walks past tombstones; this makes the backward pass
+  // symmetric.
   for (let i = 1; i < result.length; i++) {
     const cur = result[i];
-    const prev = result[i - 1];
     if (cur.content.length === 0) continue;
     if (cur.content.length >= MIN_CHUNK_CHARS) continue;
-    if (prev.content.length === 0) continue;
+    let j = i - 1;
+    while (j >= 0 && result[j].content.length === 0) j--;
+    if (j < 0) continue;
+    const prev = result[j];
     if (cur.metadata.h2_heading !== prev.metadata.h2_heading) continue;
     prev.content = `${prev.content}\n\n${cur.content}`;
     prev.embedding_text = `${prev.embedding_text}\n\n${cur.content}`;
