@@ -266,9 +266,7 @@ const history: Command = {
     }
     append({
       kind: 'output',
-      node: (
-        <pre className="term-history">{formatHistory(entries)}</pre>
-      ),
+      node: <pre className="term-history">{formatHistory(entries)}</pre>,
     });
   },
 };
