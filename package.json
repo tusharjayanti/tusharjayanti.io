@@ -45,7 +45,6 @@
     "@types/node": "^20.19.41",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
-    "@vercel/node": "^5.8.3",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^4.1.6",
     "dotenv-cli": "^11.0.0",

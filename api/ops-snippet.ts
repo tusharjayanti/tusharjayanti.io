@@ -15,7 +15,7 @@
 // function hangs until the 300s timeout. Caught in preview after
 // the M2.8 ship.
 
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './_types.js';
 import { Redis } from '@upstash/redis';
 import {
   LOCK_KEY,

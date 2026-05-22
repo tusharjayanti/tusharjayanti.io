@@ -25,7 +25,7 @@
 // response.
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './_types.js';
 import { waitUntil } from '@vercel/functions';
 
 import { ingestReadme } from '../rag/ingest/readme.js';
