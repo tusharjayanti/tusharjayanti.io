@@ -24,3 +24,20 @@ hashing or Redis call, so they don't reach storage at all. See
 
 The user-facing `/privacy` page (`src/pages/Privacy.tsx`) summarizes
 this in plain language for visitors.
+
+## Ops endpoints
+
+`GET /api/ops-snippet` — returns the aggregated metrics blob the
+widget renders. Public, no auth, caches its own work in Redis for
+5 minutes.
+
+`DELETE /api/ops-snippet` — admin-only cache invalidation. Drops the
+cached snippet (`ops:snippet:v1`) and any in-flight rebuild lock
+(`ops:snippet:lock`). Used by the on-demand lock-contention test
+(`scripts/test/lock-contention.ts`) to guarantee a cache-miss before
+firing the concurrent batch. Auth header:
+`Authorization: Bearer ${CRON_SECRET}`. 401 on missing or wrong
+secret; 204 on success.
+
+Both methods land on the same Vercel route — `api/ops-snippet.ts` —
+which dispatches on `req.method`.

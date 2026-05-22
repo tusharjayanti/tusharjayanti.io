@@ -15,7 +15,18 @@ export const LOCK_KEY = 'ops:snippet:lock';
 const FRESH_SECONDS = 5 * 60;
 const CACHE_TTL_SECONDS_DEFAULT = 10 * 60;
 const LOCK_TTL_SECONDS = 30;
-const LOCK_WAIT_MS = 200;
+// Waiters (requests that lost the SETNX race) poll the cache key
+// while the holder rebuilds. Total budget = ~10s; in production
+// (Vercel <-> Langfuse Tokyo) rebuild is ~2-4s so waiters typically
+// resolve within 2-3 polls. If rebuild exceeds the budget, waiters
+// return the offline sentinel rather than holding the request
+// indefinitely; the React widget renders offline for one frame and
+// recovers on the next page load. The on-demand lock-contention
+// test (scripts/test/lock-contention.ts) relies on this wait being
+// long enough for the rebuilder's blob to land before waiters give
+// up.
+const LOCK_WAIT_TOTAL_MS_DEFAULT = 10_000;
+const LOCK_POLL_INTERVAL_MS = 250;
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -126,6 +137,28 @@ export async function aggregate(
 export interface GetOpsSnippetOptions {
   cacheTtlSeconds?: number;
   now?: Date;
+  // Tunables for tests — production should use the defaults.
+  lockWaitTotalMs?: number;
+  lockPollIntervalMs?: number;
+}
+
+async function waitForRebuilderBlob(
+  redis: SnippetRedis,
+  totalMs: number,
+  intervalMs: number,
+): Promise<OpsSnippet | null> {
+  const deadline = Date.now() + totalMs;
+  while (Date.now() < deadline) {
+    const remaining = deadline - Date.now();
+    await sleep(Math.min(intervalMs, Math.max(0, remaining)));
+    try {
+      const blob = await redis.get<OpsSnippet>(SNIPPET_KEY);
+      if (blob && !blob.is_offline) return blob;
+    } catch (err) {
+      console.error('[ops/snippet] cache poll failed:', err);
+    }
+  }
+  return null;
 }
 
 // Top-level read flow. Cache check, lock acquire on miss, fall through
@@ -192,16 +225,15 @@ export async function getOpsSnippet(
     }
   }
 
-  // Didn't get lock — another invocation is rebuilding. Wait briefly
-  // then re-read; if still nothing, return whatever cached we have
-  // (even if stale) or offline as the last resort.
-  await sleep(LOCK_WAIT_MS);
-  try {
-    const retry = await redis.get<OpsSnippet>(SNIPPET_KEY);
-    if (retry && !retry.is_offline) return retry;
-  } catch (err) {
-    console.error('[ops/snippet] cache re-GET failed:', err);
-  }
+  // Didn't get lock — another invocation is rebuilding. Poll the
+  // cache for up to LOCK_WAIT_TOTAL_MS waiting for the rebuilder's
+  // blob; if it never lands, fall back to stale cache or offline.
+  const rebuilt = await waitForRebuilderBlob(
+    redis,
+    opts.lockWaitTotalMs ?? LOCK_WAIT_TOTAL_MS_DEFAULT,
+    opts.lockPollIntervalMs ?? LOCK_POLL_INTERVAL_MS,
+  );
+  if (rebuilt) return rebuilt;
   if (cached && !cached.is_offline) return cached;
   return OFFLINE_SNIPPET;
 }

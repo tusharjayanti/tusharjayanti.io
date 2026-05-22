@@ -18,7 +18,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Redis } from '@upstash/redis';
 import {
+  LOCK_KEY,
   OFFLINE_SNIPPET,
+  SNIPPET_KEY,
   getOpsSnippet,
   type SnippetRedis,
 } from './_opsSnippet.js';
@@ -46,10 +48,54 @@ function sendJson(res: VercelResponse, body: unknown): void {
     .json(body);
 }
 
+// Admin endpoint: drop the cached snippet (and any stale rebuild
+// lock) so the next GET triggers a fresh aggregation. Used by the
+// on-demand lock-contention test in `scripts/test/lock-contention.ts`.
+// Gated on `Authorization: Bearer ${CRON_SECRET}` — same shape as
+// the existing cron route, so we don't introduce a new secret. Not
+// part of the regular operator surface; documented in docs/rag.md.
+async function handleDelete(
+  req: VercelRequest,
+  res: VercelResponse,
+): Promise<void> {
+  const expected = process.env.CRON_SECRET;
+  if (!expected) {
+    res.status(503).send('CRON_SECRET not configured');
+    return;
+  }
+  const auth = req.headers['authorization'];
+  if (auth !== `Bearer ${expected}`) {
+    res.status(401).send('unauthorized');
+    return;
+  }
+
+  let redis: SnippetRedis;
+  try {
+    redis = Redis.fromEnv() as unknown as SnippetRedis;
+  } catch (err) {
+    console.error('[ops/snippet] Redis init failed (DELETE):', err);
+    res.status(503).send('redis init failed');
+    return;
+  }
+
+  try {
+    await Promise.all([redis.del(SNIPPET_KEY), redis.del(LOCK_KEY)]);
+  } catch (err) {
+    console.error('[ops/snippet] cache DEL failed:', err);
+    res.status(500).send('cache DEL failed');
+    return;
+  }
+  res.status(204).end();
+}
+
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse,
 ): Promise<void> {
+  if (req.method === 'DELETE') {
+    await handleDelete(req, res);
+    return;
+  }
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.status(405).send('method not allowed');
     return;

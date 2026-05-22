@@ -142,7 +142,7 @@ describe('getOpsSnippet — cache miss triggers aggregation', () => {
 });
 
 describe('getOpsSnippet — lock contention', () => {
-  it('waits when lock already held, then returns blob written by holder', async () => {
+  it('polls and returns the rebuilder blob once it lands in the cache', async () => {
     const redis = makeRedis({
       set: vi.fn(async (key, _v, opts) => {
         if (key === LOCK_KEY && opts?.nx) return null; // simulate lock held
@@ -152,8 +152,9 @@ describe('getOpsSnippet — lock contention', () => {
     const lf = makeLangfuse({ traces: 999 });
     const now = new Date('2026-05-22T14:32:00Z');
 
-    // Race: schedule another setter to write the cache during the
-    // 200ms wait window.
+    // Rebuilder (elsewhere) writes the blob ~150ms into the poll
+    // window. The waiter's first 50ms-interval re-read should pick
+    // it up.
     setTimeout(() => {
       const written: OpsSnippet = {
         visitors: 22,
@@ -164,9 +165,13 @@ describe('getOpsSnippet — lock contention', () => {
         is_offline: false,
       };
       (redis as ReturnType<typeof makeRedis>)._store.set(SNIPPET_KEY, written);
-    }, 50);
+    }, 150);
 
-    const out = await getOpsSnippet(redis, lf, { now });
+    const out = await getOpsSnippet(redis, lf, {
+      now,
+      lockWaitTotalMs: 2000,
+      lockPollIntervalMs: 50,
+    });
     expect(out.is_offline).toBe(false);
     if (out.is_offline) return;
     expect(out.queries).toBe(7);
@@ -174,7 +179,7 @@ describe('getOpsSnippet — lock contention', () => {
     expect(lf.countTraces).not.toHaveBeenCalled();
   });
 
-  it('returns offline when lock contention times out with no cache', async () => {
+  it('returns offline when rebuilder never finishes within the wait budget', async () => {
     const redis = makeRedis({
       set: vi.fn(async (key, _v, opts) => {
         if (key === LOCK_KEY && opts?.nx) return null;
@@ -184,6 +189,10 @@ describe('getOpsSnippet — lock contention', () => {
     const lf = makeLangfuse();
     const out = await getOpsSnippet(redis, lf, {
       now: new Date('2026-05-22T14:32:00Z'),
+      // Effectively zero — fall through to offline immediately, so
+      // the test doesn't sit on a wall-clock wait.
+      lockWaitTotalMs: 0,
+      lockPollIntervalMs: 10,
     });
     expect(out).toEqual(OFFLINE_SNIPPET);
   });
