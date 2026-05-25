@@ -8,6 +8,7 @@ import {
   formatCount,
   formatRatio,
   formatUtcTime,
+  isPopulated,
 } from './opsSnippet.js';
 
 describe('formatCount', () => {
@@ -97,5 +98,78 @@ describe('buildOpsView', () => {
     });
     expect(view.is_offline).toBe(true);
     expect(view.footer).toBe('offline');
+  });
+});
+
+describe('isPopulated', () => {
+  it('returns false for null (fetch failed / pending)', () => {
+    expect(isPopulated(null)).toBe(false);
+  });
+
+  it('returns false for the offline sentinel', () => {
+    expect(
+      isPopulated({
+        visitors: null,
+        queries: null,
+        tokens: null,
+        tools_per_turn: null,
+        last_aggregated_at: null,
+        is_offline: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false when every metric is zero (cold start)', () => {
+    expect(
+      isPopulated({
+        visitors: 0,
+        queries: 0,
+        tokens: 0,
+        tools_per_turn: 0,
+        last_aggregated_at: '2026-05-25T00:00:00Z',
+        is_offline: false,
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false when last_aggregated_at is missing', () => {
+    expect(
+      isPopulated({
+        visitors: 10,
+        queries: 5,
+        tokens: 1234,
+        tools_per_turn: 1.5,
+        // Cast: realistic shape produced by a partial/malformed backend
+        // response — the type guard should fail closed.
+        last_aggregated_at: null as unknown as string,
+        is_offline: false,
+      }),
+    ).toBe(false);
+  });
+
+  it('returns true when at least one metric is non-zero', () => {
+    expect(
+      isPopulated({
+        visitors: 1,
+        queries: 0,
+        tokens: 0,
+        tools_per_turn: 0,
+        last_aggregated_at: '2026-05-25T00:00:00Z',
+        is_offline: false,
+      }),
+    ).toBe(true);
+  });
+
+  it('returns true for a fully populated snippet', () => {
+    expect(
+      isPopulated({
+        visitors: 247,
+        queries: 89,
+        tokens: 1_234_567,
+        tools_per_turn: 2.1,
+        last_aggregated_at: '2026-05-25T14:32:00Z',
+        is_offline: false,
+      }),
+    ).toBe(true);
   });
 });
