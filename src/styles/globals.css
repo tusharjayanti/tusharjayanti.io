@@ -209,6 +209,23 @@ button:hover {
   font-size: 0.8rem;
 }
 
+/* Reserved layout slot. Always rendered (even when no data yet), so
+ * the top-right-stack's vertical extent is stable from first paint —
+ * the populated HUD appears IN this slot instead of growing the
+ * stack downward. No border / background; users only see the inner
+ * .ops-snippet box. min-height matches the populated HUD's measured
+ * dimensions (desktop: 6 children at 13px/12px font + 1.8 line-height
+ * + 11px padding ≈ 170px; mobile: single line + tight padding ≈ 32px). */
+.ops-snippet-container {
+  min-height: 170px;
+}
+
+@media (max-width: 767px) {
+  .ops-snippet-container {
+    min-height: 32px;
+  }
+}
+
 .ops-snippet {
   font-family: var(--font-mono);
   font-size: 13px;
@@ -259,6 +276,76 @@ button:hover {
   width: auto;
   white-space: nowrap;
   text-align: right;
+}
+
+/* Reveal animation. Lines start at opacity:0 + translateY(4px) and
+ * transition to their resting state when the parent gains the
+ * --populated modifier. The :nth-child stagger spaces each line
+ * 80ms after the previous; total reveal for 6 children is
+ * 300 + 5×80 = 700ms. CSS transitions only fire when the property
+ * value changes, so the component renders once without the
+ * modifier (lines invisible) then flips the modifier on the next
+ * animation frame to give the transition a "from" state. */
+.ops-snippet-title,
+.ops-snippet-row,
+.ops-snippet-footer {
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 300ms ease-out,
+    transform 300ms ease-out;
+}
+
+.ops-snippet--populated.ops-snippet--mobile,
+.ops-snippet--populated .ops-snippet-title,
+.ops-snippet--populated .ops-snippet-row,
+.ops-snippet--populated .ops-snippet-footer {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ops-snippet--populated .ops-snippet-title {
+  transition-delay: 0ms;
+}
+.ops-snippet--populated .ops-snippet-row:nth-of-type(1) {
+  transition-delay: 80ms;
+}
+.ops-snippet--populated .ops-snippet-row:nth-of-type(2) {
+  transition-delay: 160ms;
+}
+.ops-snippet--populated .ops-snippet-row:nth-of-type(3) {
+  transition-delay: 240ms;
+}
+.ops-snippet--populated .ops-snippet-row:nth-of-type(4) {
+  transition-delay: 320ms;
+}
+.ops-snippet--populated .ops-snippet-footer {
+  transition-delay: 400ms;
+}
+
+/* Mobile is a single block — single fade-in, no per-line stagger. */
+.ops-snippet--mobile {
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 300ms ease-out,
+    transform 300ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ops-snippet-title,
+  .ops-snippet-row,
+  .ops-snippet-footer,
+  .ops-snippet--mobile {
+    transition: none;
+  }
+  .ops-snippet--populated,
+  .ops-snippet--populated .ops-snippet-title,
+  .ops-snippet--populated .ops-snippet-row,
+  .ops-snippet--populated .ops-snippet-footer {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (max-width: 767px) {

@@ -21,6 +21,25 @@ export interface OpsSnippetOffline {
 
 export type OpsSnippet = OpsSnippetData | OpsSnippetOffline;
 
+// Populated = fetch landed AND the snippet has at least one
+// non-zero metric AND a non-null timestamp AND is_offline is false.
+// The "any-positive" check is the load-bearing one — without it
+// the HUD would render four zeros on a freshly-deployed site that
+// hasn't seen any traffic yet. Better to hide entirely than to
+// show a zeroed display that looks broken.
+export function isPopulated(
+  snippet: OpsSnippet | null,
+): snippet is OpsSnippetData {
+  if (snippet === null) return false;
+  if (snippet.is_offline) return false;
+  if (snippet.last_aggregated_at === null) return false;
+  return (
+    (snippet.visitors ?? 0) > 0 ||
+    (snippet.queries ?? 0) > 0 ||
+    (snippet.tokens ?? 0) > 0
+  );
+}
+
 // Humanize a non-negative integer. Spec example: 1247 -> "1.2K",
 // 1_247_000 -> "1.2M". Below 1000 we render the raw integer.
 // One decimal place always shown for K/M (the spec sample "1.2M"
