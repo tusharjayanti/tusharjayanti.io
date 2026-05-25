@@ -54,7 +54,10 @@ describe('executeTool — dispatch', () => {
   beforeEach(() => {
     mocks.embed.mockReset();
     mocks.rpc.mockReset();
-    mocks.embed.mockResolvedValue([new Array(1024).fill(0.1)]);
+    mocks.embed.mockResolvedValue({
+      vectors: [new Array(1024).fill(0.1)],
+      tokens: 7,
+    });
     mocks.rpc.mockResolvedValue({
       data: [row({ semantic_distance: PASSING_DISTANCE })],
       error: null,
@@ -99,7 +102,10 @@ describe('executeTool — no-match guardrail', () => {
   beforeEach(() => {
     mocks.embed.mockReset();
     mocks.rpc.mockReset();
-    mocks.embed.mockResolvedValue([new Array(1024).fill(0.1)]);
+    mocks.embed.mockResolvedValue({
+      vectors: [new Array(1024).fill(0.1)],
+      tokens: 7,
+    });
   });
 
   afterEach(() => {
@@ -199,6 +205,60 @@ describe('executeTool — no-match guardrail', () => {
     });
     const result = await executeTool('search_readme', { query: 'q' });
     expect(result.metadata.no_match).toBe(true);
+  });
+});
+
+describe('executeTool — span wiring', () => {
+  beforeEach(() => {
+    mocks.embed.mockReset();
+    mocks.rpc.mockReset();
+    mocks.embed.mockResolvedValue({
+      vectors: [new Array(1024).fill(0.1)],
+      tokens: 7,
+    });
+    mocks.rpc.mockResolvedValue({
+      data: [row({ chunk_index: 0, semantic_distance: PASSING_DISTANCE })],
+      error: null,
+    });
+  });
+
+  it('creates embedding/retrieval/rerank children with the right usageDetails', async () => {
+    const children: Record<string, { end: ReturnType<typeof vi.fn> }> = {};
+    // embedding + rerank are generations (carry tokens); retrieval is a
+    // plain span. The stub records both factory methods by child name.
+    const makeChild = (body: { name: string }) => {
+      const child = { end: vi.fn() };
+      children[body.name] = child;
+      return child;
+    };
+    const parentSpan = {
+      generation: vi.fn(makeChild),
+      span: vi.fn(makeChild),
+    };
+
+    await executeTool(
+      'search_readme',
+      { query: 'q' },
+      parentSpan as unknown as Parameters<typeof executeTool>[2],
+    );
+
+    // Three child observations total: two generations + one span.
+    expect(parentSpan.generation).toHaveBeenCalledTimes(2);
+    expect(parentSpan.span).toHaveBeenCalledTimes(1);
+    const genNames = parentSpan.generation.mock.calls.map((c) => c[0]!.name);
+    expect(genNames).toEqual(['embedding', 'rerank']);
+    expect(parentSpan.span.mock.calls[0]![0].name).toBe('retrieval');
+
+    // embedding + rerank carry token usage; retrieval (Supabase RPC)
+    // does not.
+    expect(children.embedding!.end).toHaveBeenCalledWith(
+      expect.objectContaining({ usageDetails: expect.any(Object) }),
+    );
+    expect(children.rerank!.end).toHaveBeenCalledWith(
+      expect.objectContaining({ usageDetails: expect.any(Object) }),
+    );
+    const retrievalArg = children.retrieval!.end.mock.calls[0]![0];
+    expect(retrievalArg).not.toHaveProperty('usageDetails');
   });
 });
 

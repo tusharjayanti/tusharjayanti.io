@@ -53,9 +53,9 @@ describe.skipIf(!HAS_ENV)('match_chunks (M2.2 hybrid)', () => {
   beforeAll(async () => {
     const keys = Object.keys(QUERIES) as (keyof typeof QUERIES)[];
     const texts = keys.map((k) => QUERIES[k]);
-    const result = await embed(texts, 'query');
+    const { vectors } = await embed(texts, 'query');
     embeddings = Object.fromEntries(
-      keys.map((k, i) => [k, result[i]]),
+      keys.map((k, i) => [k, vectors[i]]),
     ) as Record<keyof typeof QUERIES, number[]>;
   }, 60_000);
 

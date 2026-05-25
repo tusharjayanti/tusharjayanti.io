@@ -220,10 +220,12 @@ export async function ingestReadme(
   const toEmbed = toWrite.filter((w) => w.needsEmbed);
   let embeddings: number[][] = [];
   if (toEmbed.length > 0) {
-    embeddings = await embed(
-      toEmbed.map((w) => w.embeddingTextForRow),
-      'document',
-    );
+    embeddings = (
+      await embed(
+        toEmbed.map((w) => w.embeddingTextForRow),
+        'document',
+      )
+    ).vectors;
     // Token usage approximation: Voyage doesn't expose it via the SDK,
     // but the document text fed in is a useful proxy. Sum chars/4 for
     // a rough token count.

@@ -664,7 +664,7 @@ export default async function handler(
             }
 
             try {
-              const toolResult = await executeTool(block.name, rawInput);
+              const toolResult = await executeTool(block.name, rawInput, span);
               toolResults.push({
                 type: 'tool_result',
                 tool_use_id: block.id,

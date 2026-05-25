@@ -45,7 +45,9 @@ function rank(value: number | null): string {
 }
 
 async function main(): Promise<void> {
-  const [queryEmbedding] = await embed([QUERY], 'query');
+  const {
+    vectors: [queryEmbedding],
+  } = await embed([QUERY], 'query');
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.rpc('match_chunks', {
     query_embedding: queryEmbedding,

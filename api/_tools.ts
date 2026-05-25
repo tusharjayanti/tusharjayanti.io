@@ -13,10 +13,18 @@
 // `executeTool` performs the embed + RPC round-trip per call and is the
 // only callsite outside scripts/ that hits Voyage at retrieval time.
 
+import type { LangfuseSpanClient, LangfuseGenerationClient } from 'langfuse';
 import { embed } from './_voyage.js';
 import { getSupabaseClient } from './_supabase.js';
 import { fetchUrl } from './_webFetch.js';
 import { rerankChunks } from './_reranker.js';
+
+// Parent for the per-step child observations: embedding + rerank are
+// generations (model calls — they carry token usageDetails), retrieval is
+// a plain span (Supabase RPC, duration only). chat.ts owns the
+// tool-execution span and passes it down; null when Langfuse isn't wired
+// (tests, missing env).
+type ToolParentSpan = LangfuseSpanClient | LangfuseGenerationClient | null;
 
 export const SEARCH_EXPERIENCE = 'search_experience';
 export const SEARCH_RESUME = 'search_resume';
@@ -169,6 +177,7 @@ export function isToolName(name: string): name is ToolName {
 export async function executeTool(
   toolName: ToolName,
   input: unknown,
+  parentSpan: ToolParentSpan = null,
 ): Promise<ToolCallResult> {
   if (toolName === FETCH_URL) {
     const url = (input as { url?: unknown })?.url;
@@ -205,7 +214,7 @@ export async function executeTool(
       },
     };
   }
-  return executeSearch(toolName, query);
+  return executeSearch(toolName, query, parentSpan);
 }
 
 async function executeFetchUrl(url: string): Promise<ToolCallResult> {
@@ -251,11 +260,51 @@ async function executeFetchUrl(url: string): Promise<ToolCallResult> {
 async function executeSearch(
   toolName: Exclude<ToolName, typeof FETCH_URL>,
   query: string,
+  parentSpan: ToolParentSpan = null,
 ): Promise<ToolCallResult> {
   const source = SEARCH_SOURCE_MAP[toolName];
 
-  const [queryEmbedding] = await embed([query], 'query');
+  // Child: embedding (duration + Voyage tokens). A model call, so it's a
+  // generation — only generations carry usageDetails for cost rollup.
+  let embeddingGen = null;
+  try {
+    embeddingGen =
+      parentSpan?.generation({
+        name: 'embedding',
+        model: 'voyage-3',
+        input: { query },
+        startTime: new Date(),
+      }) ?? null;
+  } catch (err) {
+    console.error('[langfuse] embedding generation create failed:', err);
+  }
+  const {
+    vectors: [queryEmbedding],
+    tokens: embedTokens,
+  } = await embed([query], 'query');
+  try {
+    embeddingGen?.end({
+      output: { dimension: queryEmbedding.length },
+      usageDetails: { input: embedTokens, total: embedTokens },
+    });
+  } catch (err) {
+    console.error('[langfuse] embedding generation end failed:', err);
+  }
+
   const supabase = getSupabaseClient();
+
+  // Child span: retrieval (duration only — Supabase RPC has no tokens).
+  let retrievalSpan = null;
+  try {
+    retrievalSpan =
+      parentSpan?.span({
+        name: 'retrieval',
+        input: { match_count: MATCH_COUNT, source },
+        startTime: new Date(),
+      }) ?? null;
+  } catch (err) {
+    console.error('[langfuse] retrieval span create failed:', err);
+  }
   const { data, error } = await supabase.rpc('match_chunks', {
     query_embedding: queryEmbedding,
     query_text: query,
@@ -268,6 +317,11 @@ async function executeSearch(
   }
 
   const rows = (data ?? []) as MatchRow[];
+  try {
+    retrievalSpan?.end({ output: { rows_returned: rows.length } });
+  } catch (err) {
+    console.error('[langfuse] retrieval span end failed:', err);
+  }
 
   // M2.7: the reranker owns the cosine pre-filter (default 0.15)
   // AND the Haiku verdict pass that decides which chunks reach the
@@ -275,7 +329,37 @@ async function executeSearch(
   // pre-filter (low cosine) or Haiku marked every survivor "no"
   // (out-of-corpus). Both paths trigger the no_match guardrail
   // here.
-  const reranked = await rerankChunks(query, rows);
+  // Child: rerank (duration + Haiku tokens). A model call, so it's a
+  // generation — only generations carry usageDetails for cost rollup.
+  let rerankGen = null;
+  try {
+    rerankGen =
+      parentSpan?.generation({
+        name: 'rerank',
+        model: 'claude-haiku-4-5',
+        input: { candidates: rows.length },
+        startTime: new Date(),
+      }) ?? null;
+  } catch (err) {
+    console.error('[langfuse] rerank generation create failed:', err);
+  }
+  const {
+    chunks: reranked,
+    tokensIn: rerankTokensIn,
+    tokensOut: rerankTokensOut,
+  } = await rerankChunks(query, rows);
+  try {
+    rerankGen?.end({
+      output: { survived: reranked.length },
+      usageDetails: {
+        input: rerankTokensIn,
+        output: rerankTokensOut,
+        total: rerankTokensIn + rerankTokensOut,
+      },
+    });
+  } catch (err) {
+    console.error('[langfuse] rerank generation end failed:', err);
+  }
 
   if (reranked.length === 0) {
     console.log('[rag] no_match', { query, source });

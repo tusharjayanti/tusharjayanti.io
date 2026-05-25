@@ -45,6 +45,19 @@ Example output: 1:yes, 2:no, 3:yes, 4:no, 5:no, 6:yes`;
 
 export type Verdict = 'yes' | 'no';
 
+// What the judge returns: the raw verdict text plus Haiku token usage so
+// the caller can attribute per-step cost on the rerank Langfuse span.
+export interface JudgeResult {
+  output: string;
+  tokensIn: number;
+  tokensOut: number;
+}
+
+export type Judge = (
+  systemPrompt: string,
+  userPrompt: string,
+) => Promise<JudgeResult>;
+
 export interface RerankerCandidate {
   source_id: string;
   chunk_index: number;
@@ -63,7 +76,16 @@ export interface RerankOpts {
   topN?: number;
   skipBelow?: number;
   // Test injection — supply a fake judge to avoid hitting Anthropic.
-  judge?: (systemPrompt: string, userPrompt: string) => Promise<string>;
+  judge?: Judge;
+}
+
+// Surfaced by rerankChunks so the caller can populate the rerank span's
+// token usage. Token fields are 0 on paths that never call the judge
+// (skip-rerank gate, judge-throws fallback).
+export interface RerankResult<T extends RerankerCandidate> {
+  chunks: T[];
+  tokensIn: number;
+  tokensOut: number;
 }
 
 function getEnvFloat(name: string, fallback: number): number {
@@ -190,10 +212,7 @@ function getClient(): Anthropic {
 
 // Default judge wraps the Anthropic SDK. Tests inject a fake via
 // RerankOpts.judge so they never touch the network.
-async function defaultJudge(
-  systemPrompt: string,
-  userPrompt: string,
-): Promise<string> {
+const defaultJudge: Judge = async (systemPrompt, userPrompt) => {
   const client = getClient();
   const res = await client.messages.create({
     model: HAIKU_MODEL,
@@ -206,8 +225,12 @@ async function defaultJudge(
     .filter((b) => b.type === 'text')
     .map((b) => (b as { text: string }).text)
     .join('');
-  return text;
-}
+  return {
+    output: text,
+    tokensIn: res.usage.input_tokens,
+    tokensOut: res.usage.output_tokens,
+  };
+};
 
 function buildUserPrompt(
   query: string,
@@ -229,7 +252,7 @@ export async function rerankChunks<T extends RerankerCandidate>(
   query: string,
   chunks: T[],
   opts: RerankOpts = {},
-): Promise<T[]> {
+): Promise<RerankResult<T>> {
   const cosineMin =
     opts.cosinePreFilter ??
     getEnvFloat('RAG_MIN_COSINE_SIMILARITY', DEFAULT_COSINE_PRE_FILTER);
@@ -247,13 +270,18 @@ export async function rerankChunks<T extends RerankerCandidate>(
   });
 
   if (preFiltered.length === 0) {
-    return [];
+    return { chunks: [], tokensIn: 0, tokensOut: 0 };
   }
 
   // Step 2: skip-condition. With ≤3 candidates the listwise prompt
-  // has nothing to rerank against; diversify and return.
+  // has nothing to rerank against; diversify and return. No judge call,
+  // so no token spend.
   if (preFiltered.length <= skipBelow) {
-    return diversifyByPass(preFiltered, topN);
+    return {
+      chunks: diversifyByPass(preFiltered, topN),
+      tokensIn: 0,
+      tokensOut: 0,
+    };
   }
 
   // Step 3: seeded shuffle. Mitigates Haiku's mild low-index bias
@@ -271,15 +299,24 @@ export async function rerankChunks<T extends RerankerCandidate>(
     shuffled.map((s) => ({ id: s.id, content: s.chunk.content })),
   );
   let rawOutput: string;
+  let tokensIn: number;
+  let tokensOut: number;
   try {
-    rawOutput = await judge(SYSTEM_PROMPT, userPrompt);
+    const verdict = await judge(SYSTEM_PROMPT, userPrompt);
+    rawOutput = verdict.output;
+    tokensIn = verdict.tokensIn;
+    tokensOut = verdict.tokensOut;
   } catch (err) {
     // Graceful fallback (same philosophy as the M2.8 cache lock):
     // log, never throw to the caller, return the pre-filter top-N
     // diversified so retrieval still functions during a Haiku
-    // outage.
+    // outage. No usable usage data on this path.
     console.error('[rerank] judge call failed, falling back:', err);
-    return diversifyByPass(preFiltered, topN);
+    return {
+      chunks: diversifyByPass(preFiltered, topN),
+      tokensIn: 0,
+      tokensOut: 0,
+    };
   }
 
   const sentIds = shuffled.map((s) => s.id);
@@ -296,10 +333,10 @@ export async function rerankChunks<T extends RerankerCandidate>(
   }
 
   if (survived.length === 0) {
-    return [];
+    return { chunks: [], tokensIn, tokensOut };
   }
 
-  return diversifyByPass(survived, topN);
+  return { chunks: diversifyByPass(survived, topN), tokensIn, tokensOut };
 }
 
 // Test-only: reset the cached Anthropic client between tests.
