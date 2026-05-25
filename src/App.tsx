@@ -12,6 +12,7 @@ import { Wordmark } from './components/Wordmark';
 import { CV } from './modes/cv/CV';
 import { Terminal } from './modes/terminal/Terminal';
 import { Privacy } from './pages/Privacy';
+import { useIsMobile } from './lib/viewMode';
 
 function RootRedirect() {
   const [target, setTarget] = useState<string | null>(null);
@@ -25,6 +26,7 @@ function RootRedirect() {
 
 function AppShell() {
   const location = useLocation();
+  const isMobile = useIsMobile();
   const isMode =
     location.pathname === '/terminal' || location.pathname === '/cv';
   return (
@@ -32,11 +34,15 @@ function AppShell() {
       {isMode && (
         <div className="top-right-stack">
           <ModeToggle />
-          <OpsSnippet />
+          {/* Desktop: ops snippet pinned top-right in the fixed stack.
+              Mobile: rendered in flow below the wordmark (in app-main)
+              instead, so it no longer overlaps the tagline. */}
+          {!isMobile && <OpsSnippet />}
         </div>
       )}
       <main className="app-main">
         {isMode && <Wordmark />}
+        {isMode && isMobile && <OpsSnippet />}
         <Outlet />
       </main>
       <Footer />

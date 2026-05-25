@@ -95,7 +95,7 @@ describe('buildOpsView', () => {
     ]);
     expect(view.footer).toBe('14:32 UTC');
     expect(view.mobile).toBe(
-      '247 visitors · 89 queries · 62% grounded · $3.47',
+      'visitors:247 · queries:89 · tokens:1.2M · grounded:62% · cost:$3.47',
     );
   });
 
@@ -121,6 +121,36 @@ describe('buildOpsView', () => {
     expect(view.is_offline).toBe(true);
     expect(view.rows).toHaveLength(5);
     expect(view.footer).toBe('offline');
+  });
+
+  it('mobile key:value format — zero state', () => {
+    const view = buildOpsView({
+      visitors: 0,
+      queries: 0,
+      tokens: 0,
+      grounded_percent: 0,
+      cost_usd: 0,
+      last_aggregated_at: '2026-05-26T00:00:00Z',
+      is_offline: false,
+    });
+    expect(view.mobile).toBe(
+      'visitors:0 · queries:0 · tokens:0 · grounded:0% · cost:$0.00',
+    );
+  });
+
+  it('mobile key:value format — high values (raw visitors/queries, abbreviated tokens)', () => {
+    const view = buildOpsView({
+      visitors: 1200,
+      queries: 999,
+      tokens: 2_400_000,
+      grounded_percent: 88,
+      cost_usd: 12.5,
+      last_aggregated_at: '2026-05-26T00:00:00Z',
+      is_offline: false,
+    });
+    expect(view.mobile).toBe(
+      'visitors:1200 · queries:999 · tokens:2.4M · grounded:88% · cost:$12.50',
+    );
   });
 });
 

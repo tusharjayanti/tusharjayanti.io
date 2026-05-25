@@ -117,6 +117,6 @@ export function buildOpsView(snippet: OpsSnippet | null): OpsSnippetView {
       { label: 'cost', value: c },
     ],
     footer: formatUtcTime(snippet.last_aggregated_at),
-    mobile: `${v} visitors · ${q} queries · ${g} grounded · ${c}`,
+    mobile: `visitors:${snippet.visitors} · queries:${snippet.queries} · tokens:${t} · grounded:${snippet.grounded_percent}% · cost:${c}`,
   };
 }
