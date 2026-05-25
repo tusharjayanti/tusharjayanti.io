@@ -205,6 +205,11 @@ type StreamRoundResult = {
     cache_read_input_tokens?: number;
   };
   model?: string;
+  // This round's Langfuse generation, so the caller can parent each
+  // round's tool-execution spans to the generation that actually emitted
+  // the tool_use blocks (round 0 for parallel turns, the current round for
+  // sequential ones) rather than always round 0.
+  generation: LangfuseGenerationClient | null;
 };
 
 type RagTraceMetadata = {
@@ -381,7 +386,6 @@ export default async function handler(
       // deltas to the client (preserving the no-tool TTFT), and returns the
       // structured assistant message + usage. Each round opens its own
       // Langfuse generation so cost/token breakdown survives multi-call turns.
-      let firstGeneration: LangfuseGenerationClient | null = null;
       async function runRound(roundIndex: number): Promise<StreamRoundResult> {
         const promptHandle = makeSystemPromptHandle(
           PROMPT_NAME,
@@ -409,9 +413,6 @@ export default async function handler(
               metadata: { round: roundIndex },
               ...(promptHandle ? { prompt: promptHandle } : {}),
             }) ?? null;
-          if (roundIndex === 0) {
-            firstGeneration = generation;
-          }
         } catch (err) {
           console.error('[langfuse] generation create failed:', err);
         }
@@ -587,6 +588,7 @@ export default async function handler(
             cache_read_input_tokens: roundCacheRead,
           },
           model,
+          generation,
         };
       }
 
@@ -645,14 +647,15 @@ export default async function handler(
                   ? rawInput.url
                   : '';
 
-            // Per M2.4 spec PART 4: tool-execution spans are children of
-            // the first call's generation (the one that emitted the
-            // tool_use blocks we're now executing). Fall through to
-            // trace-level if firstGeneration wasn't created.
+            // Tool-execution spans are children of THIS round's generation
+            // — the one that actually emitted the tool_use blocks we're
+            // executing (round 0 for parallel turns, the current round for
+            // sequential ones). Fall through to trace-level if the round's
+            // generation wasn't created.
             let span: ReturnType<NonNullable<typeof trace>['span']> | null =
               null;
             try {
-              const parent = firstGeneration ?? trace;
+              const parent = result.generation ?? trace;
               span =
                 parent?.span({
                   name: 'tool-execution',
