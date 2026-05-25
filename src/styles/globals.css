@@ -222,7 +222,11 @@ button:hover {
 
 @media (max-width: 767px) {
   .ops-snippet-container {
-    min-height: 32px;
+    /* Mobile renders the snippet in flow below the wordmark (not in the
+       fixed top-right stack). Reserve two lines' worth so key:value
+       wrapping doesn't shift the page on populate. */
+    min-height: 52px;
+    margin-bottom: 0.75rem;
   }
 }
 
@@ -274,8 +278,11 @@ button:hover {
 
 .ops-snippet--mobile {
   width: auto;
-  white-space: nowrap;
-  text-align: right;
+  /* Flow layout below the wordmark on mobile — wrap naturally and align
+     left under the tagline (was nowrap/right for the old fixed
+     top-right position, which forced a single line + overlap). */
+  white-space: normal;
+  text-align: left;
 }
 
 /* Reveal animation. Lines start at opacity:0 + translateY(4px) and
