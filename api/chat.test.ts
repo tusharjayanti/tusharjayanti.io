@@ -21,9 +21,10 @@ const lf = vi.hoisted(() => {
     end: vi.fn(),
     update: vi.fn(),
   };
-  // Mock generation. `span()` returns the tool-execution span — per M2.4
-  // PART 4, tool-execution spans are children of the first call's
-  // generation, so the chat handler attaches them via generation.span().
+  // Mock generation. `span()` returns the tool-execution span — the chat
+  // handler attaches tool-execution spans to the round's own generation via
+  // generation.span() (round 0 for parallel turns, the emitting round for
+  // sequential ones).
   const generation = {
     end: vi.fn(),
     update: vi.fn(),
