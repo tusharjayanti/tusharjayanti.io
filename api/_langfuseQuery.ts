@@ -9,7 +9,6 @@
 import type { LangfuseAggregateFns } from './_opsSnippet.js';
 
 const TRACE_NAME = 'chat-turn';
-const TOOL_OBSERVATION_NAME = 'tool-execution';
 const PAGE_LIMIT = 100;
 const MAX_PAGES = 50; // safety — 50 × 100 = 5000 items in 7d window
 
@@ -25,10 +24,12 @@ interface GenerationListItem {
   // real numbers. Tolerate either shape across Langfuse versions.
   totalTokens?: number | null;
   usage?: { total?: number | null } | null;
-}
-
-interface ObservationListItem {
-  id: string;
+  // Langfuse-computed USD cost for the observation (model + token
+  // priced). The REST shape leaves `totalCost` null; `calculatedTotalCost`
+  // is the populated field. Verified 2026-05-25: non-zero for Anthropic
+  // generations, 0 for Voyage embeddings (Langfuse carries no voyage-3
+  // pricing). Missing/null is treated as 0 by sumGenerationCostWindow.
+  calculatedTotalCost?: number | null;
 }
 
 interface ListResponse<T> {
@@ -93,14 +94,50 @@ async function countTracesWindow(
   return count;
 }
 
+// Same as countTracesWindow but filtered to traces carrying `tag`.
+// Langfuse's /api/public/traces supports a server-side `tags` query
+// param — verified 2026-05-25 that it filters server-side (an unknown
+// tag returns 0, a known tag returns its subset) rather than being
+// ignored. Used for the HUD's queries_grounded % via the `grounded` tag.
+async function countTracesWithTagWindow(
+  baseUrl: string,
+  publicKey: string,
+  secretKey: string,
+  fromIso: string,
+  toIso: string,
+  tag: string,
+): Promise<number> {
+  let count = 0;
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const qs = new URLSearchParams({
+      name: TRACE_NAME,
+      tags: tag,
+      fromTimestamp: fromIso,
+      toTimestamp: toIso,
+      limit: String(PAGE_LIMIT),
+      page: String(page),
+    });
+    const res = await langfuseGet<ListResponse<TraceListItem>>(
+      baseUrl,
+      `/api/public/traces?${qs.toString()}`,
+      publicKey,
+      secretKey,
+    );
+    const items = res.data ?? [];
+    count += items.length;
+    if (items.length < PAGE_LIMIT) break;
+  }
+  return count;
+}
+
 // Sum token totals across GENERATION-type observations in the window.
 // This is where Langfuse actually records usage — the chat-turn trace
 // roots leave usage null and only the per-Anthropic-call generation
 // observations carry the numbers. We don't filter by trace name
 // (there's no observations-side filter for that), so the sum
-// includes any other GENERATION observation in the window (e.g.,
-// the cron digest's Haiku calls). For the HUD's "tokens last 7d"
-// purpose, that's the right semantic — total tokens spent.
+// includes any other GENERATION observation in the window. For the
+// HUD's "tokens last 7d" purpose, that's the right semantic — total
+// tokens spent.
 async function sumGenerationTokensWindow(
   baseUrl: string,
   publicKey: string,
@@ -133,41 +170,48 @@ async function sumGenerationTokensWindow(
   return total;
 }
 
-async function countObservationsWindow(
+// Sum Langfuse-computed USD cost across GENERATION observations in the
+// window. Same pagination + unfiltered-by-name semantics as
+// sumGenerationTokensWindow (the total is all inference spend in the
+// window). Missing/null cost counts as 0 — e.g. Voyage embeddings,
+// which Langfuse doesn't price, so the cost metric is Sonnet + Haiku
+// spend in practice.
+async function sumGenerationCostWindow(
   baseUrl: string,
   publicKey: string,
   secretKey: string,
   fromIso: string,
   toIso: string,
 ): Promise<number> {
-  let count = 0;
+  let total = 0;
   for (let page = 1; page <= MAX_PAGES; page++) {
     const qs = new URLSearchParams({
-      type: 'SPAN',
-      name: TOOL_OBSERVATION_NAME,
+      type: 'GENERATION',
       fromStartTime: fromIso,
       toStartTime: toIso,
       limit: String(PAGE_LIMIT),
       page: String(page),
     });
-    const res = await langfuseGet<ListResponse<ObservationListItem>>(
+    const res = await langfuseGet<ListResponse<GenerationListItem>>(
       baseUrl,
       `/api/public/observations?${qs.toString()}`,
       publicKey,
       secretKey,
     );
     const items = res.data ?? [];
-    count += items.length;
+    for (const obs of items) {
+      total += obs.calculatedTotalCost ?? 0;
+    }
     if (items.length < PAGE_LIMIT) break;
   }
-  return count;
+  return total;
 }
 
 // Returns null if Langfuse env vars are missing. The ops handler
 // treats that as "Langfuse-side aggregation is disabled" and ships
-// queries=0 / tokens=0 / tools=0 alongside the real visitor count
-// rather than failing the whole snippet. Real production always has
-// these set.
+// queries=0 / tokens=0 / grounded=0 / cost=0 alongside the real
+// visitor count rather than failing the whole snippet. Real production
+// always has these set.
 export function makeLangfuseAggregate(): LangfuseAggregateFns | null {
   const publicKey = process.env.LANGFUSE_PUBLIC_KEY;
   const secretKey = process.env.LANGFUSE_SECRET_KEY;
@@ -175,12 +219,13 @@ export function makeLangfuseAggregate(): LangfuseAggregateFns | null {
   if (!publicKey || !secretKey || !baseUrl) return null;
 
   // Each metric is cached separately because they come from different
-  // endpoints now (traces / observations[GENERATION] / observations
-  // [SPAN]). The aggregator calls them in parallel inside one snippet
-  // rebuild — each cache is at most fetched once per process tick.
+  // endpoints (traces / traces?tags / observations[GENERATION]). The
+  // aggregator calls them in parallel inside one snippet rebuild — each
+  // cache is at most fetched once per process tick.
   let tracesPromise: Promise<number> | null = null;
   let tokensPromise: Promise<number> | null = null;
-  let toolsPromise: Promise<number> | null = null;
+  let groundedPromise: Promise<number> | null = null;
+  let costPromise: Promise<number> | null = null;
 
   return {
     async countTraces(fromIso, toIso) {
@@ -207,9 +252,22 @@ export function makeLangfuseAggregate(): LangfuseAggregateFns | null {
       }
       return tokensPromise;
     },
-    async countToolExecutions(fromIso, toIso) {
-      if (toolsPromise === null) {
-        toolsPromise = countObservationsWindow(
+    async countGroundedTraces(fromIso, toIso, tag) {
+      if (groundedPromise === null) {
+        groundedPromise = countTracesWithTagWindow(
+          baseUrl,
+          publicKey,
+          secretKey,
+          fromIso,
+          toIso,
+          tag,
+        );
+      }
+      return groundedPromise;
+    },
+    async sumCost(fromIso, toIso) {
+      if (costPromise === null) {
+        costPromise = sumGenerationCostWindow(
           baseUrl,
           publicKey,
           secretKey,
@@ -217,7 +275,7 @@ export function makeLangfuseAggregate(): LangfuseAggregateFns | null {
           toIso,
         );
       }
-      return toolsPromise;
+      return costPromise;
     },
   };
 }
@@ -227,5 +285,6 @@ export function makeLangfuseAggregate(): LangfuseAggregateFns | null {
 export const ZERO_LANGFUSE_AGGREGATE: LangfuseAggregateFns = {
   countTraces: async () => 0,
   sumTokens: async () => 0,
-  countToolExecutions: async () => 0,
+  countGroundedTraces: async () => 0,
+  sumCost: async () => 0,
 };

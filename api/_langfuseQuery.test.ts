@@ -117,26 +117,102 @@ describe('makeLangfuseAggregate', () => {
     expect(calls[0]).toContain('name=chat-turn');
   });
 
-  it('countToolExecutions hits /api/public/observations?type=SPAN&name=tool-execution', async () => {
+  it('countGroundedTraces hits /api/public/traces with name=chat-turn and the tag filter', async () => {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        calls.push(url);
+        return jsonResponse({ data: [{ id: 't1' }, { id: 't2' }] });
+      }),
+    );
+    const lf = makeLangfuseAggregate()!;
+    const count = await lf.countGroundedTraces(
+      '2026-05-15T00:00:00Z',
+      '2026-05-22T00:00:00Z',
+      'grounded',
+    );
+    expect(count).toBe(2);
+    expect(calls[0]).toContain('/api/public/traces');
+    expect(calls[0]).toContain('name=chat-turn');
+    expect(calls[0]).toContain('tags=grounded');
+  });
+
+  it('countGroundedTraces paginates and sums counts across pages', async () => {
+    // First page returns a full PAGE_LIMIT (100) so the loop fetches a
+    // second page; the short second page stops it.
+    const fullPage = {
+      data: Array.from({ length: 100 }, (_, i) => ({ id: `t${i}` })),
+    };
+    const lastPage = { data: [{ id: 'tail1' }, { id: 'tail2' }] };
+    let call = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        call += 1;
+        return jsonResponse(call === 1 ? fullPage : lastPage);
+      }),
+    );
+    const lf = makeLangfuseAggregate()!;
+    const count = await lf.countGroundedTraces(
+      '2026-05-15T00:00:00Z',
+      '2026-05-22T00:00:00Z',
+      'grounded',
+    );
+    expect(count).toBe(102);
+    expect(call).toBe(2);
+  });
+
+  it('sumCost sums calculatedTotalCost across generations and treats missing/null as 0', async () => {
     const calls: string[] = [];
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
         calls.push(url);
         return jsonResponse({
-          data: [{ id: 's1' }, { id: 's2' }],
+          data: [
+            { id: 'o1', calculatedTotalCost: 0.0106 },
+            { id: 'o2', calculatedTotalCost: 0.0009 },
+            { id: 'o3', calculatedTotalCost: 0 }, // Voyage embedding
+            { id: 'o4' /* no cost field at all */ },
+            { id: 'o5', calculatedTotalCost: null },
+          ],
         });
       }),
     );
     const lf = makeLangfuseAggregate()!;
-    const count = await lf.countToolExecutions(
+    const total = await lf.sumCost(
       '2026-05-15T00:00:00Z',
       '2026-05-22T00:00:00Z',
     );
-    expect(count).toBe(2);
+    expect(total).toBeCloseTo(0.0115, 6);
     expect(calls[0]).toContain('/api/public/observations');
-    expect(calls[0]).toContain('type=SPAN');
-    expect(calls[0]).toContain('name=tool-execution');
+    expect(calls[0]).toContain('type=GENERATION');
+  });
+
+  it('sumCost paginates across pages', async () => {
+    const fullPage = {
+      data: Array.from({ length: 100 }, (_, i) => ({
+        id: `o${i}`,
+        calculatedTotalCost: 0.01,
+      })),
+    };
+    const lastPage = { data: [{ id: 'tail', calculatedTotalCost: 0.5 }] };
+    let call = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        call += 1;
+        return jsonResponse(call === 1 ? fullPage : lastPage);
+      }),
+    );
+    const lf = makeLangfuseAggregate()!;
+    const total = await lf.sumCost(
+      '2026-05-15T00:00:00Z',
+      '2026-05-22T00:00:00Z',
+    );
+    expect(total).toBeCloseTo(1.5, 6);
+    expect(call).toBe(2);
   });
 
   it('caches each metric so concurrent calls share one HTTP request', async () => {

@@ -6,7 +6,8 @@ import { describe, it, expect } from 'vitest';
 import {
   buildOpsView,
   formatCount,
-  formatRatio,
+  formatPercent,
+  formatUsd,
   formatUtcTime,
   isPopulated,
 } from './opsSnippet.js';
@@ -36,14 +37,29 @@ describe('formatCount', () => {
   });
 });
 
-describe('formatRatio', () => {
-  it('always shows one decimal place', () => {
-    expect(formatRatio(2.1)).toBe('2.1');
-    expect(formatRatio(2)).toBe('2.0');
-    expect(formatRatio(0)).toBe('0.0');
-    // 0.25 → 0.3 is a cleaner rounding case than 0.15 (which IEEE-754
-    // represents as 0.149999..., yielding "0.1" via toFixed).
-    expect(formatRatio(0.25)).toBe('0.3');
+describe('formatPercent', () => {
+  it('renders integer percent', () => {
+    expect(formatPercent(62)).toBe('62%');
+    expect(formatPercent(0)).toBe('0%');
+    expect(formatPercent(100)).toBe('100%');
+  });
+
+  it('defends against negatives and non-finite', () => {
+    expect(formatPercent(-1)).toBe('0%');
+    expect(formatPercent(Number.NaN)).toBe('0%');
+  });
+});
+
+describe('formatUsd', () => {
+  it('always shows two decimals with a leading $', () => {
+    expect(formatUsd(3.47)).toBe('$3.47');
+    expect(formatUsd(0)).toBe('$0.00');
+    expect(formatUsd(3.4)).toBe('$3.40'); // always two decimals
+  });
+
+  it('defends against negatives and non-finite', () => {
+    expect(formatUsd(-1)).toBe('$0.00');
+    expect(formatUsd(Number.NaN)).toBe('$0.00');
   });
 });
 
@@ -59,12 +75,13 @@ describe('formatUtcTime', () => {
 });
 
 describe('buildOpsView', () => {
-  it('renders live data with formatted rows', () => {
+  it('renders live data with five formatted rows', () => {
     const view = buildOpsView({
       visitors: 247,
       queries: 89,
       tokens: 1_234_567,
-      tools_per_turn: 2.1,
+      grounded_percent: 62,
+      cost_usd: 3.47,
       last_aggregated_at: '2026-05-22T14:32:00Z',
       is_offline: false,
     });
@@ -73,15 +90,19 @@ describe('buildOpsView', () => {
       { label: 'visitors', value: '247' },
       { label: 'queries', value: '89' },
       { label: 'tokens', value: '1.2M' },
-      { label: 'tools/turn', value: '2.1' },
+      { label: 'queries_grounded', value: '62%' },
+      { label: 'cost', value: '$3.47' },
     ]);
     expect(view.footer).toBe('14:32 UTC');
-    expect(view.mobile).toBe('247 vis · 89 q · 1.2M tok · 2.1 t/t');
+    expect(view.mobile).toBe(
+      '247 visitors · 89 queries · 62% grounded · $3.47',
+    );
   });
 
   it('renders offline state for null', () => {
     const view = buildOpsView(null);
     expect(view.is_offline).toBe(true);
+    expect(view.rows).toHaveLength(5);
     expect(view.rows.every((r) => r.value === '--')).toBe(true);
     expect(view.footer).toBe('offline');
     expect(view.mobile).toBe('offline');
@@ -92,11 +113,13 @@ describe('buildOpsView', () => {
       visitors: null,
       queries: null,
       tokens: null,
-      tools_per_turn: null,
+      grounded_percent: null,
+      cost_usd: null,
       last_aggregated_at: null,
       is_offline: true,
     });
     expect(view.is_offline).toBe(true);
+    expect(view.rows).toHaveLength(5);
     expect(view.footer).toBe('offline');
   });
 });
@@ -112,7 +135,8 @@ describe('isPopulated', () => {
         visitors: null,
         queries: null,
         tokens: null,
-        tools_per_turn: null,
+        grounded_percent: null,
+        cost_usd: null,
         last_aggregated_at: null,
         is_offline: true,
       }),
@@ -125,7 +149,8 @@ describe('isPopulated', () => {
         visitors: 0,
         queries: 0,
         tokens: 0,
-        tools_per_turn: 0,
+        grounded_percent: 0,
+        cost_usd: 0,
         last_aggregated_at: '2026-05-25T00:00:00Z',
         is_offline: false,
       }),
@@ -138,7 +163,8 @@ describe('isPopulated', () => {
         visitors: 10,
         queries: 5,
         tokens: 1234,
-        tools_per_turn: 1.5,
+        grounded_percent: 40,
+        cost_usd: 0.12,
         // Cast: realistic shape produced by a partial/malformed backend
         // response — the type guard should fail closed.
         last_aggregated_at: null as unknown as string,
@@ -153,7 +179,8 @@ describe('isPopulated', () => {
         visitors: 1,
         queries: 0,
         tokens: 0,
-        tools_per_turn: 0,
+        grounded_percent: 0,
+        cost_usd: 0,
         last_aggregated_at: '2026-05-25T00:00:00Z',
         is_offline: false,
       }),
@@ -166,7 +193,8 @@ describe('isPopulated', () => {
         visitors: 247,
         queries: 89,
         tokens: 1_234_567,
-        tools_per_turn: 2.1,
+        grounded_percent: 62,
+        cost_usd: 3.47,
         last_aggregated_at: '2026-05-25T14:32:00Z',
         is_offline: false,
       }),

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useIsMobile } from '../lib/viewMode';
 import {
   type OpsSnippet as Snippet,
@@ -97,8 +97,12 @@ export function OpsSnippet() {
       {ready && view && !isMobile && (
         <div className={`ops-snippet${populatedClass}`}>
           <div className="ops-snippet-title">ops/</div>
-          {view.rows.map((row) => (
-            <div key={row.label} className="ops-snippet-row">
+          {view.rows.map((row, idx) => (
+            <div
+              key={row.label}
+              className="ops-snippet-row"
+              style={{ '--row-index': idx + 1 } as CSSProperties}
+            >
               <span className="ops-snippet-label">{row.label}</span>
               <span className="ops-snippet-value">{row.value}</span>
             </div>
