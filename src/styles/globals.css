@@ -214,10 +214,10 @@ button:hover {
  * the populated HUD appears IN this slot instead of growing the
  * stack downward. No border / background; users only see the inner
  * .ops-snippet box. min-height matches the populated HUD's measured
- * dimensions (desktop: 6 children at 13px/12px font + 1.8 line-height
- * + 11px padding ≈ 170px; mobile: single line + tight padding ≈ 32px). */
+ * dimensions (desktop: 7 children at 13px/12px font + 1.8 line-height
+ * + 11px padding ≈ 194px; mobile: single line + tight padding ≈ 32px). */
 .ops-snippet-container {
-  min-height: 170px;
+  min-height: 194px;
 }
 
 @media (max-width: 767px) {
@@ -280,9 +280,9 @@ button:hover {
 
 /* Reveal animation. Lines start at opacity:0 + translateY(4px) and
  * transition to their resting state when the parent gains the
- * --populated modifier. The :nth-child stagger spaces each line
- * 80ms after the previous; total reveal for 6 children is
- * 300 + 5×80 = 700ms. CSS transitions only fire when the property
+ * --populated modifier. Each row's --row-index (set in JSX) spaces it
+ * 80ms after the previous; total reveal for 7 children is
+ * 300 + 6×80 = 780ms. CSS transitions only fire when the property
  * value changes, so the component renders once without the
  * modifier (lines invisible) then flips the modifier on the next
  * animation frame to give the transition a "from" state. */
@@ -307,20 +307,14 @@ button:hover {
 .ops-snippet--populated .ops-snippet-title {
   transition-delay: 0ms;
 }
-.ops-snippet--populated .ops-snippet-row:nth-of-type(1) {
-  transition-delay: 80ms;
-}
-.ops-snippet--populated .ops-snippet-row:nth-of-type(2) {
-  transition-delay: 160ms;
-}
-.ops-snippet--populated .ops-snippet-row:nth-of-type(3) {
-  transition-delay: 240ms;
-}
-.ops-snippet--populated .ops-snippet-row:nth-of-type(4) {
-  transition-delay: 320ms;
+/* Per-row stagger driven by --row-index (set in OpsSnippet.tsx), so
+ * adding rows is a JSX change only — no new per-index CSS rules. The
+ * fallback 0 keeps delay at 0ms if the variable is ever unset. */
+.ops-snippet--populated .ops-snippet-row {
+  transition-delay: calc(var(--row-index, 0) * 80ms);
 }
 .ops-snippet--populated .ops-snippet-footer {
-  transition-delay: 400ms;
+  transition-delay: 480ms;
 }
 
 /* Mobile is a single block — single fade-in, no per-line stagger. */

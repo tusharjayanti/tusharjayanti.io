@@ -365,7 +365,8 @@ describe('chat handler — Langfuse tracing', () => {
       lf.trace.update,
     );
     expect(finalUpdate.output).toBe('hello back');
-    expect(finalUpdate.tags).toEqual([]);
+    expect(finalUpdate.tags).toEqual([]); // no RAG → not grounded
+    expect(finalUpdate.tags).not.toContain('grounded');
     expect(lf.client.shutdownAsync).toHaveBeenCalled();
   });
 
@@ -642,6 +643,8 @@ describe('chat handler — M2.4 tool-use', () => {
       };
     }>(lf.trace.update);
     expect(finalUpdate.metadata.rag_retrieved).toBe(true);
+    // Grounded turn: RAG fired and chunks survived (no no_match) → tagged.
+    expect(finalUpdate.tags).toContain('grounded');
     expect(finalUpdate.metadata.rag_queries).toEqual([
       'identity platform migration',
     ]);
@@ -656,6 +659,46 @@ describe('chat handler — M2.4 tool-use', () => {
     // Output stream emits both segments.
     expect(body).toContain('Let me search for that.');
     expect(body).toContain('At DISCO I migrated the identity platform.');
+  });
+
+  it('does not tag grounded when RAG fired but every source returned no_match', async () => {
+    mocks.executeTool.mockResolvedValue({
+      formatted: '[No relevant results in the knowledge base.]',
+      metadata: {
+        query: 'rust programming language',
+        source: 'experience',
+        chunk_ids: [],
+        top_scores: [],
+        no_match: true,
+      },
+    });
+    mocks.messagesCreate
+      .mockResolvedValueOnce(
+        fakeAnthropicToolUseStream(
+          'toolu_nm',
+          'search_experience',
+          '{"query":"rust programming language"}',
+          '',
+        ),
+      )
+      .mockResolvedValueOnce(
+        fakeAnthropicStream("I don't have grounded info on that."),
+      );
+
+    const res = (await handler(
+      makeRequest('does Tushar know Rust?'),
+      ctx,
+    )) as Response;
+    await drainStream(res);
+    await Promise.all(captured);
+
+    const finalUpdate = lastCallArg<{
+      tags: string[];
+      metadata: { rag_retrieved: boolean; rag_no_match: boolean };
+    }>(lf.trace.update);
+    expect(finalUpdate.metadata.rag_retrieved).toBe(true);
+    expect(finalUpdate.metadata.rag_no_match).toBe(true);
+    expect(finalUpdate.tags).not.toContain('grounded');
   });
 
   it('executes both tools when Sonnet calls search_experience and search_resume in one round', async () => {

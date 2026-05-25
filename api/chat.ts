@@ -756,6 +756,13 @@ export default async function handler(
         if (detectRefusal(accumulated)) {
           tags.push('model-refused');
         }
+        // Grounded: RAG fired this turn and at least one source returned
+        // usable chunks (not a no-match). Source of truth for the HUD's
+        // queries_grounded %. Independent of model-refused — a turn can
+        // retrieve context and still hedge; both tags can co-exist.
+        if (ragMeta.rag_retrieved && !ragMeta.rag_no_match) {
+          tags.push('grounded');
+        }
         // (g) log turn — await BEFORE close so dev-mode inline wait holds the
         // stream open until the log completes; Edge prod uses waitUntil and
         // returns immediately so the order is harmless there.

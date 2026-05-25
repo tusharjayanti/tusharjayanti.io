@@ -265,16 +265,17 @@ inside the same trace.
 
 ### Tag taxonomy
 
-Five tags classify trace behavior. Tags 1–2 are exclusive (short-circuit
-returns); tags 3–5 can co-exist.
+Six tags classify trace behavior. Tags 1–2 are exclusive (short-circuit
+returns); the rest can co-exist.
 
-| Tag                  | Fires when                                                   |
-| -------------------- | ------------------------------------------------------------ |
-| `rate-limited`       | IP rate limit hit, no LLM call                               |
-| `injection-detected` | Regex prefilter caught injection, no LLM call                |
-| `streamed-error`     | Stream failed partway through generation                     |
-| `canary-leak`        | Output contained the system prompt's canary token            |
-| `model-refused`      | Model declined (heuristic match on refusal phrase templates) |
+| Tag                  | Fires when                                                                                     |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| `rate-limited`       | IP rate limit hit, no LLM call                                                                 |
+| `injection-detected` | Regex prefilter caught injection, no LLM call                                                  |
+| `streamed-error`     | Stream failed partway through generation                                                       |
+| `canary-leak`        | Output contained the system prompt's canary token                                              |
+| `model-refused`      | Model declined (heuristic match on refusal phrase templates)                                   |
+| `grounded`           | RAG fired and at least one source returned usable chunks (drives the HUD's queries_grounded %) |
 
 ### Prompt versioning
 
@@ -285,11 +286,23 @@ rotation doesn't generate noise versions, only real editorial edits do.
 
 Each trace's generation links to the version that produced it.
 
+### Cost metric
+
+The HUD's `cost` shows total inference spend over the trailing 7 days,
+summed from Langfuse's `calculatedTotalCost` across all generation
+observations. It covers Sonnet and Haiku (Anthropic) costs. Voyage
+embedding calls are recorded as generations but report
+`calculatedTotalCost: 0` because Langfuse doesn't carry Voyage pricing
+data. Voyage's true per-query cost is ~$0.0000024 — well below the HUD's
+two-decimal display precision — so this omission is invisible at current
+traffic.
+
 ### What this isn't (yet)
 
 - The terminal-page ops snippet exposes a minimal public observability
-  surface (visitor count, queries, tokens, tools/turn, last-aggregated
-  timestamp). Full `/ops` dashboard is M4 — private, basic-auth-gated,
+  surface (visitor count, queries, tokens, queries-grounded %, 7-day
+  cost, last-aggregated timestamp). Full `/ops` dashboard is M4 —
+  private, basic-auth-gated,
   expands the same data sources with per-tool breakdown, cost split,
   latency percentiles, retrieval eval results, and a recent-queries
   tail. Langfuse UI remains the read interface for deep trace

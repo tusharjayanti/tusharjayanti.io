@@ -5,7 +5,8 @@ export interface OpsSnippetData {
   visitors: number;
   queries: number;
   tokens: number;
-  tools_per_turn: number;
+  grounded_percent: number;
+  cost_usd: number;
   last_aggregated_at: string;
   is_offline: false;
 }
@@ -14,7 +15,8 @@ export interface OpsSnippetOffline {
   visitors: null;
   queries: null;
   tokens: null;
-  tools_per_turn: null;
+  grounded_percent: null;
+  cost_usd: null;
   last_aggregated_at: null;
   is_offline: true;
 }
@@ -52,10 +54,16 @@ export function formatCount(n: number): string {
   return `${(n / 1_000_000_000).toFixed(1)}B`;
 }
 
-// tools_per_turn always one decimal place — sample "2.1".
-export function formatRatio(n: number): string {
-  if (!Number.isFinite(n) || n < 0) return '0.0';
-  return n.toFixed(1);
+// grounded_percent — integer percent, e.g. 62 -> "62%".
+export function formatPercent(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return '0%';
+  return `${Math.round(n)}%`;
+}
+
+// cost_usd — always two decimals with a leading $, e.g. 3.4 -> "$3.40".
+export function formatUsd(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return '$0.00';
+  return `$${n.toFixed(2)}`;
 }
 
 // "HH:MM UTC" from an ISO timestamp. Returns "--:--" if parsing fails
@@ -87,7 +95,8 @@ export function buildOpsView(snippet: OpsSnippet | null): OpsSnippetView {
         { label: 'visitors', value: '--' },
         { label: 'queries', value: '--' },
         { label: 'tokens', value: '--' },
-        { label: 'tools/turn', value: '--' },
+        { label: 'queries_grounded', value: '--' },
+        { label: 'cost', value: '--' },
       ],
       footer: 'offline',
       mobile: 'offline',
@@ -96,16 +105,18 @@ export function buildOpsView(snippet: OpsSnippet | null): OpsSnippetView {
   const v = formatCount(snippet.visitors);
   const q = formatCount(snippet.queries);
   const t = formatCount(snippet.tokens);
-  const tt = formatRatio(snippet.tools_per_turn);
+  const g = formatPercent(snippet.grounded_percent);
+  const c = formatUsd(snippet.cost_usd);
   return {
     is_offline: false,
     rows: [
       { label: 'visitors', value: v },
       { label: 'queries', value: q },
       { label: 'tokens', value: t },
-      { label: 'tools/turn', value: tt },
+      { label: 'queries_grounded', value: g },
+      { label: 'cost', value: c },
     ],
     footer: formatUtcTime(snippet.last_aggregated_at),
-    mobile: `${v} vis · ${q} q · ${t} tok · ${tt} t/t`,
+    mobile: `${v} visitors · ${q} queries · ${g} grounded · ${c}`,
   };
 }

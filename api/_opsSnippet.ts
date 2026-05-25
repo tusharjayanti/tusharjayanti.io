@@ -34,7 +34,8 @@ export interface OpsSnippetData {
   visitors: number;
   queries: number;
   tokens: number;
-  tools_per_turn: number;
+  grounded_percent: number; // 0-100 integer (e.g. 62 = 62% of turns grounded)
+  cost_usd: number; // 7-day inference spend, 2-decimal (e.g. 3.47)
   last_aggregated_at: string;
   is_offline: false;
 }
@@ -43,7 +44,8 @@ export interface OpsSnippetOffline {
   visitors: null;
   queries: null;
   tokens: null;
-  tools_per_turn: null;
+  grounded_percent: null;
+  cost_usd: null;
   last_aggregated_at: null;
   is_offline: true;
 }
@@ -54,7 +56,8 @@ export const OFFLINE_SNIPPET: OpsSnippetOffline = {
   visitors: null,
   queries: null,
   tokens: null,
-  tools_per_turn: null,
+  grounded_percent: null,
+  cost_usd: null,
   last_aggregated_at: null,
   is_offline: true,
 };
@@ -75,10 +78,16 @@ export interface SnippetRedis {
 export interface LangfuseAggregateFns {
   // Returns the count of root traces (chat-turn) in the window.
   countTraces(fromIso: string, toIso: string): Promise<number>;
-  // Sum of input + output tokens across traces in the window.
+  // Sum of input + output tokens across generations in the window.
   sumTokens(fromIso: string, toIso: string): Promise<number>;
-  // Count of tool-execution observations in the window.
-  countToolExecutions(fromIso: string, toIso: string): Promise<number>;
+  // Count of chat-turn traces carrying the given tag (e.g. 'grounded').
+  countGroundedTraces(
+    fromIso: string,
+    toIso: string,
+    tag: string,
+  ): Promise<number>;
+  // Sum of Langfuse calculatedTotalCost (USD) across generations.
+  sumCost(fromIso: string, toIso: string): Promise<number>;
 }
 
 function isFresh(lastAggregatedAt: string, now: Date = new Date()): boolean {
@@ -112,23 +121,28 @@ export async function aggregate(
   const toIso = now.toISOString();
   const fromIso = new Date(now.getTime() - SEVEN_DAYS_MS).toISOString();
 
-  const [visitors, queries, tokens, tools] = await Promise.all([
-    sumVisitorsLast7Days(redis, now),
-    lf.countTraces(fromIso, toIso),
-    lf.sumTokens(fromIso, toIso),
-    lf.countToolExecutions(fromIso, toIso),
-  ]);
+  const [visitors, queries, tokens, groundedCount, costUsd] = await Promise.all(
+    [
+      sumVisitorsLast7Days(redis, now),
+      lf.countTraces(fromIso, toIso),
+      lf.sumTokens(fromIso, toIso),
+      lf.countGroundedTraces(fromIso, toIso, 'grounded'),
+      lf.sumCost(fromIso, toIso),
+    ],
+  );
 
-  // Avoid divide-by-zero. Round to one decimal so the displayed value
-  // matches the spec's 5-line example (`2.1`).
-  const tools_per_turn =
-    queries > 0 ? Math.round((tools / queries) * 10) / 10 : 0;
+  // % of turns that retrieved usable context. Integer; avoid div-by-zero.
+  const grounded_percent =
+    queries > 0 ? Math.round((groundedCount / queries) * 100) : 0;
+  // Round to cents for the two-decimal HUD display.
+  const cost_usd = Math.round(costUsd * 100) / 100;
 
   return {
     visitors,
     queries,
     tokens,
-    tools_per_turn,
+    grounded_percent,
+    cost_usd,
     last_aggregated_at: toIso,
     is_offline: false,
   };

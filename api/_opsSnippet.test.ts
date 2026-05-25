@@ -41,16 +41,23 @@ function makeRedis(overrides: Partial<SnippetRedis> = {}): SnippetRedis & {
 }
 
 function makeLangfuse(
-  values: Partial<{ traces: number; tokens: number; tools: number }> = {},
+  values: Partial<{
+    traces: number;
+    tokens: number;
+    grounded: number;
+    cost: number;
+  }> = {},
 ): LangfuseAggregateFns & {
   countTraces: ReturnType<typeof vi.fn>;
   sumTokens: ReturnType<typeof vi.fn>;
-  countToolExecutions: ReturnType<typeof vi.fn>;
+  countGroundedTraces: ReturnType<typeof vi.fn>;
+  sumCost: ReturnType<typeof vi.fn>;
 } {
   return {
     countTraces: vi.fn(async () => values.traces ?? 0),
     sumTokens: vi.fn(async () => values.tokens ?? 0),
-    countToolExecutions: vi.fn(async () => values.tools ?? 0),
+    countGroundedTraces: vi.fn(async () => values.grounded ?? 0),
+    sumCost: vi.fn(async () => values.cost ?? 0),
   };
 }
 
@@ -75,27 +82,56 @@ describe('sumVisitorsLast7Days', () => {
 });
 
 describe('aggregate', () => {
-  it('computes tools_per_turn as tools/traces rounded to 1 decimal', async () => {
+  it('computes grounded_percent and rounds cost to cents', async () => {
     const redis = makeRedis();
     redis._hashes.set('ops:visitors:2026-05-22', 10);
-    const lf = makeLangfuse({ traces: 100, tokens: 1_234_567, tools: 215 });
+    const lf = makeLangfuse({
+      traces: 100,
+      tokens: 1_234_567,
+      grounded: 62,
+      cost: 3.4719,
+    });
     const now = new Date('2026-05-22T14:32:00Z');
 
     const out = await aggregate(redis, lf, now);
     expect(out.queries).toBe(100);
     expect(out.tokens).toBe(1_234_567);
-    expect(out.tools_per_turn).toBe(2.2); // 215/100 = 2.15 → 2.2
+    expect(out.grounded_percent).toBe(62); // 62/100 = 62%
+    expect(out.cost_usd).toBe(3.47); // 3.4719 → 3.47
     expect(out.visitors).toBe(10);
     expect(out.last_aggregated_at).toBe('2026-05-22T14:32:00.000Z');
     expect(out.is_offline).toBe(false);
+    expect('tools_per_turn' in out).toBe(false);
   });
 
-  it('returns tools_per_turn = 0 when there are zero traces', async () => {
+  it('returns grounded_percent=0 and cost_usd=0 for zero queries (no divide-by-zero)', async () => {
     const redis = makeRedis();
-    const lf = makeLangfuse({ traces: 0, tokens: 0, tools: 0 });
+    const lf = makeLangfuse({ traces: 0, tokens: 0, grounded: 0, cost: 0 });
     const out = await aggregate(redis, lf, new Date('2026-05-22T14:32:00Z'));
-    expect(out.tools_per_turn).toBe(0);
+    expect(out.grounded_percent).toBe(0);
+    expect(out.cost_usd).toBe(0);
     expect(out.queries).toBe(0);
+  });
+
+  it('grounded_percent = 0 when no turns were grounded', async () => {
+    const redis = makeRedis();
+    const lf = makeLangfuse({ traces: 10, grounded: 0 });
+    const out = await aggregate(redis, lf, new Date('2026-05-22T14:32:00Z'));
+    expect(out.grounded_percent).toBe(0);
+  });
+
+  it('grounded_percent = 100 when every turn was grounded', async () => {
+    const redis = makeRedis();
+    const lf = makeLangfuse({ traces: 10, grounded: 10 });
+    const out = await aggregate(redis, lf, new Date('2026-05-22T14:32:00Z'));
+    expect(out.grounded_percent).toBe(100);
+  });
+
+  it('rounds cost_usd to two decimals (3.4719 -> 3.47)', async () => {
+    const redis = makeRedis();
+    const lf = makeLangfuse({ traces: 5, cost: 3.4719 });
+    const out = await aggregate(redis, lf, new Date('2026-05-22T14:32:00Z'));
+    expect(out.cost_usd).toBe(3.47);
   });
 });
 
@@ -108,7 +144,8 @@ describe('getOpsSnippet — cache hit', () => {
       visitors: 100,
       queries: 50,
       tokens: 1000,
-      tools_per_turn: 1.5,
+      grounded_percent: 60,
+      cost_usd: 0.5,
       last_aggregated_at: new Date(now.getTime() - 60_000).toISOString(),
       is_offline: false,
     };
@@ -124,7 +161,12 @@ describe('getOpsSnippet — cache miss triggers aggregation', () => {
   it('acquires lock, aggregates, writes cache, releases lock', async () => {
     const redis = makeRedis();
     redis._hashes.set('ops:visitors:2026-05-22', 7);
-    const lf = makeLangfuse({ traces: 10, tokens: 500, tools: 23 });
+    const lf = makeLangfuse({
+      traces: 10,
+      tokens: 500,
+      grounded: 5,
+      cost: 0.1,
+    });
     const now = new Date('2026-05-22T14:32:00Z');
 
     const out = await getOpsSnippet(redis, lf, { now });
@@ -132,7 +174,8 @@ describe('getOpsSnippet — cache miss triggers aggregation', () => {
     if (out.is_offline) return;
     expect(out.queries).toBe(10);
     expect(out.tokens).toBe(500);
-    expect(out.tools_per_turn).toBe(2.3); // 23/10 = 2.3
+    expect(out.grounded_percent).toBe(50); // 5/10 = 50%
+    expect(out.cost_usd).toBe(0.1);
     expect(out.visitors).toBe(7);
     // Cache written
     expect(redis._store.get(SNIPPET_KEY)).toEqual(out);
@@ -160,7 +203,8 @@ describe('getOpsSnippet — lock contention', () => {
         visitors: 22,
         queries: 7,
         tokens: 314,
-        tools_per_turn: 1.1,
+        grounded_percent: 57,
+        cost_usd: 0.2,
         last_aggregated_at: now.toISOString(),
         is_offline: false,
       };
@@ -206,7 +250,8 @@ describe('getOpsSnippet — error degrades to offline', () => {
         throw new Error('langfuse 500');
       },
       sumTokens: async () => 0,
-      countToolExecutions: async () => 0,
+      countGroundedTraces: async () => 0,
+      sumCost: async () => 0,
     };
     const out = await getOpsSnippet(redis, lf, {
       now: new Date('2026-05-22T14:32:00Z'),
@@ -220,7 +265,12 @@ describe('getOpsSnippet — error degrades to offline', () => {
 
   it('Redis GET failure falls through and still attempts aggregation', async () => {
     const calls: string[] = [];
-    const lf = makeLangfuse({ traces: 5, tokens: 100, tools: 7 });
+    const lf = makeLangfuse({
+      traces: 5,
+      tokens: 100,
+      grounded: 2,
+      cost: 0.05,
+    });
     const fakeStore = new Map<string, unknown>();
     const redis: SnippetRedis = {
       get: async () => {
