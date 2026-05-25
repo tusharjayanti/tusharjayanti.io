@@ -139,19 +139,32 @@ describe('rerankChunks', () => {
     const survivor = chunk('a', 1, 0.8);
     const dropped = chunk('b', 1, 0.05); // cos sim 0.05 < 0.15
     const out = await rerankChunks('q', [survivor, dropped], {
-      judge: async () => '1:yes',
+      judge: async () => ({ output: '1:yes', tokensIn: 50, tokensOut: 10 }),
     });
     // Only survivor reached either Haiku or skip-condition diversify
-    expect(out).toEqual([survivor]);
+    expect(out.chunks).toEqual([survivor]);
   });
 
   it('skips Haiku when ≤3 candidates survive the pre-filter', async () => {
-    const judge = vi.fn(async () => '1:no, 2:no, 3:no');
+    const judge = vi.fn(async () => ({
+      output: '1:no, 2:no, 3:no',
+      tokensIn: 50,
+      tokensOut: 10,
+    }));
     const items = [chunk('a', 1), chunk('b', 1), chunk('c', 1)];
     const out = await rerankChunks('q', items, { judge });
     // Below the skip threshold → judge never called
     expect(judge).not.toHaveBeenCalled();
-    expect(out).toEqual([items[0], items[1], items[2]]);
+    expect(out.chunks).toEqual([items[0], items[1], items[2]]);
+  });
+
+  it('skip-rerank gate reports zero token usage', async () => {
+    const items = [chunk('a', 1), chunk('b', 1), chunk('c', 1)];
+    const out = await rerankChunks('q', items, {
+      judge: async () => ({ output: '1:yes', tokensIn: 99, tokensOut: 99 }),
+    });
+    expect(out.tokensIn).toBe(0);
+    expect(out.tokensOut).toBe(0);
   });
 
   it('calls Haiku and drops "no" verdicts when >3 candidates survive', async () => {
@@ -165,15 +178,24 @@ describe('rerankChunks', () => {
     // The reranker assigns ids 1..5 by pre-filter order BEFORE
     // shuffling. Verdicts: 1=yes (a/1), 2=no (a/2), 3=yes (b/1),
     // 4=no (c/1), 5=yes (d/1) → 3 survivors.
-    const judge = vi.fn(async () => '1:yes, 2:no, 3:yes, 4:no, 5:yes');
+    const judge = vi.fn(async () => ({
+      output: '1:yes, 2:no, 3:yes, 4:no, 5:yes',
+      tokensIn: 120,
+      tokensOut: 24,
+    }));
     const out = await rerankChunks('q', items, { judge, topN: 5 });
     expect(judge).toHaveBeenCalledOnce();
-    const survivorIds = out.map((c) => `${c.source_id}/${c.chunk_index}`);
+    const survivorIds = out.chunks.map(
+      (c) => `${c.source_id}/${c.chunk_index}`,
+    );
     expect(survivorIds).toContain('a/1');
     expect(survivorIds).toContain('b/1');
     expect(survivorIds).toContain('d/1');
     expect(survivorIds).not.toContain('a/2');
     expect(survivorIds).not.toContain('c/1');
+    // Judge usage is surfaced to the caller for the rerank span.
+    expect(out.tokensIn).toBe(120);
+    expect(out.tokensOut).toBe(24);
   });
 
   it('returns an empty array when Haiku marks every candidate "no"', async () => {
@@ -184,9 +206,16 @@ describe('rerankChunks', () => {
       chunk('c', 1, 0.8),
     ];
     const out = await rerankChunks('q', items, {
-      judge: async () => '1:no, 2:no, 3:no, 4:no',
+      judge: async () => ({
+        output: '1:no, 2:no, 3:no, 4:no',
+        tokensIn: 90,
+        tokensOut: 12,
+      }),
     });
-    expect(out).toEqual([]);
+    expect(out.chunks).toEqual([]);
+    // Even with zero survivors, the judge ran — usage is preserved.
+    expect(out.tokensIn).toBe(90);
+    expect(out.tokensOut).toBe(12);
   });
 
   it('falls back to the pre-filter top-N when the judge throws', async () => {
@@ -207,9 +236,29 @@ describe('rerankChunks', () => {
     });
     // Fallback: top-3 from the pre-filter list, diversified. All
     // unique sources → first 3 in input order.
-    expect(out).toHaveLength(3);
-    expect(out.map((c) => c.source_id)).toEqual(['a', 'b', 'c']);
+    expect(out.chunks).toHaveLength(3);
+    expect(out.chunks.map((c) => c.source_id)).toEqual(['a', 'b', 'c']);
     expect(err).toHaveBeenCalled();
+    err.mockRestore();
+  });
+
+  it('judge-throws fallback reports zero token usage', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const items = [
+      chunk('a', 1, 0.8),
+      chunk('a', 2, 0.8),
+      chunk('b', 1, 0.8),
+      chunk('c', 1, 0.8),
+      chunk('d', 1, 0.8),
+    ];
+    const out = await rerankChunks('q', items, {
+      topN: 3,
+      judge: async () => {
+        throw new Error('haiku 5xx');
+      },
+    });
+    expect(out.tokensIn).toBe(0);
+    expect(out.tokensOut).toBe(0);
     err.mockRestore();
   });
 
@@ -226,9 +275,13 @@ describe('rerankChunks', () => {
     ];
     const out = await rerankChunks('q', items, {
       topN: 3,
-      judge: async () => '1:yes, 2:yes, 3:yes, 4:yes, 5:yes',
+      judge: async () => ({
+        output: '1:yes, 2:yes, 3:yes, 4:yes, 5:yes',
+        tokensIn: 110,
+        tokensOut: 20,
+      }),
     });
-    expect(out.map((c) => `${c.source_id}/${c.chunk_index}`)).toEqual([
+    expect(out.chunks.map((c) => `${c.source_id}/${c.chunk_index}`)).toEqual([
       'a/1',
       'b/1',
       'a/2',
@@ -239,7 +292,7 @@ describe('rerankChunks', () => {
     const judge = vi.fn();
     const items = [chunk('a', 1, 0.05), chunk('b', 1, 0.1)];
     const out = await rerankChunks('q', items, { judge });
-    expect(out).toEqual([]);
+    expect(out.chunks).toEqual([]);
     expect(judge).not.toHaveBeenCalled();
   });
 });

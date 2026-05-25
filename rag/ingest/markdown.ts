@@ -136,10 +136,12 @@ export async function ingestMarkdownSource(
   // doesn't carry.
   let embeddings: number[][] = [];
   if (toEmbed.length > 0) {
-    embeddings = await embed(
-      toEmbed.map((x) => x.chunk.embedding_text),
-      'document',
-    );
+    embeddings = (
+      await embed(
+        toEmbed.map((x) => x.chunk.embedding_text),
+        'document',
+      )
+    ).vectors;
   }
 
   const rows: ChunkInput[] = toEmbed.map((x, i) => ({

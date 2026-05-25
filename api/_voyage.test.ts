@@ -56,14 +56,17 @@ function makeEmbedding(dim = 1024, fill = 0): number[] {
 function embedResponse(
   count: number,
   dim = 1024,
+  totalTokens = 42,
 ): {
   data: { embedding: number[]; index: number }[];
+  usage: { totalTokens: number };
 } {
   return {
     data: Array.from({ length: count }, (_, i) => ({
       embedding: makeEmbedding(dim),
       index: i,
     })),
+    usage: { totalTokens },
   };
 }
 
@@ -91,10 +94,10 @@ describe('embed', () => {
     vi.useRealTimers();
   });
 
-  it('returns [] for empty input and does not call the SDK', async () => {
+  it('returns empty vectors and 0 tokens for empty input without calling the SDK', async () => {
     const embed = await loadEmbed();
     const result = await embed([], 'document');
-    expect(result).toEqual([]);
+    expect(result).toEqual({ vectors: [], tokens: 0 });
     expect(embedMock).not.toHaveBeenCalled();
   });
 
@@ -102,11 +105,33 @@ describe('embed', () => {
     const embed = await loadEmbed();
     embedMock.mockResolvedValue(embedResponse(3));
     const result = await embed(['a', 'b', 'c'], 'document');
-    expect(result).toHaveLength(3);
-    for (const emb of result) {
+    expect(result.vectors).toHaveLength(3);
+    for (const emb of result.vectors) {
       expect(emb).toHaveLength(1024);
     }
     expect(embedMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('surfaces usage.totalTokens from the Voyage response', async () => {
+    const embed = await loadEmbed();
+    embedMock.mockResolvedValue(embedResponse(2, 1024, 137));
+    const result = await embed(['a', 'b'], 'document');
+    expect(result.tokens).toBe(137);
+  });
+
+  it('defaults tokens to 0 and warns once when usage is absent', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const embed = await loadEmbed();
+    embedMock.mockResolvedValue({
+      data: [{ embedding: makeEmbedding(), index: 0 }],
+    });
+    const first = await embed(['a'], 'document');
+    const second = await embed(['b'], 'document');
+    expect(first.tokens).toBe(0);
+    expect(second.tokens).toBe(0);
+    // Warn-once: the module-level flag survives across calls in one load.
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
   });
 
   it('throws when the SDK returns a wrong-length data array', async () => {
@@ -148,7 +173,7 @@ describe('embed', () => {
     await vi.advanceTimersByTimeAsync(500);
     const result = await promise;
 
-    expect(result).toHaveLength(1);
+    expect(result.vectors).toHaveLength(1);
     expect(embedMock).toHaveBeenCalledTimes(2);
   });
 
@@ -166,7 +191,7 @@ describe('embed', () => {
     await vi.advanceTimersByTimeAsync(500);
     const result = await promise;
 
-    expect(result).toHaveLength(1);
+    expect(result.vectors).toHaveLength(1);
     expect(embedMock).toHaveBeenCalledTimes(2);
   });
 

@@ -417,7 +417,7 @@ async function main(): Promise<void> {
   console.log(`threshold: ${threshold}`);
 
   console.log('embedding queries (1 Voyage batch)...');
-  const embeddings = await embed(
+  const { vectors: embeddings } = await embed(
     dataset.queries.map((q) => q.query),
     'query',
   );
@@ -467,7 +467,7 @@ async function main(): Promise<void> {
       // Haiku verdict pass; its output is what the model would see
       // in tool_result. We override the eval's per-row threshold to
       // 0 so scoreQuery's own pre-filter doesn't double-clip.
-      const reranked = await rerankChunks(
+      const { chunks: reranked } = await rerankChunks(
         q.query,
         rows as unknown as Array<MatchRow & RerankerCandidate>,
       );

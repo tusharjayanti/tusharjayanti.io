@@ -37,11 +37,16 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Voyage's `usage.totalTokens` is optional in the SDK's response type. We
+// surface it for per-step Langfuse cost tracking, defaulting to 0 and
+// warning once if a response ever omits it.
+let _warnedMissingUsage = false;
+
 export async function embed(
   texts: string[],
   inputType: VoyageInputType,
-): Promise<number[][]> {
-  if (texts.length === 0) return [];
+): Promise<{ vectors: number[][]; tokens: number }> {
+  if (texts.length === 0) return { vectors: [], tokens: 0 };
 
   const client = getClient();
   // 3 attempts total: initial try + 2 retries with the listed backoffs.
@@ -87,7 +92,17 @@ export async function embed(
         }
         embeddings.push(emb);
       }
-      return embeddings;
+
+      // Voyage reports `totalTokens` (camelCase in the Fern-generated SDK),
+      // and both `usage` and the field itself are optional.
+      const totalTokens = response.usage?.totalTokens;
+      if (totalTokens === undefined && !_warnedMissingUsage) {
+        _warnedMissingUsage = true;
+        console.warn(
+          '[voyage] response missing usage.totalTokens; reporting 0 tokens',
+        );
+      }
+      return { vectors: embeddings, tokens: totalTokens ?? 0 };
     } catch (err) {
       if (attempt >= backoffsMs.length || !isRetryable(err)) throw err;
       await sleep(backoffsMs[attempt]);

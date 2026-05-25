@@ -134,9 +134,10 @@ describe('ingestReadme', () => {
       outputTokens: 20,
     }));
 
-    mocks.embed.mockImplementation(async (texts: string[]) =>
-      texts.map((_, i) => fakeEmbedding(i)),
-    );
+    mocks.embed.mockImplementation(async (texts: string[]) => ({
+      vectors: texts.map((_, i) => fakeEmbedding(i)),
+      tokens: texts.length * 10,
+    }));
 
     mocks.supabaseFrom.mockImplementation(
       makeSupabaseBuilder({
@@ -184,9 +185,10 @@ describe('ingestReadme', () => {
       inputTokens: 1,
       outputTokens: 1,
     });
-    mocks.embed.mockImplementation(async (texts: string[]) =>
-      texts.map(() => fakeEmbedding(0)),
-    );
+    mocks.embed.mockImplementation(async (texts: string[]) => ({
+      vectors: texts.map(() => fakeEmbedding(0)),
+      tokens: texts.length * 10,
+    }));
     mocks.supabaseFrom.mockImplementation(
       makeSupabaseBuilder({
         existing: [],
@@ -223,7 +225,10 @@ describe('ingestReadme', () => {
       inputTokens: 50,
       outputTokens: 10,
     });
-    mocks.embed.mockResolvedValueOnce([fakeEmbedding(0)]);
+    mocks.embed.mockResolvedValueOnce({
+      vectors: [fakeEmbedding(0)],
+      tokens: 10,
+    });
     // mockImplementation (not Once) — supabase.from('chunks') is called
     // multiple times per ingest (select, upsert, delete). We swap the
     // implementation between the two runs by resetting on the second.
