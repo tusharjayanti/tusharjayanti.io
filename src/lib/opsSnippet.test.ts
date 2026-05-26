@@ -93,9 +93,9 @@ describe('buildOpsView', () => {
       { label: 'queries_grounded', value: '62%' },
       { label: 'cost', value: '$3.47' },
     ]);
-    expect(view.footer).toBe('14:32 UTC');
+    expect(view.footer).toBe('last 7d · 14:32 UTC');
     expect(view.mobile).toBe(
-      'visitors:247 · queries:89 · tokens:1.2M · grounded:62% · cost:$3.47',
+      'last 7d · visitors:247 · queries:89 · tokens:1.2M · grounded:62% · cost:$3.47',
     );
   });
 
@@ -134,7 +134,7 @@ describe('buildOpsView', () => {
       is_offline: false,
     });
     expect(view.mobile).toBe(
-      'visitors:0 · queries:0 · tokens:0 · grounded:0% · cost:$0.00',
+      'last 7d · visitors:0 · queries:0 · tokens:0 · grounded:0% · cost:$0.00',
     );
   });
 
@@ -149,7 +149,7 @@ describe('buildOpsView', () => {
       is_offline: false,
     });
     expect(view.mobile).toBe(
-      'visitors:1200 · queries:999 · tokens:2.4M · grounded:88% · cost:$12.50',
+      'last 7d · visitors:1200 · queries:999 · tokens:2.4M · grounded:88% · cost:$12.50',
     );
   });
 });
