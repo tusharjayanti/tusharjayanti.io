@@ -46,13 +46,9 @@ export async function runChat(
       }
     }
   } catch (err) {
-    if ((err as Error).name === 'AbortError') {
-      // Aborted because user sent a new command or unmounted. Mark done quietly.
-      updateById(id, (entry) => {
-        if (entry.kind !== 'chat-streaming') return entry;
-        return { ...entry, done: true };
-      });
-    } else {
+    // Non-abort errors get a user-facing message. AbortError (user sent a new
+    // command or navigated away) is finalized quietly by the finally below.
+    if ((err as Error).name !== 'AbortError') {
       updateById(id, (entry) => {
         if (entry.kind !== 'chat-streaming') return entry;
         return {
@@ -63,5 +59,20 @@ export async function runChat(
         };
       });
     }
+  } finally {
+    // Guarantee the entry is finalized no matter how the loop exited (normal
+    // done, error event, thrown error, or abort). An entry left un-done would
+    // render the "thinking" loader forever; an aborted entry with no content
+    // shows an interrupted marker instead of a blank line.
+    updateById(id, (entry) => {
+      if (entry.kind !== 'chat-streaming' || entry.done) return entry;
+      const interrupted = entry.text.length === 0;
+      return {
+        ...entry,
+        text: interrupted ? '# [interrupted]' : entry.text,
+        done: true,
+        isError: interrupted,
+      };
+    });
   }
 }
