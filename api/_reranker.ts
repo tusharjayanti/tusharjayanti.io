@@ -217,6 +217,7 @@ const defaultJudge: Judge = async (systemPrompt, userPrompt) => {
   const res = await client.messages.create({
     model: HAIKU_MODEL,
     max_tokens: HAIKU_MAX_TOKENS,
+    temperature: 0,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
   });
