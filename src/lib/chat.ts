@@ -25,9 +25,12 @@ export async function* streamChat(
       signal: opts.signal,
     });
   } catch (err) {
-    // AbortError is user-initiated (new command or unmount); don't surface
-    // as an error event — runChat's outer catch handles the abort path.
-    if ((err as Error).name === 'AbortError') return;
+    // AbortError is user-initiated (new command or unmount). Re-throw so the
+    // caller finalizes the entry consistently — same path as a mid-stream
+    // abort, which surfaces as a thrown AbortError from reader.read().
+    // (Previously this returned silently, which skipped runChat's
+    // finalization and left the entry stuck in the "thinking" state.)
+    if ((err as Error).name === 'AbortError') throw err;
     yield {
       type: 'error',
       message:

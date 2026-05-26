@@ -36,7 +36,7 @@ export function Terminal() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const startedAtRef = useRef<number>(Date.now());
-  const chatAbortRef = useRef<AbortController | null>(null);
+  const chatAbortRefs = useRef<Set<AbortController>>(new Set());
 
   function append(entry: ScrollbackEntry) {
     setScrollback((prev) => [...prev, entry]);
@@ -191,26 +191,27 @@ export function Terminal() {
     });
   }, [scrollback.length]);
 
-  // Abort any in-flight chat stream when Terminal unmounts.
+  // Abort all in-flight chat streams when Terminal unmounts. New submits no
+  // longer abort previous ones (concurrent streams), so teardown is the only
+  // place we cancel.
   useEffect(() => {
+    const refs = chatAbortRefs.current;
     return () => {
-      if (chatAbortRef.current) {
-        chatAbortRef.current.abort();
-        chatAbortRef.current = null;
-      }
+      refs.forEach((c) => c.abort());
+      refs.clear();
     };
   }, []);
 
   function handleSubmit(v: string) {
     if (!autoplayDone) return;
-    // Abort any in-flight chat from a previous command.
-    if (chatAbortRef.current) {
-      chatAbortRef.current.abort();
-      chatAbortRef.current = null;
-    }
-    // Fresh controller for this dispatch (used only if it routes to chat).
+    // Fresh controller per submit, tracked in the Set so unmount can abort
+    // every in-flight stream. New submits do NOT cancel previous ones —
+    // concurrent chats stream into independent scrollback entries. The
+    // controller is only used if this dispatch routes to chat; it stays in
+    // the Set after completion (aborting a settled controller is a no-op, and
+    // the Set is cleared on unmount).
     const controller = new AbortController();
-    chatAbortRef.current = controller;
+    chatAbortRefs.current.add(controller);
     setInput('');
     setHistoryIndex(-1);
     dispatch(v, { addToHistory: true, chatSignal: controller.signal });
