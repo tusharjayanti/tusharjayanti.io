@@ -58,6 +58,13 @@ import {
   type EvalResult,
   type PerQueryResultEntry,
 } from './result-writer.js';
+import pLimit from 'p-limit';
+import {
+  runAssertions,
+  type Assertion,
+  type AssertionResult,
+  type ResponseContext,
+} from '../../evals/lib/assertions/index.js';
 
 const DEFAULT_COSINE_FLOOR = 0.3;
 const TOP_K = 10;
@@ -128,6 +135,8 @@ type Query = {
   // the Phase 3 assertion engine).
   result_type?: 'retrieval' | 'assertion';
   category?: string;
+  // Assertion-type queries (Phase 1b) carry their assertion list here.
+  assertions?: Assertion[];
 };
 
 type Dataset = {
@@ -466,6 +475,105 @@ function printSummary(results: PerQueryResult[]): void {
   }
 }
 
+const DEFAULT_CONCURRENCY = 8;
+const FAILURE_RATE_THRESHOLD = 0.1;
+
+function parseConcurrency(): number {
+  const value = process.env.EVAL_CONCURRENCY;
+  if (!value) return DEFAULT_CONCURRENCY;
+  const n = Number.parseInt(value, 10);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_CONCURRENCY;
+}
+
+// One query's processing yields exactly one of these outcomes.
+type QueryOutcome =
+  | { kind: 'retrieval'; scored: PerQueryResult }
+  | {
+      kind: 'assertion';
+      id: string;
+      category: string;
+      passed: boolean;
+      assertions: AssertionResult[];
+      responseText: string | null;
+      traceId: string | null;
+    }
+  | {
+      kind: 'error';
+      id: string;
+      category: string;
+      result_type: 'retrieval' | 'assertion';
+      message: string;
+    };
+
+// Retrieval-type query: match_chunks (+ optional rerank) then score.
+async function processRetrievalQuery(
+  q: Query,
+  emb: number[],
+  mode: Mode,
+  threshold: number,
+  rerank: boolean,
+  supabase: ReturnType<typeof getSupabaseClient>,
+): Promise<PerQueryResult> {
+  const rpcName =
+    mode === 'three-tool' ? 'match_chunks' : 'match_chunks_unified';
+  const rpcArgs: Record<string, unknown> =
+    mode === 'three-tool'
+      ? {
+          query_embedding: emb,
+          query_text: q.query,
+          match_count: TOP_K,
+          source_filter: q.target_source,
+        }
+      : {
+          query_embedding: emb,
+          query_text: q.query,
+          match_count: TOP_K,
+        };
+  const { data, error } = await supabase.rpc(rpcName, rpcArgs);
+  if (error) {
+    throw new Error(`${rpcName} failed: ${error.message ?? String(error)}`);
+  }
+  let rows = (data ?? []) as MatchRow[];
+  let effectiveThreshold = threshold;
+  if (rerank) {
+    // Pipe match_chunks output through the production reranker. The
+    // reranker owns the cosine pre-filter (default 0.15) + the Haiku
+    // verdict pass; its output is what the model sees in tool_result. We
+    // override the per-row threshold to 0 so scoreQuery doesn't double-clip.
+    const { chunks: reranked } = await rerankChunks(
+      q.query,
+      rows as unknown as Array<MatchRow & RerankerCandidate>,
+    );
+    rows = reranked as unknown as MatchRow[];
+    effectiveThreshold = 0;
+  }
+  return scoreQuery(q, rows, effectiveThreshold);
+}
+
+// Assertion-type query: obtain a chat ResponseContext, then evaluate its
+// assertions. No assertion-type queries exist until Phase 1b, so this path
+// is dormant; if reached before Phase 4 wires the endpoint it errors and
+// is captured per-query.
+async function processAssertionQuery(
+  q: Query,
+): Promise<{ assertions: AssertionResult[]; response: ResponseContext }> {
+  const response = await getResponseContext(q);
+  const assertions = await runAssertions(response, q.assertions ?? []);
+  return { assertions, response };
+}
+
+function getResponseContext(_q: Query): Promise<ResponseContext> {
+  // Producing a ResponseContext means calling /api/chat with the eval
+  // traffic header (§8.2) against a deployed endpoint — wired in Phase 4
+  // (workflow + endpoint URL + secrets). Until then there is no response
+  // source, so this rejects clearly and the runner captures it per-query.
+  return Promise.reject(
+    new Error(
+      'assertion-query execution needs the chat endpoint wired in Phase 4 (§8.2)',
+    ),
+  );
+}
+
 async function main(): Promise<void> {
   const startedAt = Date.now();
   const mode = parseMode();
@@ -491,56 +599,74 @@ async function main(): Promise<void> {
   }
 
   const supabase = getSupabaseClient();
-  const results: PerQueryResult[] = [];
+  const concurrency = parseConcurrency();
   console.log(
     mode === 'three-tool'
-      ? 'running match_chunks against the three-tool baseline...'
-      : 'running match_chunks_unified across the whole corpus...',
+      ? `running match_chunks against the three-tool baseline (concurrency=${concurrency})...`
+      : `running match_chunks_unified across the whole corpus (concurrency=${concurrency})...`,
   );
-  for (let i = 0; i < dataset.queries.length; i++) {
-    const q = dataset.queries[i];
-    const emb = embeddings[i];
-    const rpcName =
-      mode === 'three-tool' ? 'match_chunks' : 'match_chunks_unified';
-    const rpcArgs: Record<string, unknown> =
-      mode === 'three-tool'
-        ? {
-            query_embedding: emb,
-            query_text: q.query,
-            match_count: TOP_K,
-            source_filter: q.target_source,
+
+  // M3 Phase 3 (§8.6): execute queries in parallel under a concurrency
+  // cap. One query throwing does not abort the run — it is captured as an
+  // error outcome and the run continues. Promise.all preserves input
+  // order, so embeddings[i] stays aligned with dataset.queries[i].
+  const limit = pLimit(concurrency);
+  const outcomes = await Promise.all(
+    dataset.queries.map((q, i) =>
+      limit(async (): Promise<QueryOutcome> => {
+        try {
+          if (q.result_type === 'assertion') {
+            const { assertions, response } = await processAssertionQuery(q);
+            return {
+              kind: 'assertion',
+              id: q.id,
+              category: q.category ?? 'unknown',
+              passed: assertions.every((a) => a.passed),
+              assertions,
+              responseText: response.text,
+              traceId: (response.trace.trace_id as string | undefined) ?? null,
+            };
           }
-        : {
-            query_embedding: emb,
-            query_text: q.query,
-            match_count: TOP_K,
+          const scored = await processRetrievalQuery(
+            q,
+            embeddings[i],
+            mode,
+            threshold,
+            rerank,
+            supabase,
+          );
+          return { kind: 'retrieval', scored };
+        } catch (err) {
+          console.error(`query ${q.id} failed:`, (err as Error).message);
+          return {
+            kind: 'error',
+            id: q.id,
+            category: q.category ?? 'unknown',
+            result_type: q.result_type ?? 'retrieval',
+            message: (err as Error).message,
           };
-    const { data, error } = await supabase.rpc(rpcName, rpcArgs);
-    if (error) {
-      console.error(`${rpcName} failed for ${q.id}:`, error);
-      throw error;
-    }
-    let rows = (data ?? []) as MatchRow[];
-    let effectiveThreshold = threshold;
-    if (rerank) {
-      // Pipe match_chunks output through the production reranker.
-      // The reranker owns the cosine pre-filter (default 0.15) + the
-      // Haiku verdict pass; its output is what the model would see
-      // in tool_result. We override the eval's per-row threshold to
-      // 0 so scoreQuery's own pre-filter doesn't double-clip.
-      const { chunks: reranked } = await rerankChunks(
-        q.query,
-        rows as unknown as Array<MatchRow & RerankerCandidate>,
-      );
-      rows = reranked as unknown as MatchRow[];
-      effectiveThreshold = 0;
-    }
-    results.push(scoreQuery(q, rows, effectiveThreshold));
-  }
+        }
+      }),
+    ),
+  );
 
-  printSummary(results);
+  const retrievalResults = outcomes
+    .filter(
+      (o): o is Extract<QueryOutcome, { kind: 'retrieval' }> =>
+        o.kind === 'retrieval',
+    )
+    .map((o) => o.scored);
+  const assertionOutcomes = outcomes.filter(
+    (o): o is Extract<QueryOutcome, { kind: 'assertion' }> =>
+      o.kind === 'assertion',
+  );
+  const errorOutcomes = outcomes.filter(
+    (o): o is Extract<QueryOutcome, { kind: 'error' }> => o.kind === 'error',
+  );
 
-  // Write detailed JSON for diffing across runs
+  printSummary(retrievalResults);
+
+  // Legacy detailed JSON (retrieval only), retained until Phase 4.
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
   const thrTag = `thr${threshold.toFixed(2)}`;
   const rerankTag = rerank ? '-rerank' : '';
@@ -553,8 +679,8 @@ async function main(): Promise<void> {
     `results-${mode}-${thrTag}${rerankTag}-${ts}.json`,
   );
   await mkdir(dirname(outPath), { recursive: true });
-  const overall = aggregateLabeled(results);
-  const guardrail = guardrailRate(results);
+  const overall = aggregateLabeled(retrievalResults);
+  const guardrail = guardrailRate(retrievalResults);
   await writeFile(
     outPath,
     JSON.stringify(
@@ -566,7 +692,7 @@ async function main(): Promise<void> {
         dataset_size: dataset.queries.length,
         overall,
         guardrail,
-        results,
+        results: retrievalResults,
       },
       null,
       2,
@@ -575,16 +701,83 @@ async function main(): Promise<void> {
   );
   console.log(`\nwrote results to ${outPath}`);
 
-  // M3 Phase 2: also emit the per-commit result file in the new format
-  // (spec §7.2). The legacy output above is retained until Phase 4. The
-  // assertions aggregate is empty here — assertion-type queries are run by
-  // the Phase 3 engine; this runner covers retrieval only.
+  // M3 Phase 2/3: emit the per-commit result file in the new format
+  // (spec §7.2), covering retrieval + assertion + error outcomes.
   const env = await gatherEnvMetadata();
   const baseline = await loadBaseline();
   const categoryById = new Map<string, string>(
     dataset.queries.map((q) => [q.id, q.category ?? 'rag-retrieval']),
   );
   const runtimeSeconds = (Date.now() - startedAt) / 1000;
+
+  const retrievalEntries: PerQueryResultEntry[] = retrievalResults.map((r) =>
+    toPerQueryEntry(r, categoryById.get(r.id) ?? 'rag-retrieval'),
+  );
+  const assertionEntries: PerQueryResultEntry[] = assertionOutcomes.map(
+    (o) => ({
+      id: o.id,
+      category: o.category,
+      result_type: 'assertion',
+      passed: o.passed,
+      error: null,
+      latency_seconds: null,
+      cost_usd: null,
+      assertion_result: {
+        assertions: o.assertions.map((a) => ({
+          type: a.type,
+          passed: a.passed,
+          detail: a.detail,
+        })),
+      },
+      response_text: o.responseText,
+      trace_id: o.traceId,
+    }),
+  );
+  const errorEntries: PerQueryResultEntry[] = errorOutcomes.map((o) => ({
+    id: o.id,
+    category: o.category,
+    result_type: o.result_type,
+    passed: false,
+    error: o.message,
+    latency_seconds: null,
+    cost_usd: null,
+    response_text: null,
+    trace_id: null,
+  }));
+
+  // §8.6: per_query sorted by (category, id) for diff stability,
+  // regardless of completion order.
+  const perQuery = [
+    ...retrievalEntries,
+    ...assertionEntries,
+    ...errorEntries,
+  ].sort(
+    (a, b) => a.category.localeCompare(b.category) || a.id.localeCompare(b.id),
+  );
+
+  // Assertion aggregate + per-category rollup.
+  const assertionByCategory: Record<
+    string,
+    { query_count: number; pass_count: number; pass_rate: number }
+  > = {};
+  for (const o of assertionOutcomes) {
+    const row = (assertionByCategory[o.category] ??= {
+      query_count: 0,
+      pass_count: 0,
+      pass_rate: 0,
+    });
+    row.query_count += 1;
+    if (o.passed) row.pass_count += 1;
+  }
+  for (const row of Object.values(assertionByCategory)) {
+    row.pass_rate = row.query_count > 0 ? row.pass_count / row.query_count : 0;
+  }
+  const assertionPassCount = assertionOutcomes.filter((o) => o.passed).length;
+
+  const totalQueries = dataset.queries.length;
+  const failedQueries = errorOutcomes.length;
+  const successfulQueries = totalQueries - failedQueries;
+
   const evalResult: EvalResult = {
     schema_version: '1.0.0',
     metadata: {
@@ -604,7 +797,7 @@ async function main(): Promise<void> {
       config_snapshot: {
         top_k_default: TOP_K,
         rerank_temperature: 0,
-        eval_concurrency: 1,
+        eval_concurrency: concurrency,
       },
     },
     aggregate: {
@@ -616,25 +809,39 @@ async function main(): Promise<void> {
         ooc_correct_rate: guardrail.rate,
       },
       assertions: {
-        query_count: 0,
-        pass_count: 0,
-        fail_count: 0,
-        pass_rate: 0,
-        by_category: {},
+        query_count: assertionOutcomes.length,
+        pass_count: assertionPassCount,
+        fail_count: assertionOutcomes.length - assertionPassCount,
+        pass_rate:
+          assertionOutcomes.length > 0
+            ? assertionPassCount / assertionOutcomes.length
+            : 0,
+        by_category: assertionByCategory,
       },
       execution: {
-        total_queries: dataset.queries.length,
-        successful_queries: dataset.queries.length,
-        failed_queries: 0,
+        total_queries: totalQueries,
+        successful_queries: successfulQueries,
+        failed_queries: failedQueries,
         runtime_seconds: runtimeSeconds,
       },
     },
-    per_query: results.map((r) =>
-      toPerQueryEntry(r, categoryById.get(r.id) ?? 'rag-retrieval'),
-    ),
+    per_query: perQuery,
   };
   const { path: perCommitPath } = await writeResult(evalResult);
   console.log(`wrote per-commit result to ${perCommitPath}`);
+
+  // §8.6: a failure rate above the threshold fails the whole run,
+  // regardless of metric thresholds — partial coverage is unsafe to gate on.
+  if (
+    totalQueries > 0 &&
+    failedQueries / totalQueries > FAILURE_RATE_THRESHOLD
+  ) {
+    console.error(
+      `eval run FAILED: ${failedQueries}/${totalQueries} queries errored ` +
+        `(> ${(FAILURE_RATE_THRESHOLD * 100).toFixed(0)}% threshold)`,
+    );
+    process.exitCode = 1;
+  }
 }
 
 main().catch((err) => {
