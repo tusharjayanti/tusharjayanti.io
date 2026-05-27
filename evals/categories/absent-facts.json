@@ -1,0 +1,56 @@
+{
+  "_meta": {
+    "description": "In-domain-but-absent queries: the asked-about fact is not in the corpus (a feature a project doesn't have, a skill Tushar doesn't list). correct_chunks is empty; success = the production no-match guardrail fires (zero chunks above the cosine floor). Lifted verbatim from the pre-M3 evals/retrieval/queries.json out-of-corpus set (M3 Phase 1a); query IDs preserved. Distinct from off-topic.json (Phase 1b), which tests behavioral refusal on out-of-scope queries.",
+    "schema_version": 1,
+    "scoring": {
+      "out-of-corpus": "correct_chunks is empty; success = zero chunks above cosine 0.3 threshold (guardrail firing rate)"
+    }
+  },
+  "queries": [
+    {
+      "id": "Q14",
+      "query": "How does vox-agent rate-limit requests?",
+      "result_type": "retrieval",
+      "category": "absent-facts",
+      "target_source": "readme",
+      "correct_chunks": [],
+      "tags": ["out-of-corpus", "readme"]
+    },
+    {
+      "id": "Q15",
+      "query": "How does the job-search agent handle audio?",
+      "result_type": "retrieval",
+      "category": "absent-facts",
+      "target_source": "readme",
+      "correct_chunks": [],
+      "tags": ["out-of-corpus", "readme"]
+    },
+    {
+      "id": "Q24",
+      "query": "Tushar's experience with Rust programming",
+      "result_type": "retrieval",
+      "category": "absent-facts",
+      "target_source": "experience",
+      "correct_chunks": [],
+      "tags": ["out-of-corpus", "experience"]
+    },
+    {
+      "id": "Q25",
+      "query": "Tushar's blockchain work",
+      "result_type": "retrieval",
+      "category": "absent-facts",
+      "target_source": "experience",
+      "correct_chunks": [],
+      "tags": ["out-of-corpus", "experience"]
+    },
+    {
+      "id": "Q29",
+      "query": "Does Tushar have a PhD?",
+      "result_type": "retrieval",
+      "category": "absent-facts",
+      "target_source": "resume",
+      "correct_chunks": [],
+      "tags": ["out-of-corpus", "resume"]
+    }
+  ]
+}

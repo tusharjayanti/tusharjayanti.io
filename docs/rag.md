@@ -304,12 +304,16 @@ three-tool pipeline actually surfaces the right chunks. This is the
 measurement substrate every future RAG change is compared against —
 chunker tweaks, reranker work, tool consolidation, etc.
 
-**Dataset** lives at [`evals/retrieval/queries.json`](../evals/retrieval/queries.json).
-31 queries, each labeled with `target_source`, expected `correct_chunks`,
-and one or more tags (`realistic`, `adversarial`, `vocabulary-poor`,
-`single-source`, `cross-source`, `out-of-corpus`). Distribution: 15
-readme, 10 experience, 5 resume, 1 cross-source; 5 of those tagged
-`out-of-corpus` for guardrail probing.
+**Dataset** lives as per-category files under
+[`evals/categories/`](../evals/categories/): `rag-retrieval.json` (26
+retrieval queries) and `absent-facts.json` (5 in-domain-but-absent
+queries — the former `out-of-corpus` set). 31 total, each labeled with
+`target_source`, expected `correct_chunks`, and one or more tags
+(`realistic`, `adversarial`, `vocabulary-poor`, `single-source`,
+`cross-source`, `out-of-corpus`). Distribution: 15 readme, 10 experience,
+5 resume, 1 cross-source; the 5 `out-of-corpus` queries live in
+`absent-facts.json` for guardrail probing. (Restructured in M3 Phase 1a;
+IDs Q1–Q31 preserved.)
 
 **Runner** is [`scripts/eval/retrieval.ts`](../scripts/eval/retrieval.ts),
 run via `npm run eval:retrieval`. Embeds all queries in one Voyage
