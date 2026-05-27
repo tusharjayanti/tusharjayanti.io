@@ -44,12 +44,27 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { embed } from '../../api/_voyage.js';
+import { embed, VOYAGE_MODEL } from '../../api/_voyage.js';
 import { getSupabaseClient } from '../../api/_supabase.js';
-import { rerankChunks, type RerankerCandidate } from '../../api/_reranker.js';
+import {
+  rerankChunks,
+  HAIKU_MODEL,
+  type RerankerCandidate,
+} from '../../api/_reranker.js';
+import {
+  writeResult,
+  loadBaseline,
+  gatherEnvMetadata,
+  type EvalResult,
+  type PerQueryResultEntry,
+} from './result-writer.js';
 
 const DEFAULT_COSINE_FLOOR = 0.3;
 const TOP_K = 10;
+
+// Chat handler model id (mirrors api/chat.ts MODEL_ID). Not exercised by
+// the retrieval-only runner; recorded in result metadata for provenance.
+const RESPONSE_MODEL = 'claude-sonnet-4-6';
 
 type Mode = 'three-tool' | 'unified';
 
@@ -335,6 +350,36 @@ function pct(x: number): string {
   return `${(x * 100).toFixed(1)}%`;
 }
 
+// M3 Phase 2: map a scored retrieval result into the committed per-query
+// result shape (spec §7.2). passed = guardrail fired (out-of-corpus) or a
+// correct chunk in top-5 (everything else). Per-query latency/cost capture
+// and Langfuse trace linkage land in Phase 3 (§8.5/§8.2); null here.
+// response_text is null — this runner exercises retrieval only, not chat.
+function toPerQueryEntry(
+  r: PerQueryResult,
+  category: string,
+): PerQueryResultEntry {
+  const passed =
+    r.guardrail_fired !== null ? r.guardrail_fired : r.retrieval_at_5 === true;
+  return {
+    id: r.id,
+    category,
+    result_type: 'retrieval',
+    passed,
+    error: null,
+    latency_seconds: null,
+    cost_usd: null,
+    retrieval_result: {
+      rank_of_expected: r.first_correct_rank,
+      top_k_returned: r.retrieved.map(
+        (x) => `${x.source}:${x.source_id}#${x.chunk_index}`,
+      ),
+    },
+    response_text: null,
+    trace_id: null,
+  };
+}
+
 function printSummary(results: PerQueryResult[]): void {
   console.log('\n=== Per-query results ===');
   for (const r of results) {
@@ -422,6 +467,7 @@ function printSummary(results: PerQueryResult[]): void {
 }
 
 async function main(): Promise<void> {
+  const startedAt = Date.now();
   const mode = parseMode();
   const threshold = parseThreshold();
   const dataset = await loadDataset();
@@ -528,6 +574,67 @@ async function main(): Promise<void> {
     'utf-8',
   );
   console.log(`\nwrote results to ${outPath}`);
+
+  // M3 Phase 2: also emit the per-commit result file in the new format
+  // (spec §7.2). The legacy output above is retained until Phase 4. The
+  // assertions aggregate is empty here — assertion-type queries are run by
+  // the Phase 3 engine; this runner covers retrieval only.
+  const env = await gatherEnvMetadata();
+  const baseline = await loadBaseline();
+  const categoryById = new Map<string, string>(
+    dataset.queries.map((q) => [q.id, q.category ?? 'rag-retrieval']),
+  );
+  const runtimeSeconds = (Date.now() - startedAt) / 1000;
+  const evalResult: EvalResult = {
+    schema_version: '1.0.0',
+    metadata: {
+      commit_sha: env.commit_sha,
+      branch: env.branch,
+      pr_number: env.pr_number,
+      timestamp: new Date().toISOString(),
+      runtime_seconds: runtimeSeconds,
+      eval_set_version: env.eval_set_version,
+      eval_set_content_sha: env.eval_set_content_sha,
+      baseline_commit_sha: baseline?.metadata.commit_sha ?? null,
+      model_versions: {
+        embedding: VOYAGE_MODEL,
+        rerank: HAIKU_MODEL,
+        response: RESPONSE_MODEL,
+      },
+      config_snapshot: {
+        top_k_default: TOP_K,
+        rerank_temperature: 0,
+        eval_concurrency: 1,
+      },
+    },
+    aggregate: {
+      retrieval: {
+        query_count: overall.count,
+        retrieval_at_1: overall.retrieval_at_1,
+        retrieval_at_5: overall.retrieval_at_5,
+        mrr: overall.mrr,
+        ooc_correct_rate: guardrail.rate,
+      },
+      assertions: {
+        query_count: 0,
+        pass_count: 0,
+        fail_count: 0,
+        pass_rate: 0,
+        by_category: {},
+      },
+      execution: {
+        total_queries: dataset.queries.length,
+        successful_queries: dataset.queries.length,
+        failed_queries: 0,
+        runtime_seconds: runtimeSeconds,
+      },
+    },
+    per_query: results.map((r) =>
+      toPerQueryEntry(r, categoryById.get(r.id) ?? 'rag-retrieval'),
+    ),
+  };
+  const { path: perCommitPath } = await writeResult(evalResult);
+  console.log(`wrote per-commit result to ${perCommitPath}`);
 }
 
 main().catch((err) => {
