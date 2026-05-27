@@ -32,3 +32,4 @@ pnpm-debug.log*
 .env.production*
 .env.development*
 followups.md
+specs/
