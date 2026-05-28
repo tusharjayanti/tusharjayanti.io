@@ -1,0 +1,9 @@
+{
+  "version": "1.0.0",
+  "content_sha": "cff99e843c5b663441c4cd797c7ba5226de124533177a83241c588f49cc7bac1",
+  "categories": ["rag-retrieval", "absent-facts"],
+  "total_queries": 31,
+  "llm_judge_query_count": 0,
+  "llm_judge_proportion": 0,
+  "generated_at": "2026-05-27T16:24:58Z"
+}

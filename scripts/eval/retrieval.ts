@@ -1,6 +1,7 @@
-// Retrieval evaluation harness. Loads the labeled dataset at
-// evals/retrieval/queries.json, embeds every query in one Voyage
-// batch, calls retrieval per query, and computes metrics.
+// Retrieval evaluation harness. Loads the labeled dataset from the
+// per-category files evals/categories/{rag-retrieval,absent-facts}.json,
+// embeds every query in one Voyage batch, calls retrieval per query, and
+// computes metrics.
 //
 // Two retrieval modes — selected via `--mode=three-tool|unified` flag
 // (default `three-tool`):
@@ -107,6 +108,11 @@ type Query = {
   target_source: 'experience' | 'resume' | 'readme';
   correct_chunks: ChunkRef[];
   tags: string[];
+  // M3 Phase 1a category-file fields. Present in the new structure; not
+  // used by this runner's scoring (tags drive scoring; result_type is for
+  // the Phase 3 assertion engine).
+  result_type?: 'retrieval' | 'assertion';
+  category?: string;
 };
 
 type Dataset = {
@@ -156,17 +162,24 @@ type PerQueryResult = {
   chunks_above_floor: number;
 };
 
-function loadDataset(): Promise<Dataset> {
+// M3 Phase 1a: the eval set lives as per-category files under
+// evals/categories/. This runner scores retrieval-type categories only
+// (rag-retrieval + absent-facts); assertion categories authored in Phase
+// 1b are handled by the Phase 3 assertion engine, not here. Queries are
+// merged and re-sorted into their original Q-order so result files stay
+// diff-comparable with pre-migration runs.
+async function loadDataset(): Promise<Dataset> {
   const here = dirname(fileURLToPath(import.meta.url));
-  const path = resolvePath(
-    here,
-    '..',
-    '..',
-    'evals',
-    'retrieval',
-    'queries.json',
-  );
-  return readFile(path, 'utf-8').then((raw) => JSON.parse(raw) as Dataset);
+  const categoriesDir = resolvePath(here, '..', '..', 'evals', 'categories');
+  const files = ['rag-retrieval.json', 'absent-facts.json'];
+  const queries: Query[] = [];
+  for (const file of files) {
+    const raw = await readFile(resolvePath(categoriesDir, file), 'utf-8');
+    const parsed = JSON.parse(raw) as Dataset;
+    queries.push(...parsed.queries);
+  }
+  queries.sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1)));
+  return { _meta: {}, queries };
 }
 
 function isChunkCorrect(row: MatchRow, correct: ChunkRef[]): boolean {
@@ -412,7 +425,9 @@ async function main(): Promise<void> {
   const mode = parseMode();
   const threshold = parseThreshold();
   const dataset = await loadDataset();
-  console.log(`loaded ${dataset.queries.length} queries from queries.json`);
+  console.log(
+    `loaded ${dataset.queries.length} queries from evals/categories/`,
+  );
   console.log(`mode: ${mode}`);
   console.log(`threshold: ${threshold}`);
 
