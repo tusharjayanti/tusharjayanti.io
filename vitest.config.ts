@@ -8,6 +8,7 @@ export default defineConfig({
       'rag/**/*.test.ts',
       'scripts/**/*.test.mjs',
       'scripts/**/*.test.ts',
+      'evals/**/*.test.ts',
       'middleware.test.ts',
     ],
     // voyageai@0.2.x ships an ESM bundle whose top-level index.mjs does
