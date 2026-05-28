@@ -31,6 +31,7 @@ export const DEFAULT_RERANK_N = 5;
 export const DEFAULT_SKIP_RERANK_BELOW = 3;
 export const MAX_CHUNK_CHARS = 200;
 export const HAIKU_MAX_TOKENS = 80;
+export const HAIKU_TEMPERATURE = 0;
 
 const SYSTEM_PROMPT = `You are a relevance judge. For each candidate chunk, decide whether it materially answers the query.
 
@@ -217,7 +218,7 @@ const defaultJudge: Judge = async (systemPrompt, userPrompt) => {
   const res = await client.messages.create({
     model: HAIKU_MODEL,
     max_tokens: HAIKU_MAX_TOKENS,
-    temperature: 0,
+    temperature: HAIKU_TEMPERATURE,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
   });

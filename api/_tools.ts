@@ -17,7 +17,12 @@ import type { LangfuseSpanClient, LangfuseGenerationClient } from 'langfuse';
 import { embed } from './_voyage.js';
 import { getSupabaseClient } from './_supabase.js';
 import { fetchUrl } from './_webFetch.js';
-import { rerankChunks } from './_reranker.js';
+import {
+  rerankChunks,
+  HAIKU_MODEL,
+  HAIKU_MAX_TOKENS,
+  HAIKU_TEMPERATURE,
+} from './_reranker.js';
 
 // Parent for the per-step child observations: embedding + rerank are
 // generations (model calls — they carry token usageDetails), retrieval is
@@ -336,7 +341,11 @@ async function executeSearch(
     rerankGen =
       parentSpan?.generation({
         name: 'rerank',
-        model: 'claude-haiku-4-5',
+        model: HAIKU_MODEL,
+        modelParameters: {
+          temperature: HAIKU_TEMPERATURE,
+          max_tokens: HAIKU_MAX_TOKENS,
+        },
         input: { candidates: rows.length },
         startTime: new Date(),
       }) ?? null;
