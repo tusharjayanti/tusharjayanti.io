@@ -27,10 +27,13 @@ under which the rest of M2 plugs in. None of the wiring into
 
 Two upstream signals shaped the decision space:
 
-- An externally-observed portfolio-scale RAG architecture
-  demonstrates the destination shape: pgvector + BM25 hybrid, Haiku
-  reranking, eval-driven CI gates. The pipeline architecture is
-  described in published writeups; the underlying schema is not.
+- **The pgvector + BM25 hybrid + Haiku-reranker + eval-driven CI
+  pattern is established portfolio-RAG prior art.** Public writeups
+  document the pipeline shape and its trade-offs; the schema and
+  implementation details vary per repo and aren't part of the
+  standard. Building to this shape gets the recognition value of
+  speaking the established vocabulary without re-deriving the
+  architectural decisions from scratch.
 - Anthropic's Voyage acquisition (early 2026) means the embedding
   layer can now share a vendor with the inference layer, which both
   simplifies the stack narrative and bets that Voyage will see
@@ -169,14 +172,13 @@ source_filter)`](../../supabase/migrations/0003_match_chunks.sql);
 
 ## Banked observations
 
-- **The reference portfolio's schema is not directly verifiable from
-  its public repo.** The pipeline architecture (pgvector + BM25
-  hybrid + Haiku reranking + eval CI) is documented in writeups; the
-  actual chunk table shape is not. The schema here was designed
-  independently from operational requirements (one `source` column,
-  idempotent ingest, RPC for retrieval), with the pipeline
-  architecture borrowed. Borrow the architecture, build the
-  implementation.
+- **The standard portfolio-RAG schema is implementation-specific.**
+  Published writeups document the pipeline shape (pgvector + BM25
+  hybrid + Haiku reranking + eval CI) but not the chunk-table
+  layout, which varies per implementation. The schema here was
+  designed independently from operational requirements (one
+  `source` column, idempotent ingest, RPC for retrieval).
+  **Borrow the architecture, build the implementation.**
 - **service_role grants do not auto-apply** on tables created via
   `supabase db push` migrations under the new `sb_secret_*` key
   format. The dashboard's table editor applies them automatically;

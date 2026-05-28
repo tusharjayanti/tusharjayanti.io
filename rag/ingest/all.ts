@@ -3,6 +3,7 @@
 // slot in as additional entries. Fails fast: if a source ingest throws,
 // subsequent sources don't run and the error propagates to the caller.
 
+import { DOCS_SOURCES } from './docs.js';
 import {
   ingestMarkdownSource,
   type IngestOptions,
@@ -20,6 +21,7 @@ const SOURCES: IngestOptions[] = [
     source: 'resume',
     source_id: 'resume.md',
   },
+  ...DOCS_SOURCES,
 ];
 
 export type AllIngestResult = {

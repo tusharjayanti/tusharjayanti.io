@@ -29,12 +29,13 @@ re-shaping the schema. Building that on top of Redis lists felt
 like reinventing the kind of observability platform LLMOps tooling
 already exists for.
 
-The portfolio is also explicitly positioned as an LLMOps testbed.
 The Langfuse trace structure is industry-standard vocabulary
-(trace/generation/span/score). Putting it in the README and being
-able to talk about it in interviews is itself signal — more so than
-a more elaborate hand-rolled solution that nobody outside the repo
-would recognize.
+(trace/generation/span/score). Adopting the standard means leaning
+on a maintained ecosystem rather than reinventing one — less code
+to write and maintain, and the resulting traces are queryable in
+tooling that already speaks the schema. Hand-rolling an equivalent
+observability surface on Redis lists would be reinventing what
+purpose-built tooling already does.
 
 ## Decision drivers
 
@@ -58,9 +59,8 @@ would recognize.
 - **Pros:** zero new dependencies; full control over schema and
   storage; already wired up.
 - **Cons:** every new query becomes custom code; no built-in
-  cost/usage UI; no prompt registry; no eval-score path; weak
-  interview narrative ("I wrote my own observability" reads as
-  not-invented-here, not strength).
+  cost/usage UI; no prompt registry; no eval-score path; reinvents
+  observability tooling that already exists in mature form.
 
 ### Option B — Langfuse Cloud (chosen)
 

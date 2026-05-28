@@ -78,8 +78,8 @@ the tolerance-band approach proves insufficient in practice.
 
 ## Experimental evidence
 
-Two-experiment investigation conducted 2026-05-26. Full data
-in `/tmp/temperature-experiment/` (not committed).
+Two-experiment investigation conducted 2026-05-26. Per-experiment
+detail summarized below.
 
 ### Experiment A — Per-chunk verdict variance
 

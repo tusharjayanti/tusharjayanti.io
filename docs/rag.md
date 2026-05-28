@@ -392,8 +392,8 @@ consolidation) and M2.7 (reranker).
 
 Question asked: keep three source-scoped tools (`search_experience`,
 `search_resume`, `search_readme`) or consolidate into one unified
-`search_portfolio`? Santifer's repo uses one tool with the argument
-that source-routing-at-decision-time forces the LLM to guess before
+`search_portfolio`? The unified-search-pattern argument is that
+source-routing-at-decision-time forces the LLM to guess before
 seeing the corpus. Whether that argument transfers to this corpus
 shape is an empirical question.
 
@@ -430,14 +430,14 @@ tolerance. Both gates fail. **Outcome: keep three tools.**
 
 ### Why the structural argument cuts the other way here
 
-Santifer's "source-routing forces guessing" argument assumes the LLM's
+The "source-routing forces guessing" argument assumes the LLM's
 choice of source is roughly random or weak signal — that the model
 guesses wrong about as often as it guesses right, so removing the
 choice eliminates a coin-flip. That assumption holds when the sources
 are **structurally similar** and the question's domain is **ambiguous
-across them** — which is the case for santifer's single-source corpus
-where "source-routing" doesn't really apply, and would also be the
-case for a corpus of, say, six similarly-shaped technical writeups.
+across them** — which is the regime of a single-source corpus where
+"source-routing" doesn't really apply, and would also be the case
+for a corpus of, say, six similarly-shaped technical writeups.
 
 The argument inverts here because:
 
@@ -469,7 +469,7 @@ The argument inverts here because:
   that mention Python more substantively. The labeled chunks were
   unreachable.
 
-**The santifer pattern is corpus-dependent.** It wins when the LLM's
+**The unified-search pattern is corpus-dependent.** It wins when the LLM's
 source choice carries no signal (one source, or homogeneous sources).
 It loses when the LLM's source choice carries strong signal
 (structurally different sources, well-aligned tool descriptions) —
@@ -487,9 +487,9 @@ three-tool-vs-unified comparison if any of:
   per-source filter would otherwise hide.
 - **Any single source exceeds ~50 chunks** (readme is at 41 today,
   closest to the threshold). A source that dominates the corpus
-  starts to look like santifer's single-source regime locally —
-  the LLM's choice of "search this source" stops being a useful
-  pre-filter when most of the corpus is in that source anyway.
+  starts to look like a single-source regime locally — the LLM's
+  choice of "search this source" stops being a useful pre-filter
+  when most of the corpus is in that source anyway.
 - **Adding a 4th source type** (e.g., a blog/writing corpus, or a
   meeting-notes / decision-log corpus). The N-tool design scales
   linearly with sources; at some N the LLM's tool selection becomes
@@ -534,7 +534,7 @@ match_chunks (top-K=10)
   → else: seeded shuffle → Haiku listwise verdict
   → drop "no" verdicts
   → if zero survive: NO_MATCH_TOOL_RESULT
-  → else: santifer two-pass diversification → top-N=5
+  → else: two-pass diversification → top-N=5
 ```
 
 Reranker implementation lives in
@@ -546,9 +546,9 @@ the same reranker — no per-source carve-outs.
 
 **Model:** `claude-haiku-4-5-20251001`, listwise prompt with
 `max_tokens: 80` (≈10 chunks × 7 chars per `<id>:<verdict>` pair).
-Chunks are truncated to 200 chars before sending — saves input
-tokens without measurably hurting verdict quality (santifer's
-finding).
+Chunks are truncated to 200 chars before sending — a common
+listwise-reranking optimization that trades minimal verdict-quality
+loss for input-token savings.
 
 **Position-bias mitigation:** query-seeded Fisher-Yates shuffle of
 the candidate list before sending to Haiku. Seed = first 4 bytes of
@@ -637,23 +637,28 @@ new migration file. Success is either applied migrations listed or
 
 ## What this isn't (yet)
 
-Not pretending. Honest gaps:
-
-- **No project README auto-sync.** Project descriptions still live in
-  the system prompt. M2.5 wires GitHub webhooks to ingest READMEs
-  from the projects Tushar maintains, keyed off repo metadata.
-
-- **No reranking.** Top-K is whatever cosine says. M2.6 runs a Haiku
-  reranker over the K=20 retrieval set to pick the K=4 most
-  load-bearing chunks for the model.
-
-- **No context compression.** Retrieved chunks land in the prompt
-  verbatim. M2.7 adds Haiku-driven extractive compression to keep
-  the chat handler under the cache breakpoint.
+Honest gaps that remain:
 
 - **H2-preamble lines dropped.** As noted above, `**Dates:**` and
-  `**Tech stack:**` lines that live directly under an H2 are not in
-  any chunk today.
+  `**Tech stack:**` lines that live directly under an H2 (no H3
+  inside the section) are not in any chunk today. The chunker is
+  H3-based with no fallback for H2-only sections.
+
+- **No multi-turn context.** Each chat turn is a single user
+  message; there's no session linkage across turns, so "tell me
+  more about that" doesn't work. Banked for after retrieval
+  foundations stabilize.
+
+- **No closed-loop eval generation.** Low-scored or
+  fabrication-prone production traces aren't yet promoted to eval
+  cases automatically. Today's retrieval eval is offline against a
+  hand-curated query set; mining failing production traces into new
+  eval cases is future work.
+
+README auto-sync (M2.5), the Haiku reranker (M2.7), and the
+no-match fabrication guardrail (M2.6 sub-spec 1) all shipped — see
+the sections above. Context compression (the original M2.7 scope)
+is banked but not yet scheduled.
 
 ## Known issues
 
