@@ -408,6 +408,7 @@ export default async function handler(
             trace?.generation({
               name: generationName,
               model: MODEL_ID,
+              modelParameters: { max_tokens: MAX_TOKENS },
               input: inputSnapshot,
               startTime: new Date(),
               metadata: { round: roundIndex },
