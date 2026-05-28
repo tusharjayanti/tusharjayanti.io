@@ -68,21 +68,56 @@ export async function recordVisitor(
   await redis.expire(key, VISITOR_HASH_TTL_SECONDS);
 }
 
-// Extracts the first IP from x-forwarded-for or falls back to
-// x-real-ip / x-vercel-forwarded-for. Returns null if none are
-// present (rare; usually means a direct internal request).
-export function extractIp(headers: Headers): string | null {
-  const xff = headers.get('x-forwarded-for');
-  if (xff) {
-    const first = xff.split(',')[0]?.trim();
-    if (first) return first;
+// Resolve the calling client's IP from request headers with an
+// un-spoofable preference order:
+//
+//   1. x-real-ip                       — Vercel sets this from the
+//                                        connecting socket; not
+//                                        client-spoofable.
+//   2. last entry of x-forwarded-for   — Vercel APPENDS the real IP to
+//   3. last entry of x-vercel-forwarded-for  whatever the client sent,
+//                                        so the trailing entry is closest
+//                                        to Vercel's edge. The leftmost
+//                                        entry is attacker-controlled (a
+//                                        client can prepend any IPs before
+//                                        Vercel appends), so it's never
+//                                        trustworthy. Reading [0] is the
+//                                        canonical rate-limit-bypass bug.
+//   4. null fallback
+//
+// DO NOT "simplify" this by reading the leftmost entry — that re-introduces
+// the rate-limit / visitor-counter spoofing fixed in fix/security-hardening.
+// Shared by api/_kv.ts via this module so the rate-limiter and visitor
+// counter key off identical IPs for the same request.
+export function pickClientIp(
+  lookup: (name: string) => string | null | undefined,
+): string | null {
+  const real = lookup('x-real-ip');
+  if (real) {
+    const trimmed = real.trim();
+    if (trimmed) return trimmed;
   }
-  const xri = headers.get('x-real-ip');
-  if (xri) return xri.trim();
-  const xvff = headers.get('x-vercel-forwarded-for');
-  if (xvff) {
-    const first = xvff.split(',')[0]?.trim();
-    if (first) return first;
-  }
+  const xffLast = lastNonEmptyEntry(lookup('x-forwarded-for'));
+  if (xffLast) return xffLast;
+  const xvffLast = lastNonEmptyEntry(lookup('x-vercel-forwarded-for'));
+  if (xvffLast) return xvffLast;
   return null;
+}
+
+function lastNonEmptyEntry(
+  headerValue: string | null | undefined,
+): string | null {
+  if (!headerValue) return null;
+  const parts = headerValue
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1] : null;
+}
+
+// Thin Headers adapter for middleware callers (Web Headers API). The
+// lookup-function argument is what makes pickClientIp portable to api/_kv.ts
+// (which goes through _compat.getHeader instead).
+export function extractIp(headers: Headers): string | null {
+  return pickClientIp((name) => headers.get(name));
 }

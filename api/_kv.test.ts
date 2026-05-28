@@ -18,7 +18,18 @@ const {
   recordLeakEvent,
   getActiveLeaks,
   updateLeakLastAlertedAt,
+  hashIp,
 } = await import('./_kv.js');
+
+// Compute the SHA-256 hex of a string using the same primitive hashIp
+// uses (Web Crypto), so the IP-source assertions don't hardcode digests.
+async function sha256Hex(s: string): Promise<string> {
+  const bytes = new TextEncoder().encode(s);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 describe('logChatTurn — canary_leak field', () => {
   beforeEach(() => {
@@ -149,5 +160,44 @@ describe('updateLeakLastAlertedAt', () => {
       'leak:events',
       JSON.stringify({ ...entry, lastAlertedAt: 0 }),
     );
+  });
+});
+
+// hashIp must resolve to the same IP that _visitorCounter.extractIp
+// resolves to, so the rate-limit bucket and visitor counter key off
+// identical IPs for the same request. The header-precedence is shared
+// via pickClientIp; these tests assert the contract from hashIp's side.
+describe('hashIp (un-spoofable IP source)', () => {
+  it('hashes x-real-ip even when x-forwarded-for is spoofed — THE load-bearing regression test', async () => {
+    const req = {
+      headers: new Headers({
+        'x-forwarded-for': '1.1.1.1, 2.2.2.2, 203.0.113.45',
+        'x-real-ip': '203.0.113.45',
+      }),
+    };
+    expect(await hashIp(req)).toBe(await sha256Hex('203.0.113.45'));
+  });
+
+  it('hashes the LAST entry of x-forwarded-for when x-real-ip is absent', async () => {
+    const req = {
+      headers: new Headers({
+        'x-forwarded-for': '1.1.1.1, 2.2.2.2, 203.0.113.45',
+      }),
+    };
+    expect(await hashIp(req)).toBe(await sha256Hex('203.0.113.45'));
+  });
+
+  it('falls back to the LAST entry of x-vercel-forwarded-for', async () => {
+    const req = {
+      headers: new Headers({
+        'x-vercel-forwarded-for': '1.1.1.1, 198.51.100.7',
+      }),
+    };
+    expect(await hashIp(req)).toBe(await sha256Hex('198.51.100.7'));
+  });
+
+  it('hashes the literal "unknown" when no IP headers are present', async () => {
+    const req = { headers: new Headers() };
+    expect(await hashIp(req)).toBe(await sha256Hex('unknown'));
   });
 });

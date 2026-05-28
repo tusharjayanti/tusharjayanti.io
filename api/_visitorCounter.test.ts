@@ -71,21 +71,58 @@ describe('hashIpForVisitor', () => {
   });
 });
 
-describe('extractIp', () => {
-  it('reads the first IP from x-forwarded-for', () => {
+// Header-precedence semantics changed in fix/security-hardening: the
+// leftmost x-forwarded-for entry is attacker-controlled (client prepends
+// before Vercel appends), so the old "first IP wins" assertion was
+// recording a spoofing bug as expected behavior. The new contract:
+// 1) x-real-ip (un-spoofable, set from the connecting socket),
+// 2) last entry of x-forwarded-for,
+// 3) last entry of x-vercel-forwarded-for,
+// 4) null.
+describe('extractIp (un-spoofable IP source)', () => {
+  it('prefers x-real-ip over a spoofed x-forwarded-for — THE load-bearing regression test', () => {
+    // Client sends a forged x-forwarded-for; Vercel sets x-real-ip from
+    // the connecting socket. The trusted source MUST win.
     const h = new Headers({
-      'x-forwarded-for': '203.0.113.45, 10.0.0.1, 172.16.0.2',
+      'x-forwarded-for': '1.1.1.1, 2.2.2.2, 203.0.113.45',
+      'x-real-ip': '203.0.113.45',
     });
     expect(extractIp(h)).toBe('203.0.113.45');
   });
 
-  it('falls back to x-real-ip', () => {
+  it('reads the LAST entry of x-forwarded-for when x-real-ip is absent', () => {
+    // Vercel appends the real client IP to whatever the client sent,
+    // so the trailing entry is closest to the edge.
+    const h = new Headers({
+      'x-forwarded-for': '1.1.1.1, 2.2.2.2, 203.0.113.45',
+    });
+    expect(extractIp(h)).toBe('203.0.113.45');
+  });
+
+  it('handles a single-entry x-forwarded-for', () => {
+    const h = new Headers({ 'x-forwarded-for': '203.0.113.45' });
+    expect(extractIp(h)).toBe('203.0.113.45');
+  });
+
+  it('falls back to x-real-ip when present alone', () => {
     const h = new Headers({ 'x-real-ip': '198.51.100.7' });
+    expect(extractIp(h)).toBe('198.51.100.7');
+  });
+
+  it('falls back to the LAST entry of x-vercel-forwarded-for when both x-real-ip and x-forwarded-for are absent', () => {
+    const h = new Headers({
+      'x-vercel-forwarded-for': '1.1.1.1, 198.51.100.7',
+    });
     expect(extractIp(h)).toBe('198.51.100.7');
   });
 
   it('returns null when no IP headers are present', () => {
     expect(extractIp(new Headers())).toBeNull();
+  });
+
+  it('returns null on whitespace-only / empty-entry headers', () => {
+    const h = new Headers({ 'x-forwarded-for': ',  ,  ,' });
+    expect(extractIp(h)).toBeNull();
   });
 });
 
