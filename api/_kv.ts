@@ -1,5 +1,6 @@
 import { Redis } from '@upstash/redis';
 import { getHeader } from './_compat.js';
+import { pickClientIp } from './_visitorCounter.js';
 
 const redis = Redis.fromEnv();
 
@@ -14,10 +15,10 @@ function todayUtc(): string {
 }
 
 export async function hashIp(req: unknown): Promise<string> {
-  const fwd = getHeader(req, 'x-forwarded-for');
-  const ip = fwd
-    ? fwd.split(',')[0].trim()
-    : (getHeader(req, 'x-real-ip') ?? 'unknown');
+  // Shared header-precedence with extractIp in _visitorCounter so the
+  // rate-limiter and visitor-counter resolve to identical IPs for the
+  // same request. See pickClientIp for the un-spoofable lookup order.
+  const ip = pickClientIp((name) => getHeader(req, name) ?? null) ?? 'unknown';
   const bytes = new TextEncoder().encode(ip);
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest))

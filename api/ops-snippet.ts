@@ -17,6 +17,7 @@
 
 import type { VercelRequest, VercelResponse } from './_types.js';
 import { Redis } from '@upstash/redis';
+import { timingSafeBearerMatch } from './_authBearer.js';
 import {
   LOCK_KEY,
   OFFLINE_SNIPPET,
@@ -63,8 +64,9 @@ async function handleDelete(
     res.status(503).send('CRON_SECRET not configured');
     return;
   }
-  const auth = req.headers['authorization'];
-  if (auth !== `Bearer ${expected}`) {
+  // Constant-time compare via node:crypto.timingSafeEqual (under the
+  // hood). The webhook + cron-digest use the same helper.
+  if (!timingSafeBearerMatch(req.headers['authorization'], expected)) {
     res.status(401).send('unauthorized');
     return;
   }
