@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "description": "Retrieval-quality queries for the three-tool RAG pipeline. Each query specifies the target source (which of search_experience / search_resume / search_readme runs) and the chunks that should appear in the top-K, plus one or more tags for slicing aggregate metrics. Lifted verbatim from the pre-M3 evals/retrieval/queries.json (M3 Phase 1a); query IDs preserved.",
+    "description": "Retrieval-quality queries for the three-tool RAG pipeline. Each query specifies the target source (which of search_experience / search_resume / search_readme runs) and the chunks that should appear in the top-K, plus one or more tags for slicing aggregate metrics. Lifted verbatim from the pre-M3 evals/retrieval/queries.json (M3 Phase 1a); query IDs preserved. M3 Phase 1b added 9 architecture queries (arch-001..arch-009) targeting the tusharjayanti.io README, tagged 'architecture'.",
     "schema_version": 1,
     "scoring": {
       "default": "any correct_chunk in top-K → success",
@@ -512,6 +512,166 @@
         }
       ],
       "tags": ["cross-source", "realistic"]
+    },
+    {
+      "id": "arch-001",
+      "query": "How does the chat handler cache prompts to reduce cost?",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "readme",
+      "correct_chunks": [
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 6
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 7
+        }
+      ],
+      "tags": ["realistic", "architecture", "readme"]
+    },
+    {
+      "id": "arch-002",
+      "query": "What's captured in a Langfuse trace per chat turn?",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "readme",
+      "correct_chunks": [
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 8
+        }
+      ],
+      "tags": ["realistic", "architecture", "readme"]
+    },
+    {
+      "id": "arch-003",
+      "query": "What tags does the chat trace taxonomy use?",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "readme",
+      "correct_chunks": [
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 9
+        }
+      ],
+      "tags": ["realistic", "architecture", "readme"]
+    },
+    {
+      "id": "arch-004",
+      "query": "How does the site defend against prompt injection attacks?",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "readme",
+      "correct_chunks": [
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 4
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 5
+        }
+      ],
+      "tags": ["realistic", "architecture", "readme"]
+    },
+    {
+      "id": "arch-005",
+      "query": "What's planned for the /ops dashboard?",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "readme",
+      "correct_chunks": [
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 10
+        }
+      ],
+      "tags": ["realistic", "architecture", "readme"]
+    },
+    {
+      "id": "arch-006",
+      "query": "What RAG features ship in tusharjayanti.io today?",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "readme",
+      "correct_chunks": [
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 12
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 14
+        }
+      ],
+      "tags": ["realistic", "architecture", "readme"]
+    },
+    {
+      "id": "arch-007",
+      "query": "Why is there no admin dashboard or feature flag system?",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "readme",
+      "correct_chunks": [
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 13
+        }
+      ],
+      "tags": ["realistic", "architecture", "readme"]
+    },
+    {
+      "id": "arch-008",
+      "query": "how does the site keep API costs down",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "readme",
+      "correct_chunks": [
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 6
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 7
+        }
+      ],
+      "tags": ["vocabulary-poor", "architecture", "readme"]
+    },
+    {
+      "id": "arch-009",
+      "query": "what monitoring is built in",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "readme",
+      "correct_chunks": [
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 8
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 9
+        }
+      ],
+      "tags": ["vocabulary-poor", "architecture", "readme"]
     }
   ]
 }
