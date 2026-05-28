@@ -151,6 +151,7 @@ I send must match what Langfuse's pricing registry knows about.
 differently, watch for the cost column going to zero in the UI.
 
 **Trace volume.** Hobby tier is generous but not infinite. At
-real traffic levels I'll need to revisit whether every chat
-becomes a trace, or whether I sample. Not a problem today —
-volume is roughly "me testing" plus "occasional visitor."
+higher traffic levels I'll need to revisit whether every chat
+becomes a trace, or whether I sample. Not a problem at current
+volume — the Hobby tier's per-month allowance has substantial
+headroom for a portfolio-scale site.

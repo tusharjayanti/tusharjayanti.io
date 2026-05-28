@@ -6,11 +6,14 @@ Vercel Edge Middleware (`middleware.ts`) that runs on `/` and
 `/terminal` page loads and HSETs the visitor's hashed IP into a
 day-keyed Redis hash (`ops:visitors:YYYY-MM-DD`).
 
-Raw IPs are never stored. The middleware reads
-`x-forwarded-for` / `x-real-ip` / `x-vercel-forwarded-for`, takes the
-SHA-256, and truncates the digest to the first 16 hex chars before
-the value reaches Redis. Hashing happens in-process and the raw IP
-is never written to any log, trace, or third-party system. The
+Raw IPs are never stored. The middleware resolves the client IP
+using an un-spoofable precedence — `x-real-ip` (set by Vercel from
+the connecting socket) preferred over `x-forwarded-for` and
+`x-vercel-forwarded-for` (where the leftmost entry is
+client-controlled, so the trailing entry is read instead). The
+resolved IP is SHA-256-hashed and truncated to the first 16 hex
+chars before it reaches Redis. Hashing happens in-process and the
+raw IP is never written to any log, trace, or third-party system. The
 day-keyed hash itself carries an 8-day TTL (7-day visibility window
 plus a 1-day buffer), so the truncated hash is gone within a week of
 the last visit. The Vercel platform logs do retain the source IP per
@@ -28,16 +31,5 @@ this in plain language for visitors.
 ## Ops endpoints
 
 `GET /api/ops-snippet` — returns the aggregated metrics blob the
-widget renders. Public, no auth, caches its own work in Redis for
-5 minutes.
-
-`DELETE /api/ops-snippet` — admin-only cache invalidation. Drops the
-cached snippet (`ops:snippet:v1`) and any in-flight rebuild lock
-(`ops:snippet:lock`). Used by the on-demand lock-contention test
-(`scripts/test/lock-contention.ts`) to guarantee a cache-miss before
-firing the concurrent batch. Auth header:
-`Authorization: Bearer ${CRON_SECRET}`. 401 on missing or wrong
-secret; 204 on success.
-
-Both methods land on the same Vercel route — `api/ops-snippet.ts` —
-which dispatches on `req.method`.
+terminal page's ops widget renders. Public, no auth, caches its own
+work in Redis for 5 minutes.

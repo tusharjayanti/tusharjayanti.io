@@ -8,7 +8,7 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-export type ChunkSource = 'experience' | 'readme' | 'resume';
+export type ChunkSource = 'docs' | 'experience' | 'readme' | 'resume';
 
 // Mirrors the chunks table schema (supabase/migrations/0001_init_chunks.sql
 // + 0005_chunks_embedding_text.sql). `tsv` is a generated tsvector column —

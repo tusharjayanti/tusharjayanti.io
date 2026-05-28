@@ -44,6 +44,12 @@ export function chunkMarkdown(
     case 'resume':
       return chunkHierarchical(content);
     case 'readme':
+    case 'docs':
+      // Sliding-window for docs: hierarchical would silently drop H2-only
+      // content (every ADR's Context/Decision/Consequences, all of
+      // privacy.md). README ingest uses the same primitive but goes
+      // through ingestReadme for the Haiku summary; docs are first-party
+      // content and skip the summary, calling ingestMarkdownSource directly.
       return chunkSlidingWindow(content);
     default: {
       const _exhaustive: never = source;
