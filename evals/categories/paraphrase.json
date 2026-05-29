@@ -1,0 +1,188 @@
+{
+  "_meta": {
+    "description": "Paraphrase behavioral category (M3 Phase 1b safe-three). Same-answer-different-wording variants of canonical retrieval queries — tests vocabulary robustness. Each entry carries `paraphrase_of` pointing to its canonical query in rag-retrieval.json; labels are denormalized (copied from the canonical's correct_chunks) so the runner needs no resolver. para-001..004 are migrations of Q4/Q7/Q9/Q8 from rag-retrieval.json — those four were vocabulary-poor/adversarial paraphrases of Q1 (vox-agent cluster) and Q2 (calculator-agent cluster) that bloated rag-retrieval; preserved here with original tag character (adversarial, vocabulary-poor) so the per-tag breakdown stays faithful. para-005..007 are new authorings — each verified against live three-tool retrieval before adding (top-K under match_chunks with the canonical's source_filter contains the canonical labels). The `paraphrase` tag is added on every entry for per-tag visibility.",
+    "schema_version": 1,
+    "scoring": {
+      "default": "any correct_chunk in top-K → success (same rule as rag-retrieval)"
+    }
+  },
+  "queries": [
+    {
+      "id": "para-001",
+      "query": "what makes the customer-support agent reliable",
+      "result_type": "retrieval",
+      "category": "paraphrase",
+      "target_source": "readme",
+      "paraphrase_of": "Q1",
+      "correct_chunks": [
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0
+        }
+      ],
+      "tags": ["paraphrase", "adversarial", "vocabulary-poor", "readme"]
+    },
+    {
+      "id": "para-002",
+      "query": "Tell me how vox-agent catches AI mistakes",
+      "result_type": "retrieval",
+      "category": "paraphrase",
+      "target_source": "readme",
+      "paraphrase_of": "Q1",
+      "correct_chunks": [
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0
+        }
+      ],
+      "tags": ["paraphrase", "realistic", "vocabulary-poor", "readme"]
+    },
+    {
+      "id": "para-003",
+      "query": "show me the AI evaluation project",
+      "result_type": "retrieval",
+      "category": "paraphrase",
+      "target_source": "readme",
+      "paraphrase_of": "Q1",
+      "correct_chunks": [
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 1
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/vox-agent",
+          "chunk_index": 0
+        }
+      ],
+      "tags": ["paraphrase", "vocabulary-poor", "readme"]
+    },
+    {
+      "id": "para-004",
+      "query": "How is calculator-agent structured?",
+      "result_type": "retrieval",
+      "category": "paraphrase",
+      "target_source": "readme",
+      "paraphrase_of": "Q2",
+      "correct_chunks": [
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 0
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/calculator-agent",
+          "chunk_index": 2
+        }
+      ],
+      "tags": ["paraphrase", "realistic", "vocabulary-poor", "readme"]
+    },
+    {
+      "id": "para-005",
+      "query": "tell me about my time at DISCO Inc.",
+      "result_type": "retrieval",
+      "category": "paraphrase",
+      "target_source": "experience",
+      "paraphrase_of": "Q6",
+      "correct_chunks": [
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 0
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 1
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 2
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 3
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 4
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 5
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 6
+        }
+      ],
+      "tags": ["paraphrase", "realistic", "experience"]
+    },
+    {
+      "id": "para-006",
+      "query": "walk me through the PurpleToko buildout",
+      "result_type": "retrieval",
+      "category": "paraphrase",
+      "target_source": "experience",
+      "paraphrase_of": "Q21",
+      "correct_chunks": [
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 7
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 8
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 9
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 10
+        }
+      ],
+      "tags": ["paraphrase", "realistic", "experience"]
+    },
+    {
+      "id": "para-007",
+      "query": "how is the shortlist agent system architected",
+      "result_type": "retrieval",
+      "category": "paraphrase",
+      "target_source": "readme",
+      "paraphrase_of": "Q11",
+      "correct_chunks": [
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 0
+        }
+      ],
+      "tags": ["paraphrase", "realistic", "readme"]
+    }
+  ]
+}

@@ -127,8 +127,11 @@ type ChunkRef = {
 type Query = {
   id: string;
   query: string;
-  target_source: 'experience' | 'resume' | 'readme' | 'docs';
-  correct_chunks: ChunkRef[];
+  // Required for retrieval-type queries (drives processRetrievalQuery's
+  // source_filter and is asserted at the start of that function); not
+  // used by the assertion path, so off-topic.json omits both fields.
+  target_source?: 'experience' | 'resume' | 'readme' | 'docs';
+  correct_chunks?: ChunkRef[];
   tags: string[];
   // M3 Phase 1a category-file fields. Present in the new structure; not
   // used by this runner's scoring (tags drive scoring; result_type is for
@@ -137,6 +140,10 @@ type Query = {
   category?: string;
   // Assertion-type queries (Phase 1b) carry their assertion list here.
   assertions?: Assertion[];
+  // M3 Phase 1b paraphrase entries carry this pointing at the canonical
+  // query ID they paraphrase. Documentation-only today; not read by the
+  // runner. Declared on the type so typos surface in tooling.
+  paraphrase_of?: string;
 };
 
 type Dataset = {
@@ -187,15 +194,27 @@ type PerQueryResult = {
 };
 
 // M3 Phase 1a: the eval set lives as per-category files under
-// evals/categories/. This runner scores retrieval-type categories only
-// (rag-retrieval + absent-facts); assertion categories authored in Phase
-// 1b are handled by the Phase 3 assertion engine, not here. Queries are
+// evals/categories/. This runner dispatches by `result_type`:
+// retrieval-type queries go through `processRetrievalQuery` (scored
+// against match_chunks); assertion-type queries go through
+// `processAssertionQuery` and the Phase 3 assertion engine. Phase 1b
+// adds off-topic.json (assertion-type, dormant until Phase 4 wires the
+// chat endpoint) and paraphrase.json (retrieval-type). Queries are
 // merged and re-sorted into their original Q-order so result files stay
-// diff-comparable with pre-migration runs.
+// diff-comparable with pre-migration runs. The sort key strips the
+// first character and parses the rest as a number; works for `Q1`/`Q31`
+// and produces NaN-comparators for `arch-NNN`/`mf-NNN`/`para-NNN`/
+// `ot-NNN` (treated as zero-difference → stable insertion order).
+// Cosmetic only; see Followup #92 for the fix.
 async function loadDataset(): Promise<Dataset> {
   const here = dirname(fileURLToPath(import.meta.url));
   const categoriesDir = resolvePath(here, '..', '..', 'evals', 'categories');
-  const files = ['rag-retrieval.json', 'absent-facts.json'];
+  const files = [
+    'rag-retrieval.json',
+    'absent-facts.json',
+    'off-topic.json',
+    'paraphrase.json',
+  ];
   const queries: Query[] = [];
   for (const file of files) {
     const raw = await readFile(resolvePath(categoriesDir, file), 'utf-8');
@@ -215,6 +234,9 @@ function isChunkCorrect(row: MatchRow, correct: ChunkRef[]): boolean {
   });
 }
 
+// scoreQuery is only called from processRetrievalQuery, which guards
+// that `target_source` and `correct_chunks` are both defined before
+// dispatch. Within scoreQuery we treat them as definite.
 function scoreQuery(
   q: Query,
   rows: MatchRow[],
@@ -222,6 +244,8 @@ function scoreQuery(
 ): PerQueryResult {
   const isCrossSource = q.tags.includes('cross-source');
   const isOutOfCorpus = q.tags.includes('out-of-corpus');
+  const correctChunks = q.correct_chunks ?? [];
+  const targetSource = q.target_source ?? '';
 
   // Decorate every retrieved chunk with correctness + above-floor
   // markers. Cosine similarity = 1 - semantic_distance; null when the
@@ -240,7 +264,7 @@ function scoreQuery(
       score: r.score,
       semantic_distance: r.semantic_distance,
       cosine_similarity: cosine,
-      is_correct: isChunkCorrect(r, q.correct_chunks),
+      is_correct: isChunkCorrect(r, correctChunks),
       above_floor: cosine !== null && cosine >= threshold,
     };
   });
@@ -257,7 +281,7 @@ function scoreQuery(
     return {
       id: q.id,
       query: q.query,
-      target_source: q.target_source,
+      target_source: targetSource,
       tags: q.tags,
       retrieved,
       retrieval_at_1: null,
@@ -277,7 +301,7 @@ function scoreQuery(
   const correctInTopK = (k: number): boolean => {
     const slice = visibleToModel.slice(0, k).filter((r) => r.is_correct);
     if (isCrossSource) {
-      return q.correct_chunks.every((c) =>
+      return correctChunks.every((c) =>
         slice.some(
           (r) =>
             r.source === c.source &&
@@ -296,7 +320,7 @@ function scoreQuery(
   return {
     id: q.id,
     query: q.query,
-    target_source: q.target_source,
+    target_source: targetSource,
     tags: q.tags,
     retrieved,
     retrieval_at_1: correctInTopK(1),
@@ -506,6 +530,10 @@ type QueryOutcome =
     };
 
 // Retrieval-type query: match_chunks (+ optional rerank) then score.
+// Both `target_source` and `correct_chunks` are required here; they're
+// declared optional on Query because assertion-type queries (off-topic)
+// don't carry them. A retrieval-type entry missing either is an author
+// error — surface it loudly rather than silently scoring against junk.
 async function processRetrievalQuery(
   q: Query,
   emb: number[],
@@ -514,6 +542,12 @@ async function processRetrievalQuery(
   rerank: boolean,
   supabase: ReturnType<typeof getSupabaseClient>,
 ): Promise<PerQueryResult> {
+  if (!q.target_source) {
+    throw new Error(`retrieval query ${q.id} missing target_source`);
+  }
+  if (!q.correct_chunks) {
+    throw new Error(`retrieval query ${q.id} missing correct_chunks`);
+  }
   const rpcName =
     mode === 'three-tool' ? 'match_chunks' : 'match_chunks_unified';
   const rpcArgs: Record<string, unknown> =
@@ -705,13 +739,16 @@ async function main(): Promise<void> {
   // (spec §7.2), covering retrieval + assertion + error outcomes.
   const env = await gatherEnvMetadata();
   const baseline = await loadBaseline();
+  // Consistent fallback with the error-outcome category resolution above
+  // (lines 644/664 use 'unknown'). Every query in every category file
+  // sets `category` explicitly, so the fallback is purely defensive.
   const categoryById = new Map<string, string>(
-    dataset.queries.map((q) => [q.id, q.category ?? 'rag-retrieval']),
+    dataset.queries.map((q) => [q.id, q.category ?? 'unknown']),
   );
   const runtimeSeconds = (Date.now() - startedAt) / 1000;
 
   const retrievalEntries: PerQueryResultEntry[] = retrievalResults.map((r) =>
-    toPerQueryEntry(r, categoryById.get(r.id) ?? 'rag-retrieval'),
+    toPerQueryEntry(r, categoryById.get(r.id) ?? 'unknown'),
   );
   const assertionEntries: PerQueryResultEntry[] = assertionOutcomes.map(
     (o) => ({

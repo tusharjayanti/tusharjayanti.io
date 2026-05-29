@@ -1,9 +1,9 @@
 {
   "version": "1.0.0",
-  "content_sha": "6859c3c66535a8639566edf0b798dd2e7486f1dfb7ef4a116472dccb85b9e3b8",
-  "categories": ["rag-retrieval", "absent-facts"],
-  "total_queries": 43,
+  "content_sha": "87569d8dc12954653766402d9d0d3350723495b3e5bdd672f944f8ab9ead3ad4",
+  "categories": ["rag-retrieval", "absent-facts", "off-topic", "paraphrase"],
+  "total_queries": 54,
   "llm_judge_query_count": 0,
   "llm_judge_proportion": 0,
-  "generated_at": "2026-05-29T05:23:04Z"
+  "generated_at": "2026-05-29T17:25:46Z"
 }
