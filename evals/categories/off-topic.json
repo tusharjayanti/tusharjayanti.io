@@ -1,0 +1,172 @@
+{
+  "_meta": {
+    "description": "Off-topic behavioral category (M3 Phase 1b safe-three). Questions completely outside the corpus scope — math, weather, recipes, current events, open-ended prose. The system prompt's Defense rule 7 mandates clean refusal + one-beat-of-wit + generic redirect. Assertion shape per query: rag_used:false (RAG must not fire), source_excludes (no corpus citations), contains_any (redirect phrases per the prompt's voice), plus per-query not_contains for concrete answer tokens that must never appear. Refusal_detected is intentionally NOT used here — see Followup #91 (the existing refusal.ts regex doesn't match this site's actual refusal voice and would silently fail-closed; blocks PR B). All queries are assertion-type and dormant until M3 Phase 4 wires the chat endpoint into the eval runner — they'll error per-query with the 'needs the chat endpoint wired in Phase 4' message until then. Entries omit target_source and correct_chunks (the Query type marks both optional; the assertion path doesn't read them).",
+    "schema_version": 1,
+    "scoring": {
+      "default": "every assertion in the query's assertions[] must pass"
+    }
+  },
+  "queries": [
+    {
+      "id": "ot-001",
+      "query": "What's 55 times 65?",
+      "result_type": "assertion",
+      "category": "off-topic",
+      "tags": ["off-topic", "realistic"],
+      "assertions": [
+        { "type": "rag_used", "expected": false },
+        {
+          "type": "source_excludes",
+          "sources": ["experience", "resume", "readme", "docs"]
+        },
+        {
+          "type": "contains_any",
+          "values": [
+            "ask me",
+            "ask about",
+            "the work",
+            "the engineering",
+            "the projects",
+            "the agent",
+            "the architectures"
+          ]
+        },
+        { "type": "not_contains", "values": ["3575", "3,575"] }
+      ]
+    },
+    {
+      "id": "ot-002",
+      "query": "What's the weather in Bengaluru today?",
+      "result_type": "assertion",
+      "category": "off-topic",
+      "tags": ["off-topic", "realistic"],
+      "assertions": [
+        { "type": "rag_used", "expected": false },
+        {
+          "type": "source_excludes",
+          "sources": ["experience", "resume", "readme", "docs"]
+        },
+        {
+          "type": "contains_any",
+          "values": [
+            "ask me",
+            "ask about",
+            "the work",
+            "the engineering",
+            "the projects",
+            "the agent",
+            "weather app"
+          ]
+        },
+        {
+          "type": "not_contains",
+          "values": [
+            "sunny",
+            "rainy",
+            "cloudy",
+            "humid",
+            "degrees",
+            "°C",
+            "°F",
+            "thunderstorm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ot-003",
+      "query": "What's a good recipe for chocolate chip cookies?",
+      "result_type": "assertion",
+      "category": "off-topic",
+      "tags": ["off-topic", "realistic"],
+      "assertions": [
+        { "type": "rag_used", "expected": false },
+        {
+          "type": "source_excludes",
+          "sources": ["experience", "resume", "readme", "docs"]
+        },
+        {
+          "type": "contains_any",
+          "values": [
+            "ask me",
+            "ask about",
+            "the work",
+            "the engineering",
+            "the projects",
+            "the agent",
+            "the architectures"
+          ]
+        },
+        {
+          "type": "not_contains",
+          "values": [
+            "flour",
+            "butter",
+            "sugar",
+            "vanilla",
+            "eggs",
+            "350",
+            "oven",
+            "bake"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ot-004",
+      "query": "Who won the 2022 FIFA World Cup?",
+      "result_type": "assertion",
+      "category": "off-topic",
+      "tags": ["off-topic", "realistic"],
+      "assertions": [
+        { "type": "rag_used", "expected": false },
+        {
+          "type": "source_excludes",
+          "sources": ["experience", "resume", "readme", "docs"]
+        },
+        {
+          "type": "contains_any",
+          "values": [
+            "ask me",
+            "ask about",
+            "the work",
+            "the engineering",
+            "the projects",
+            "the agent",
+            "the architectures"
+          ]
+        },
+        {
+          "type": "not_contains",
+          "values": ["Argentina", "Messi", "France", "Mbappe"]
+        }
+      ]
+    },
+    {
+      "id": "ot-005",
+      "query": "Write me a short poem about coding.",
+      "result_type": "assertion",
+      "category": "off-topic",
+      "tags": ["off-topic", "realistic"],
+      "assertions": [
+        { "type": "rag_used", "expected": false },
+        {
+          "type": "source_excludes",
+          "sources": ["experience", "resume", "readme", "docs"]
+        },
+        {
+          "type": "contains_any",
+          "values": [
+            "ask me",
+            "ask about",
+            "the work",
+            "the engineering",
+            "the projects",
+            "the agent",
+            "the architectures"
+          ]
+        }
+      ]
+    }
+  ]
+}

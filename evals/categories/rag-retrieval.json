@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "description": "Retrieval-quality queries for the three-tool RAG pipeline. Each query specifies the target source (which of search_experience / search_resume / search_readme runs) and the chunks that should appear in the top-K, plus one or more tags for slicing aggregate metrics. Lifted verbatim from the pre-M3 evals/retrieval/queries.json (M3 Phase 1a); query IDs preserved. M3 Phase 1b added 9 architecture queries (arch-001..arch-009) targeting the tusharjayanti.io README, tagged 'architecture'; arch-010..arch-012 target the docs/ corpus (RAG architecture writeup + reranker-temperature ADR) and were unblocked by the docs/ ingestion (PR #19).",
+    "description": "Retrieval-quality queries for the three-tool RAG pipeline. Each query specifies the target source (which of search_experience / search_resume / search_readme runs) and the chunks that should appear in the top-K, plus one or more tags for slicing aggregate metrics. Lifted verbatim from the pre-M3 evals/retrieval/queries.json (M3 Phase 1a); query IDs preserved. M3 Phase 1b added architecture queries arch-001..arch-009 (README, PR #18) + arch-010..arch-012 (docs corpus, PR #20). M3 Phase 1b safe-three (PR A): Q5 dropped (labels never retrieved cleanly under any rewrite), Q30 relabeled to the actively-built project chunks (#10/#11/#12) and `vocabulary-poor` tag dropped, Q4/Q7/Q9 (vox-agent cluster) and Q8 (calculator-agent cluster) migrated to paraphrase.json. mf-001..mf-004 added — cross-source multi-facet queries tagged ['multi-facet','cross-source','realistic']. Cross-source carries the strict-ALL rule, so multi-facet queries are EXPECTED to fail under three-tool baseline (mirrors Q31's precedent) and pass under match_chunks_unified.",
     "schema_version": 1,
     "scoring": {
       "default": "any correct_chunk in top-K → success",
@@ -69,51 +69,6 @@
       "tags": ["realistic", "readme"]
     },
     {
-      "id": "Q4",
-      "query": "what makes the customer-support agent reliable",
-      "result_type": "retrieval",
-      "category": "rag-retrieval",
-      "target_source": "readme",
-      "correct_chunks": [
-        {
-          "source": "readme",
-          "source_id": "tusharjayanti/vox-agent",
-          "chunk_index": 1
-        },
-        {
-          "source": "readme",
-          "source_id": "tusharjayanti/vox-agent",
-          "chunk_index": 0
-        }
-      ],
-      "tags": ["adversarial", "vocabulary-poor", "readme"]
-    },
-    {
-      "id": "Q5",
-      "query": "how does this project handle errors",
-      "result_type": "retrieval",
-      "category": "rag-retrieval",
-      "target_source": "readme",
-      "correct_chunks": [
-        {
-          "source": "readme",
-          "source_id": "tusharjayanti/vox-agent",
-          "chunk_index": 1
-        },
-        {
-          "source": "readme",
-          "source_id": "tusharjayanti/tusharjayanti.io",
-          "chunk_index": 12
-        },
-        {
-          "source": "readme",
-          "source_id": "tusharjayanti/tusharjayanti.io",
-          "chunk_index": 5
-        }
-      ],
-      "tags": ["adversarial", "readme"]
-    },
-    {
       "id": "Q6",
       "query": "Tushar's experience at DISCO",
       "result_type": "retrieval",
@@ -157,66 +112,6 @@
         }
       ],
       "tags": ["realistic", "experience"]
-    },
-    {
-      "id": "Q7",
-      "query": "Tell me how vox-agent catches AI mistakes",
-      "result_type": "retrieval",
-      "category": "rag-retrieval",
-      "target_source": "readme",
-      "correct_chunks": [
-        {
-          "source": "readme",
-          "source_id": "tusharjayanti/vox-agent",
-          "chunk_index": 1
-        },
-        {
-          "source": "readme",
-          "source_id": "tusharjayanti/vox-agent",
-          "chunk_index": 0
-        }
-      ],
-      "tags": ["realistic", "vocabulary-poor", "readme"]
-    },
-    {
-      "id": "Q8",
-      "query": "How is calculator-agent structured?",
-      "result_type": "retrieval",
-      "category": "rag-retrieval",
-      "target_source": "readme",
-      "correct_chunks": [
-        {
-          "source": "readme",
-          "source_id": "tusharjayanti/calculator-agent",
-          "chunk_index": 0
-        },
-        {
-          "source": "readme",
-          "source_id": "tusharjayanti/calculator-agent",
-          "chunk_index": 2
-        }
-      ],
-      "tags": ["realistic", "vocabulary-poor", "readme"]
-    },
-    {
-      "id": "Q9",
-      "query": "show me the AI evaluation project",
-      "result_type": "retrieval",
-      "category": "rag-retrieval",
-      "target_source": "readme",
-      "correct_chunks": [
-        {
-          "source": "readme",
-          "source_id": "tusharjayanti/vox-agent",
-          "chunk_index": 0
-        },
-        {
-          "source": "readme",
-          "source_id": "tusharjayanti/vox-agent",
-          "chunk_index": 1
-        }
-      ],
-      "tags": ["vocabulary-poor", "readme"]
     },
     {
       "id": "Q10",
@@ -488,9 +383,11 @@
       "category": "rag-retrieval",
       "target_source": "resume",
       "correct_chunks": [
-        { "source": "resume", "source_id": "resume.md", "chunk_index": 0 }
+        { "source": "resume", "source_id": "resume.md", "chunk_index": 10 },
+        { "source": "resume", "source_id": "resume.md", "chunk_index": 11 },
+        { "source": "resume", "source_id": "resume.md", "chunk_index": 12 }
       ],
-      "tags": ["vocabulary-poor", "resume"]
+      "tags": ["realistic", "resume"]
     },
     {
       "id": "Q31",
@@ -727,6 +624,82 @@
         }
       ],
       "tags": ["realistic", "architecture", "docs"]
+    },
+    {
+      "id": "mf-001",
+      "query": "How did Tushar reduce p99 latency at DISCO and what AI projects has he shipped?",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "experience",
+      "correct_chunks": [
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 3
+        },
+        { "source": "resume", "source_id": "resume.md", "chunk_index": 10 }
+      ],
+      "tags": ["multi-facet", "cross-source", "realistic"]
+    },
+    {
+      "id": "mf-002",
+      "query": "Tell me about Tushar's founding engineer experience and how the portfolio site works.",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "experience",
+      "correct_chunks": [
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 10
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/tusharjayanti.io",
+          "chunk_index": 1
+        }
+      ],
+      "tags": ["multi-facet", "cross-source", "realistic"]
+    },
+    {
+      "id": "mf-003",
+      "query": "Tushar's Reserve Release feature at Transcend and how shortlist scores jobs",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "experience",
+      "correct_chunks": [
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 11
+        },
+        {
+          "source": "readme",
+          "source_id": "tusharjayanti/shortlist",
+          "chunk_index": 1
+        }
+      ],
+      "tags": ["multi-facet", "cross-source", "realistic"]
+    },
+    {
+      "id": "mf-004",
+      "query": "How did Tushar reduce p99 latency at DISCO and how does the portfolio chat use Langfuse?",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "experience",
+      "correct_chunks": [
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 3
+        },
+        {
+          "source": "docs",
+          "source_id": "docs/decisions/0001-observability-foundation.md",
+          "chunk_index": 3
+        }
+      ],
+      "tags": ["multi-facet", "cross-source", "realistic"]
     }
   ]
 }
