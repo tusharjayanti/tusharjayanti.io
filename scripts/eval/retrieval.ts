@@ -119,7 +119,7 @@ function parseThreshold(): number {
 }
 
 type ChunkRef = {
-  source: 'experience' | 'resume' | 'readme';
+  source: 'experience' | 'resume' | 'readme' | 'docs';
   source_id?: string;
   chunk_index: number;
 };
@@ -127,7 +127,7 @@ type ChunkRef = {
 type Query = {
   id: string;
   query: string;
-  target_source: 'experience' | 'resume' | 'readme';
+  target_source: 'experience' | 'resume' | 'readme' | 'docs';
   correct_chunks: ChunkRef[];
   tags: string[];
   // M3 Phase 1a category-file fields. Present in the new structure; not
