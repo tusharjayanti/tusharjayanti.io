@@ -1,4 +1,4 @@
-// rag_used (§6.3) — whether RAG (any search_* tool) was invoked for the
+// rag_used — whether RAG (any search_* tool) was invoked for the
 // turn. Used by off-topic queries to assert RAG was skipped.
 
 import type { AssertionResult, ResponseContext } from './types.js';

@@ -4,8 +4,8 @@
 // length-mismatch HMAC gotcha and the wrong-HTTP-method case.
 //
 // Mock shape matches VercelRequest/VercelResponse rather than Web
-// Request/Response, after sub-spec 3's runtime-mismatch fix realigned
-// the handler with the canonical Node-serverless function signature.
+// Request/Response, after the runtime-mismatch fix realigned the
+// handler with the canonical Node-serverless function signature.
 // `req.headers` is a plain object with lowercase keys; `req.text()`
 // is included on the mock so the readRawBody short-circuit fires and
 // tests don't have to async-iterate. `res.status/.send/.end` are

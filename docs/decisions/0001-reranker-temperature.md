@@ -11,13 +11,13 @@ verdicts on retrieved candidate chunks. Each rerank request
 calls Claude Haiku once with a batch of chunks and parses the
 yes/no verdicts from a structured output.
 
-While designing M3 (eval-gated CI), I discovered the reranker
+While designing the eval-gated CI, I discovered the reranker
 call runs at the Anthropic SDK default temperature (1.0) — no
 temperature parameter is explicitly set. This makes verdicts
 non-deterministic: identical inputs can produce different
 verdicts run-to-run.
 
-This matters for M3 because eval metrics (retrieval@1,
+This matters because eval metrics (retrieval@1,
 retrieval@5, MRR, OOC firing rate) computed against a
 non-deterministic judge will drift between runs even without
 code changes. CI gates against drifting metrics produce either
@@ -37,7 +37,7 @@ client-side parameter controls.
 
 I'm pinning anyway because it's a small, low-risk change that
 removes ~50% of eval-time variance at zero measured quality
-cost. M3 threshold design will account for the residual via
+cost. The threshold design accounts for the residual via
 tolerance bands, not absolute thresholds.
 
 ## Options considered
@@ -47,7 +47,7 @@ tolerance bands, not absolute thresholds.
 - Pros: Halves eval drift. Consistent visitor experience (same
   query produces same answer). Zero quality regression measured.
 - Cons: Bakes Haiku's borderline-case biases in. Doesn't
-  eliminate eval drift; M3 still needs tolerance bands.
+  eliminate eval drift; the eval gate still needs tolerance bands.
 
 ### Option B — Leave at SDK default (T=1.0)
 
@@ -55,7 +55,7 @@ tolerance bands, not absolute thresholds.
   across calls — for production traffic, the "true" model
   distribution shows through over many queries.
 - Cons: 7.7pp drift between back-to-back eval runs (measured).
-  Inconsistent visitor experience. M3 thresholds either need
+  Inconsistent visitor experience. Eval thresholds either need
   large tolerance bands or relative-to-baseline gates with
   wide margins.
 
@@ -147,7 +147,7 @@ noise from ~3.85pp to ~2.17pp.
   the same query over time. Previously, repeated queries could
   produce different chunk subsets and slightly different
   generated answers.
-- M3 eval-gated CI design must use tolerance bands (e.g.,
+- Eval-gated CI design must use tolerance bands (e.g.,
   "retrieval@5 must not drop more than N pp below baseline")
   rather than absolute thresholds. The tolerance N must
   accommodate the observed ~4pp quantized noise at T=0,

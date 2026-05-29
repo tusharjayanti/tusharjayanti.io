@@ -1,7 +1,7 @@
-// Unit tests for the M3 result writer (scripts/eval/result-writer.ts).
-// Node-env, no network: each test writes into a fresh temp directory and
-// reads back, using a fixture EvalResult. Exercises the §7.3 contract and
-// the §9.2 bootstrap (null-baseline) behavior.
+// Unit tests for the result writer (scripts/eval/result-writer.ts).
+// Node-env, no network: each test writes into a fresh temp directory
+// and reads back, using a fixture EvalResult. Exercises the writer
+// contract and the bootstrap (null-baseline) behavior.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';

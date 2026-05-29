@@ -2,9 +2,8 @@
 // the secret key has bypass-RLS privilege and must never reach the browser
 // bundle. Auth lifecycle is disabled (persistSession / autoRefreshToken
 // off): Edge runtime has no persistent process and we authenticate every
-// request with the secret key directly. Hybrid retrieval queries in M2.2
-// will likely drop to .rpc() over raw SQL for the dense+sparse merge; no
-// rpc setup is needed at this stage.
+// request with the secret key directly. Hybrid retrieval drops to .rpc()
+// over raw SQL for the dense+sparse merge.
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
@@ -14,7 +13,8 @@ export type ChunkSource = 'docs' | 'experience' | 'readme' | 'resume';
 // + 0005_chunks_embedding_text.sql). `tsv` is a generated tsvector column —
 // server-maintained, present on reads if explicitly selected; typically
 // used only for FTS index lookups. `embedding_text` is what was embedded
-// into the dense vector — null for legacy rows ingested before sub-spec 1.
+// into the dense vector — null for legacy rows ingested before the
+// embedding-text column was added.
 export type ChunkRow = {
   id: string;
   source: ChunkSource;

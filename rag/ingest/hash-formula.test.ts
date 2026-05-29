@@ -1,8 +1,8 @@
-// Backward-compat proof for the sub-spec 2 hash formula. The deployed
-// formula (pre-sub-spec-2) hashed `content + '\n---embedding---\n' +
-// embedding_text`. The new formula must:
-//   - produce byte-identical hashes for non-readme sources (so the 41
-//     experience + resume rows already in DB don't re-embed)
+// Backward-compat proof for the README-aware hash formula. The
+// previous formula hashed `content + '\n---embedding---\n' +
+// embedding_text`. The current formula must:
+//   - produce byte-identical hashes for non-readme sources (so
+//     existing experience + resume rows already in DB don't re-embed)
 //   - extend the input for readme sources with a summary_input_hash
 //     suffix
 //

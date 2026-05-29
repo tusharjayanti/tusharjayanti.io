@@ -1,4 +1,4 @@
--- M2.1.4b — service_role grants on chunks table.
+-- service_role grants on chunks table.
 --
 -- When supabase-js authenticates with the new sb_secret_* key format,
 -- it acts as the service_role Postgres role. Tables created via

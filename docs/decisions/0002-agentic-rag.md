@@ -1,15 +1,15 @@
 # ADR 0002 — Agentic RAG foundation: Supabase pgvector + Voyage embeddings, retrieval behind an RPC
 
-- **Status:** Accepted (M2.1, May 2026)
+- **Status:** Accepted (May 2026)
 - **Deciders:** Tushar
 - **Supersedes:** N/A
 
 ## Context
 
-By the end of M1, Tarvis had observability but no real knowledge base.
-Role facts and project descriptions lived inline in the system prompt,
-prompt-cached on every turn. That arrangement holds while the corpus
-is small and stable; it breaks the moment any of these is true:
+Before this decision Tarvis had observability but no real knowledge
+base. Role facts and project descriptions lived inline in the system
+prompt, prompt-cached on every turn. That arrangement holds while the
+corpus is small and stable; it breaks the moment any of these is true:
 
 - The corpus grows beyond a few KB (projects, READMEs, longer-form
   writeups) and pushes the prompt past the cache breakpoint.
@@ -18,12 +18,12 @@ is small and stable; it breaks the moment any of these is true:
 - A new project ships and its description needs to be available
   without a manual prompt edit + redeploy.
 
-M2 is the agentic RAG phase: knowledge moves out of the system prompt
-into a retrieval layer; the model decides _whether_ to retrieve via
-tool use; the system prompt stays small and cacheable. M2.1 is the
-foundation sub-phase — schema, chunking, embeddings, retrieval RPC —
-under which the rest of M2 plugs in. None of the wiring into
-`/api/chat` happens here; that's M2.4.
+The agentic RAG layer moves knowledge out of the system prompt into a
+retrieval layer; the model decides _whether_ to retrieve via tool use;
+the system prompt stays small and cacheable. This ADR covers the
+foundation — schema, chunking, embeddings, retrieval RPC — under which
+the rest of the RAG stack plugs in. None of the wiring into
+`/api/chat` happens here; that lands in a later iteration.
 
 Two upstream signals shaped the decision space:
 
@@ -43,16 +43,15 @@ Two upstream signals shaped the decision space:
 
 - **Pgvector in same Postgres as future BM25** — keeping vector and
   lexical retrieval in one store avoids a second database for the
-  M2.2 hybrid extension.
+  planned hybrid extension.
 - **Embedding vendor alignment with the rest of the stack** — fewer
   vendors to reason about for the LLMOps narrative.
-- **Retrieval API surface that survives M2.2** — adding BM25 should
-  be a server-only change.
+- **Retrieval API surface that survives the hybrid extension** —
+  adding BM25 should be a server-only change.
 - **Idempotent ingest** — local edits to the corpus should not burn
   Voyage credits on no-op runs.
-- **Source generality from day one** — schema must support experience
-  (M2.1), resume (M2.3), and README sources (M2.5) without
-  re-migration.
+- **Source generality from day one** — schema must support experience,
+  resume, and README sources without re-migration.
 
 ## Considered options
 
@@ -66,8 +65,8 @@ Two upstream signals shaped the decision space:
 format (codified in [`0002_chunks_grants.sql`](../../supabase/migrations/0002_chunks_grants.sql)).
 - **Upstash Vector:** same vendor as the existing Redis store; clean
   Edge SDK. Cons: no obvious path to add BM25 to the same store, so
-  M2.2 would need a second vendor or a different hybrid strategy. The
-  M2.2 sequencing was the deciding constraint.
+  the hybrid extension would need a second vendor or a different
+  strategy. That sequencing was the deciding constraint.
 - **Self-hosted Postgres:** maximal control; not on the Edge story
   Tarvis already uses, and one more thing to operate for no
   portfolio signal.
@@ -86,7 +85,7 @@ format (codified in [`0002_chunks_grants.sql`](../../supabase/migrations/0002_ch
   contributes signal a recruiter would recognize beyond "this person
   picked a reasonable model"; same surface, no narrative bonus.
 
-### README sync: GitHub webhooks (chosen, future M2.5) vs. daily cron
+### README sync: GitHub webhooks (chosen, deferred) vs. daily cron
 
 - **Webhooks** trigger ingest on README push — content stays fresh,
   ingest only runs when there's something to ingest. Cons: more
@@ -99,10 +98,11 @@ format (codified in [`0002_chunks_grants.sql`](../../supabase/migrations/0002_ch
 
 ### Retrieval API: stored function via RPC (chosen) vs. client-side query builder vs. raw pg client
 
-- **`match_chunks` RPC** keeps the SQL on the server; M2.2 adds BM25
-  via `create or replace` migration and callers don't change.
+- **`match_chunks` RPC** keeps the SQL on the server; the hybrid
+  extension adds BM25 via `create or replace` migration and callers
+  don't change.
 - **Client-side query builder** (Supabase JS): the ranking expression
-  lives in the caller; M2.2 would touch every call site.
+  lives in the caller; the hybrid extension would touch every call site.
 - **Raw `pg` client over a connection pool:** strictly more flexible;
   adds dependency surface and a connection-pooling problem on Edge
   for zero benefit at this scale.
@@ -112,7 +112,7 @@ format (codified in [`0002_chunks_grants.sql`](../../supabase/migrations/0002_ch
 **Supabase pgvector + Voyage `voyage-3` (1024 dims, asymmetric) +
 `match_chunks` RPC, generalized on a `source` column, with content
 hash-based ingest idempotency. GitHub-webhook README sync deferred to
-M2.5.**
+the README-sync work.**
 
 Specifics:
 
@@ -136,12 +136,13 @@ source_filter)`](../../supabase/migrations/0003_match_chunks.sql);
 
 ### Positive
 
-- One store for vector and (M2.2) BM25 — no two-database problem.
+- One store for vector and (later) BM25 — no two-database problem.
 - Embedding vendor aligns with inference vendor — simpler stack
   narrative.
-- Retrieval API survives M2.2 unchanged from the caller side.
-- Adding a new source (M2.3 resume, M2.5 READMEs) is a chunker
-  change plus an ingest script; no schema migration.
+- Retrieval API survives the hybrid extension unchanged from the
+  caller side.
+- Adding a new source (resume, READMEs, docs) is a chunker change
+  plus an ingest script; no schema migration.
 - The `chunks` table is also the eventual home for any source where
   retrieval makes sense (decision logs, blog posts) — generality is
   free once it's there.
@@ -151,24 +152,24 @@ source_filter)`](../../supabase/migrations/0003_match_chunks.sql);
 - **New vendors.** Supabase and Voyage join Anthropic, Upstash,
   Resend, Cloudflare, Vercel, and Langfuse. Each new vendor is one
   more thing that can be down, one more set of credentials, one
-  more billing surface. Justified here by the M2.2 sequencing
-  constraint and the embedding-stack narrative.
+  more billing surface. Justified here by the hybrid-retrieval
+  sequencing constraint and the embedding-stack narrative.
 - **Pre-1.0 Voyage SDK.** `voyageai@0.0.8`, pinned exactly. Upgrades
   go through a manual smoke run; tracked in followups.
-- **Webhook infrastructure debt deferred to M2.5.** Webhook
-  verification, retry dedup, and rate-limit-on-the-ingest-path all
-  arrive when M2.5 does.
+- **Webhook infrastructure debt deferred to the README-sync work.**
+  Webhook verification, retry dedup, and rate-limit-on-the-ingest-path
+  all arrive with that work.
 - **Supabase free-tier auto-pause.** 7-day inactivity causes ~30s
   cold start on first request after pause. Acceptable during
   development; revisited before the demo URL is shared widely.
 
 ### Neutral
 
-- M2.1 ships infrastructure with no user-visible effect. `/api/chat`
-  doesn't call retrieval until M2.4. That's deliberate — wiring
-  retrieval into the chat handler before retrieval itself is solid
-  would mean shipping a regression in the user-facing path to
-  unblock infrastructure work.
+- This decision ships infrastructure with no user-visible effect.
+  `/api/chat` doesn't call retrieval until the tool-use wiring lands
+  in a later iteration. That's deliberate — wiring retrieval into the
+  chat handler before retrieval itself is solid would mean shipping a
+  regression in the user-facing path to unblock infrastructure work.
 
 ## Banked observations
 
@@ -192,8 +193,8 @@ source_filter)`](../../supabase/migrations/0003_match_chunks.sql);
   index.
 - `supabase/migrations/0002_chunks_grants.sql` — service_role grants
   (see banked observation above).
-- `supabase/migrations/0003_match_chunks.sql` — retrieval RPC; M2.2
-  will extend in place.
+- `supabase/migrations/0003_match_chunks.sql` — retrieval RPC; the
+  hybrid extension extends this in place.
 - `rag/chunking/` — contextual chunker.
 - `rag/ingest/experience.ts` — ingest pipeline for the experience
   corpus.

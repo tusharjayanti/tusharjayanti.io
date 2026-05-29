@@ -1,12 +1,13 @@
-// M2.7 — Haiku listwise reranker with binary relevance verdicts.
+// Haiku listwise reranker with binary relevance verdicts.
 //
 // The reranker is the sole relevance authority for retrieval. The
-// cosine-similarity floor is now a cost-control pre-filter only —
-// chunks that fail cosine never reach Haiku. The reranker's binary
-// yes/no verdicts determine which chunks make it into tool_result;
-// "no" verdicts are how out-of-corpus queries trigger the no-match
-// fabrication guardrail at the production threshold (0.15) that
-// M2.6.5 proved a scalar cosine threshold cannot handle alone.
+// cosine-similarity floor is a cost-control pre-filter only — chunks
+// that fail cosine never reach Haiku. The reranker's binary yes/no
+// verdicts determine which chunks make it into tool_result; "no"
+// verdicts are how out-of-corpus queries trigger the no-match
+// fabrication guardrail at the production threshold (0.15) — the
+// threshold sweep proved that a scalar cosine threshold cannot
+// handle this alone.
 //
 // Pipeline (see rerankChunks below):
 //
@@ -264,8 +265,7 @@ export async function rerankChunks<T extends RerankerCandidate>(
 
   // Step 1: cosine pre-filter. Drops obvious off-topic noise before
   // we pay for Haiku. Chunks with null semantic_distance (BM25-only
-  // hits) are dropped — same logic as the production guardrail
-  // before M2.7.
+  // hits) are dropped.
   const preFiltered = chunks.filter((c) => {
     if (c.semantic_distance === null) return false;
     return 1 - c.semantic_distance >= cosineMin;
@@ -309,8 +309,8 @@ export async function rerankChunks<T extends RerankerCandidate>(
     tokensIn = verdict.tokensIn;
     tokensOut = verdict.tokensOut;
   } catch (err) {
-    // Graceful fallback (same philosophy as the M2.8 cache lock):
-    // log, never throw to the caller, return the pre-filter top-N
+    // Graceful fallback (same philosophy as the cache lock): log,
+    // never throw to the caller, return the pre-filter top-N
     // diversified so retrieval still functions during a Haiku
     // outage. No usable usage data on this path.
     console.error('[rerank] judge call failed, falling back:', err);

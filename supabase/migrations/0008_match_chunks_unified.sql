@@ -1,14 +1,14 @@
--- M2.6 sub-spec 3 — adds a source-unfiltered counterpart to
--- match_chunks for evaluating unified retrieval against the three-tool
--- baseline. Same RRF k=60 hybrid as match_chunks (migration 0004),
--- same return shape, but no `source_filter` parameter — semantic and
--- BM25 top-20 are computed globally across the corpus before fusion.
+-- Adds a source-unfiltered counterpart to match_chunks for evaluating
+-- unified retrieval against the three-tool baseline. Same RRF k=60
+-- hybrid as match_chunks (0004_match_chunks_hybrid.sql), same return
+-- shape, but no `source_filter` parameter — semantic and BM25 top-20
+-- are computed globally across the corpus before fusion.
 --
 -- This function exists alongside `match_chunks` rather than replacing
--- it. If sub-spec 3 decides to consolidate the three search tools
--- into one, `match_chunks_unified` becomes the production retrieval
--- path; if it decides to keep three tools, this function stays as
--- eval-only infrastructure.
+-- it. If a future iteration decides to consolidate the three search
+-- tools into one, `match_chunks_unified` becomes the production
+-- retrieval path; if it decides to keep three tools, this function
+-- stays as eval-only infrastructure.
 
 create or replace function match_chunks_unified(
   query_embedding vector(1024),

@@ -1,4 +1,4 @@
-// Langfuse REST client for the M2.8 ops snippet aggregation.
+// Langfuse REST client for the ops snippet aggregation.
 // The langfuse SDK is built for ingestion (trace/observation writes);
 // for read queries we hit the public REST API directly. Basic-auth
 // with the existing LANGFUSE_PUBLIC_KEY / SECRET_KEY pair.

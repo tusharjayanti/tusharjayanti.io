@@ -3,8 +3,8 @@
 // timeout (3 attempts, 500ms/1000ms backoff); response shape validation
 // against VOYAGE_DIMENSION. Asymmetric input type ('document' for ingest
 // vs 'query' for retrieval) is required at the call site — no default,
-// per Voyage's own guidance. Used by the M2.1.3 chunker and the M2.2
-// retrieval path.
+// per Voyage's own guidance. Used by the chunker and the retrieval
+// path.
 
 import { VoyageAIClient, VoyageAIError, VoyageAITimeoutError } from 'voyageai';
 
@@ -77,7 +77,7 @@ export async function embed(
       }
 
       // Trusts Voyage's documented contract: data[i] corresponds to texts[i].
-      // If M2.2 retrieval ever surfaces order-corruption symptoms, sort by
+      // If retrieval ever surfaces order-corruption symptoms, sort by
       // data[i].index before this map.
       const embeddings: number[][] = [];
       for (let i = 0; i < data.length; i++) {

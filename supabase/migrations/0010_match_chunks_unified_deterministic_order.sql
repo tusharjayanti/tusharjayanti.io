@@ -1,5 +1,5 @@
--- Followup #83 — deterministic tie-breaking for the unified hybrid
--- retrieval function. Sibling fix to 0009 (which fixed match_chunks).
+-- Deterministic tie-breaking for the unified hybrid retrieval
+-- function. Sibling fix to 0009 (which fixed match_chunks).
 --
 -- match_chunks_unified (introduced in 0008) had no secondary sort key
 -- on any of its ORDER BY sites. As with match_chunks before 0009, ties

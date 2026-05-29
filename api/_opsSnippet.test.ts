@@ -1,4 +1,4 @@
-// Tests for the M2.8 ops snippet aggregation + cache logic.
+// Tests for the ops snippet aggregation + cache logic.
 // All Redis + Langfuse calls are mocked — no live API.
 
 import { describe, it, expect, vi } from 'vitest';

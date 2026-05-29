@@ -1,8 +1,8 @@
-// language (§6.3) — response is in the expected BCP-47 language.
+// language — response is in the expected BCP-47 language.
 //
 // Robust language detection needs a dependency. The portfolio is
-// English-only and no `language` assertions are authored yet (Phase 1b),
-// so this uses a common-English-stopword-ratio heuristic that reliably
+// English-only and no `language` assertions are authored yet, so this
+// uses a common-English-stopword-ratio heuristic that reliably
 // separates English from non-English for the `expected: "en"` case.
 // Escalate to a detection library if non-English assertions are
 // introduced.

@@ -1,4 +1,4 @@
-// regex (§6.3) — response text matches the pattern. Default flags "i".
+// regex — response text matches the pattern. Default flags "i".
 
 import type { AssertionResult, ResponseContext } from './types.js';
 

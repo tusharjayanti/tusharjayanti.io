@@ -2,8 +2,8 @@
 // api/_supabase.ts. Reads GITHUB_TOKEN from env — optional for public
 // repos (unauthenticated rate limit is 60/hr/IP, plenty for a 6-repo
 // backfill; setting the token lifts to 5000/hr, recommended before
-// the demo URL is shared). Used by the M2.5 README backfill script
-// and the sub-spec 3 webhook handler.
+// the demo URL is shared). Used by the README backfill script and
+// the webhook handler.
 
 import { Octokit } from '@octokit/rest';
 

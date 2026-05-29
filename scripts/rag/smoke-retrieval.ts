@@ -1,4 +1,4 @@
-// Smoke test for the M2.2 RAG round-trip: embeds a hardcoded query via
+// Smoke test for the RAG round-trip: embeds a hardcoded query via
 // Voyage with input_type='query' (asymmetric embedding), calls the
 // match_chunks RPC over the `chunks` table, and prints the top
 // MATCH_COUNT hits with the per-retriever rank breakdown that hybrid

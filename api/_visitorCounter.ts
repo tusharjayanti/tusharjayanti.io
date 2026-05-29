@@ -1,4 +1,4 @@
-// Pure logic for the M2.8 visitor counter. Kept separate from the
+// Pure logic for the visitor counter. Kept separate from the
 // Vercel middleware wrapper at the repo root so it can be unit-tested
 // against fakes (no edge runtime, no live Redis).
 //

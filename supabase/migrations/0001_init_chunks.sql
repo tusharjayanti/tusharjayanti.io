@@ -1,11 +1,11 @@
--- M2.1 — initial RAG schema
+-- Initial RAG schema.
 --
 -- One table: `chunks`. Holds every retrievable unit across all sources
 -- (experience.md, project READMEs, resume.pdf). Designed for:
 --   - semantic search via pgvector HNSW index (voyage-3 = 1024 dims)
---   - lexical search via Postgres FTS (tsvector + GIN index), lands M2.2
+--   - lexical search via Postgres FTS (tsvector + GIN index)
 --   - idempotent re-ingest via content_hash + (source, source_id, chunk_index) unique key
---   - cheap change detection at sync time (M2.5 webhook): hash changed → re-embed, else skip
+--   - cheap change detection at sync time: hash changed → re-embed, else skip
 --
 -- Extensions assumed enabled in dashboard: vector, pg_trgm, pgcrypto.
 
@@ -41,7 +41,7 @@ create index chunks_embedding_idx
   on chunks
   using hnsw (embedding vector_cosine_ops);
 
--- GIN index for full-text search. Used by M2.2 hybrid retrieval.
+-- GIN index for full-text search. Used by hybrid retrieval.
 create index chunks_tsv_idx
   on chunks
   using gin (tsv);

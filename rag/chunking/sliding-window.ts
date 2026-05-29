@@ -1,4 +1,4 @@
-// Sliding-window chunker for README sources. READMEs in the M2.5
+// Sliding-window chunker for README sources. READMEs in the
 // allowlist are heterogeneous in shape — some have well-structured
 // H2/H3 trees (tusharjayanti.io, calculator-agent), some are H2-only
 // (vox-agent), some have no headings at all (TensorflowChatbot, 1.2K

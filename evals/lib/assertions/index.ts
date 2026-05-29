@@ -1,12 +1,12 @@
-// Assertion engine entry point (spec §8.3).
+// Assertion engine entry point.
 //
-// runAssertions(response, assertions) evaluates every assertion against a
-// ResponseContext and returns one AssertionResult per assertion. A query
-// passes iff every assertion passes (the caller decides that).
+// runAssertions(response, assertions) evaluates every assertion against
+// a ResponseContext and returns one AssertionResult per assertion. A
+// query passes iff every assertion passes (the caller decides that).
 //
 // runAssertions is async because two paths require it: values_ref
-// resolution reads a file (§6.3.2), and llm_judge calls a model. The
-// per-type module functions in §8.3 are otherwise synchronous.
+// resolution reads a file, and llm_judge calls a model. The per-type
+// module functions are otherwise synchronous.
 
 import { containsAny } from './contains-any.js';
 import { language } from './language.js';
@@ -27,8 +27,8 @@ export type {
   ResponseContext,
 } from './types.js';
 
-// Resolve the literal values for a value-bearing assertion. Exactly one
-// of `values` / `values_ref` must be set (§6.3.2).
+// Resolve the literal values for a value-bearing assertion. Exactly
+// one of `values` / `values_ref` must be set.
 async function resolveValues(a: {
   values?: string[];
   values_ref?: string;

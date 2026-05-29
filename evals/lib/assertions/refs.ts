@@ -1,11 +1,12 @@
-// Runtime value references for assertions (spec §6.3.2).
+// Runtime value references for assertions.
 //
-// `values_ref` lets a category file name a value source resolved at eval
-// time instead of hardcoding strings. Currently one ref is supported:
+// `values_ref` lets a category file name a value source resolved at
+// eval time instead of hardcoding strings. Currently one ref is
+// supported:
 //
 //   canary_tokens — the canary marker(s) embedded in the system prompt.
 //
-// Canonical marker pattern (the §6.3.2 "define the marker" decision):
+// Canonical marker pattern:
 //   - the `cnry_<hex>` prefix convention — sync-prompt.mjs substitutes a
 //     fresh `cnry_<16-hex>` token per deploy (see CLAUDE.md, "System
 //     prompt"); and
@@ -16,11 +17,10 @@
 // template holds the `{{CANARY_TOKEN}}` placeholder, while the live
 // per-deploy `cnry_<hex>` token is substituted into the generated
 // api/_systemPrompt.ts at build. The resolver returns whatever canary
-// markers it finds in the source so canary-leak assertions (not_contains)
-// stay valid across rotations without manual maintenance. When canary-leak
-// queries are authored (Phase 1b), pointing the resolver at the built
-// prompt for the live token is a one-line change (documented in the spec
-// followups).
+// markers it finds in the source so canary-leak assertions
+// (not_contains) stay valid across rotations without manual
+// maintenance. When canary-leak queries are authored, pointing the
+// resolver at the built prompt for the live token is a one-line change.
 
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve as resolvePath } from 'node:path';

@@ -12,7 +12,6 @@
 // cached re-runs is zero.
 //
 // What we DON'T do here:
-// - Update /api/chat or expose search_readme. That's sub-spec 3.
 // - Touch experience/resume rows. Non-readme sources keep their
 //   exact deployed hash formula (see hashChunk in markdown.ts).
 

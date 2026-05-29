@@ -1,4 +1,4 @@
-// source_includes (§6.3) — cited sources include all/any of the listed
+// source_includes — cited sources include all/any of the listed
 // source names. Used by multi-facet queries (mode "all") to assert every
 // expected facet's source was retrieved.
 

@@ -3,7 +3,7 @@
 // NDJSON response to stdout while tracking TTFT, total wall-clock time,
 // and tool-firing signals inferred from the server-side console logs.
 //
-// Reused for M2.4 (this work) and the M2.5–M2.7 verifications. Real
+// Used for the chat-tool / RAG / reranker verifications. Real
 // Anthropic + Voyage + Supabase calls — not mocked.
 
 import { argv, stdout } from 'node:process';

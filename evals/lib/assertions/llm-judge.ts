@@ -1,12 +1,12 @@
-// llm_judge (§6.3) — a judge model returns yes/no on a free-form
-// criterion. The one assertion type with an LLM in the path, so a
-// tolerance band applies at the threshold layer (§9.1).
+// llm_judge — a judge model returns yes/no on a free-form criterion.
+// The one assertion type with an LLM in the path, so a tolerance band
+// applies at the threshold layer.
 //
 // The judge function is injectable so the engine and tests stay
-// deterministic; `defaultJudge` lazily constructs an Anthropic client and
-// calls Haiku at temperature 0. The default path is dormant until
-// llm_judge assertions are authored (Phase 1b) and ANTHROPIC_API_KEY is
-// configured in the eval environment (Phase 4).
+// deterministic; `defaultJudge` lazily constructs an Anthropic client
+// and calls Haiku at temperature 0. The default path is dormant until
+// llm_judge assertions are authored and ANTHROPIC_API_KEY is
+// configured in the eval environment.
 
 import type { AssertionResult, ResponseContext } from './types.js';
 

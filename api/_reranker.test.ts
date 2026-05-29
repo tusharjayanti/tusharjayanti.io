@@ -298,7 +298,7 @@ describe('rerankChunks', () => {
 });
 
 describe('config defaults', () => {
-  it('exposes a pre-filter default of 0.15 (was 0.3 pre-M2.7)', () => {
+  it('exposes a pre-filter default of 0.15', () => {
     expect(DEFAULT_COSINE_PRE_FILTER).toBe(0.15);
   });
 });

@@ -1,4 +1,4 @@
--- Followup #80 — deterministic tie-breaking for hybrid retrieval.
+-- Deterministic tie-breaking for hybrid retrieval.
 --
 -- match_chunks (introduced in 0004_match_chunks_hybrid.sql) ordered every
 -- stage by score alone. When chunks tie on a sort key, Postgres returns them
@@ -25,7 +25,7 @@
 -- pair is unique (the schema's unique key is (source, source_id, chunk_index)).
 -- It is content-derived and stable across DB re-ingests, so eval baselines stay
 -- comparable across rebuilds — unlike the random-uuid `id`. This tightens the
--- baseline ahead of M3's tolerance-band design.
+-- baseline for downstream tolerance-band thresholding.
 --
 -- CREATE OR REPLACE keeps the existing 4-arg signature/return type, so no DROP
 -- is needed. The grant is re-applied defensively.
@@ -34,9 +34,9 @@
 -- mock can't exercise Postgres tie-ordering). Verify manually post-deploy: run
 -- the same query twice against the live DB and confirm identical id-order.
 --
--- match_chunks_unified (0008) has the same latent issue; tracked as Followup
--- #83 (it is NOT source-scoped, so it needs the full (source, source_id,
--- chunk_index) key — fixed separately).
+-- match_chunks_unified (0008_match_chunks_unified.sql) has the same latent
+-- issue; tracked separately (it is NOT source-scoped, so it needs the full
+-- (source, source_id, chunk_index) key — fixed in a sibling migration).
 
 create or replace function match_chunks(
   query_embedding vector(1024),

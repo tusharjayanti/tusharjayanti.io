@@ -75,9 +75,9 @@ about prompt changes possible.
 ### Score (not yet)
 
 Schema is there; I don't write to it yet. Scores attach to
-traces and can be numeric or categorical. M3's eval CI gate
-writes them from offline evals. M4's online Haiku judge writes
-them from live traffic. Today: unpopulated.
+traces and can be numeric or categorical. The eval CI gate will
+write them from offline evals; a future online Haiku judge will
+write them from live traffic. Today: unpopulated.
 
 ## Why Langfuse vs. roll-your-own
 
@@ -91,14 +91,14 @@ Longer version is in [`docs/decisions/0001-observability-foundation.md`](decisio
 
 The Redis chat log still writes in parallel. It's the local audit
 trail; Langfuse is the queryable one. Cutover decision deferred to
-M3 when the `/ops` dashboard reads from Langfuse reliably.
+when the `/ops` dashboard reads from Langfuse reliably.
 
 ## What this doesn't do yet
 
 Not pretending. Honest gaps:
 
-- **No dashboard.** Langfuse UI is the read interface. M3 ships
-  `/ops` — custom dashboard with the views I actually want
+- **No dashboard.** Langfuse UI is the read interface. A custom
+  `/ops` dashboard is planned — the views I actually want
   (cost-by-tag, latency p50/p95 per prompt version, refusal-rate
   drift). Until then I'm a Langfuse-UI user, same as anyone else
   hitting it.
@@ -106,13 +106,13 @@ Not pretending. Honest gaps:
 - **No quality scores on live traces.** The `model-refused` tag is
   heuristic substring matching against the system prompt's
   refusal phrase templates plus a word-count guard. Cheap, bounded
-  false-positive rate, misses paraphrased refusals. M4 replaces
-  it with an LLM judge.
+  false-positive rate, misses paraphrased refusals. A future LLM
+  judge replaces it.
 
-- **No closed loop from low-scored traces back to evals.** M5
-  territory: low-scored traces become candidate eval cases that
-  M3's gate runs on the next PR. Today the loop is open — I see
-  problems in Langfuse but acting on them is manual.
+- **No closed loop from low-scored traces back to evals.** Future
+  work: low-scored traces become candidate eval cases that the
+  CI eval gate runs on the next PR. Today the loop is open — I
+  see problems in Langfuse but acting on them is manual.
 
 - **No multi-turn context.** Each trace is one user message; no
   session linkage across traces. Once conversation history ships,
@@ -139,7 +139,7 @@ observability layer is having a bad day.
 lag — traces visible in seconds on a good run, ~10 minutes on a
 bad one. The v4 SDK's "Faster experience" preview eliminates
 this; v3→v4 migration is in followups, banked until v4 reaches
-feature parity or M2 RAG surfaces specific features I want
+feature parity or the RAG layer surfaces specific features I want
 (better span hierarchy, OTel compat for tools).
 
 **Cost computation.** Langfuse computes cost upstream from

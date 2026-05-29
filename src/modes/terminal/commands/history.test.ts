@@ -2,7 +2,7 @@
 // The dispatch-level behavior (autoplay excluded, clear-doesn't-touch-
 // history) is enforced by Terminal.tsx's existing `addToHistory: false`
 // flag and the separation of `clear` from `setHistory` — both
-// pre-existing and unchanged by the M2.8 history-command commit.
+// pre-existing and unchanged by the history-command commit.
 
 import { describe, it, expect } from 'vitest';
 import { formatHistory } from './index';

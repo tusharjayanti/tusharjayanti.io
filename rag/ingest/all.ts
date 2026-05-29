@@ -1,7 +1,7 @@
 // Default ingest entry point — runs every markdown source in sequence.
-// Add new sources to SOURCES below. M2.5 adds READMEs; future sources
-// slot in as additional entries. Fails fast: if a source ingest throws,
-// subsequent sources don't run and the error propagates to the caller.
+// Add new sources to SOURCES below. Fails fast: if a source ingest
+// throws, subsequent sources don't run and the error propagates to the
+// caller.
 
 import { DOCS_SOURCES } from './docs.js';
 import {

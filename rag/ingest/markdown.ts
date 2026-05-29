@@ -1,6 +1,6 @@
 // Generic markdown-source ingest pipeline used by every markdown-backed
-// RAG corpus (experience.md in M2.1, resume.md in M2.3, READMEs in
-// sub-spec 2). Reads the file from disk, hands off to the per-source
+// RAG corpus (experience.md, resume.md, READMEs, docs). Reads the file
+// from disk, hands off to the per-source
 // chunker dispatcher, diffs against existing rows in `chunks` (matched
 // by source/source_id/chunk_index), embeds only the rows that are new
 // or whose content_hash changed, upserts via the
@@ -51,15 +51,15 @@ export function sha256Hex(text: string): string {
 // embedding_text construction (e.g., a different heading-path format)
 // forces a re-embed even when content is byte-identical.
 //
-// Source-conditional: README rows (sub-spec 2) extend the input with
-// a `summary_input_hash` derived from neighbor chunks. That lets the
+// Source-conditional: README rows extend the input with a
+// `summary_input_hash` derived from neighbor chunks. That lets the
 // Haiku-summary step share a single cache key with the embedding —
 // when the chunk OR either neighbor changes, the chunk re-summarizes
 // AND re-embeds together. Non-readme sources keep the exact deployed
-// formula so the 41 pre-sub-spec-2 rows hash to byte-identical values
-// after this lands. The literal `'<none>'` sentinel from the spec is
-// replaced by "don't append the suffix at all" — same operational
-// outcome, and arithmetically valid (sha256(A + B) ≠ sha256(A)).
+// formula so the rows hash to byte-identical values. The literal
+// `'<none>'` sentinel from the original design is replaced by "don't
+// append the suffix at all" — same operational outcome, and
+// arithmetically valid (sha256(A + B) ≠ sha256(A)).
 export function hashChunk(
   chunk: MarkdownChunk,
   source: ChunkSource,

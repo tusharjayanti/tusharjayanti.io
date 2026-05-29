@@ -4,37 +4,15 @@ Notes for me, not the README. The README explains _what_ ships. This
 file explains how I think about the primitives so I can answer "how
 does your retrieval work?" in an interview without hedging.
 
-## M2 numbering history
+## RAG architecture
 
-The original plan was M2.6 = Haiku reranker, M2.7 = context
-compression, M2.8 = polish + the v0.3.0 tag. None of those numbers
-held. M2.6 ended up being RAG evaluation foundations — the no-match
-fabrication guardrail, the retrieval eval harness against 31
-labeled queries, and the unified-vs-three-tool consolidation
-decision; the reranker work was deferred. M2.6.5 was a single-
-purpose sub-milestone for the threshold sweep, which surfaced an
-architectural finding: at this corpus size cosine similarity alone
-cannot separate borderline-relevant from borderline-irrelevant
-chunks, so threshold tuning would never clear both retrieval@5 and
-OOC-firing gates simultaneously. That finding justified keeping the
-deferred reranker as the proper fix rather than continuing to tune
-thresholds. M2.7 then shipped the Haiku reranker — the original
-M2.6 scope, eval-gated against both metrics. M2.8 became the
-terminal-page ops snippet (visitor counter, Langfuse-sourced
-metrics, lock-contention test, tokens-aggregation fix), claiming
-the slot polish + tag was supposed to occupy. Context compression —
-the original M2.7 — is banked but not yet scheduled.
-
-## RAG architecture (M2.1)
-
-M2.1 ships the foundation: a markdown corpus (`content/experience.md`)
-becomes a set of semantically-chunked, embedded rows in Supabase
-Postgres with pgvector, and a stored function returns the top-K
-matches for a query embedding. Tool-use wiring into `/api/chat`
-arrives in M2.4 — until then retrieval is reachable only via the
-smoke script and direct RPC. The architecture is generalized on a
-`source` field so M2.3 (resume) and M2.5 (project READMEs) plug in
-without re-migration.
+The foundation: a markdown corpus (`content/experience.md`) becomes a
+set of semantically-chunked, embedded rows in Supabase Postgres with
+pgvector, and a stored function returns the top-K matches for a query
+embedding. Tool-use wiring into `/api/chat` came later — initial
+retrieval was reachable only via the smoke script and direct RPC. The
+architecture is generalized on a `source` field so resume and project
+READMEs plug in without re-migration.
 
 ## Schema
 
@@ -77,14 +55,14 @@ surface — most don't.
 
 Paragraph-split fallback fires when a single H3 section exceeds 500
 tokens: the section is split on blank lines, chunks are sized greedily
-up to the budget, and `chunk_index` numbers them in order. Under M2.1
-the experience corpus produces 27 chunks across 4 H2 sections; no
-section currently hits the fallback.
+up to the budget, and `chunk_index` numbers them in order. The initial
+experience corpus produces 27 chunks across 4 H2 sections; no section
+hits the fallback.
 
 **Known limitation.** The chunker treats H2 sections as a sequence
 of H3 subsections, so non-H3 lines that live directly under an H2
 (e.g. `**Dates:** ...`, `**Tech stack:** ...`) are dropped from the
-chunks. Banked rather than fixed: M3 retrieval-quality data will
+chunks. Banked rather than fixed: future retrieval-quality data will
 tell us whether date/stack queries actually fail, which is a better
 signal than guessing.
 
@@ -118,28 +96,28 @@ const { data, error } = await supabase.rpc('match_chunks', {
 });
 ```
 
-M2.2 made retrieval hybrid: semantic (cosine distance over pgvector
-HNSW) and lexical (BM25 via Postgres `ts_rank` on the `tsv` generated
+Retrieval is hybrid: semantic (cosine distance over pgvector HNSW)
+and lexical (BM25 via Postgres `ts_rank` on the `tsv` generated
 column, `english` FTS config) are fused via Reciprocal Rank Fusion
 with `k = 60` and equal weights — canonical Cormack-Zobel-Clarke. The
 function over-retrieves top-20 from each retriever independently,
 joins them on chunk id, and returns the top-`match_count` rows by
 fused `score`. Each row carries `semantic_rank`, `bm25_rank`,
 `semantic_distance`, and `bm25_score` alongside the fused `score`, so
-callers and the M2.6 reranker can see _why_ a row landed (semantic
+callers and the reranker can see _why_ a row landed (semantic
 neighbor, lexical match, or both) and act on it. A `null` rank means
 that retriever didn't see the chunk in its top-20. Keeping the
 ranking inside an RPC, rather than expressing it as a client-side
-query builder call, means M2.2 was a server-only migration and the
-caller signature changes were limited to the new `query_text`
-parameter.
+query builder call, meant the hybrid extension was a server-only
+migration and the caller signature changes were limited to the new
+`query_text` parameter.
 
-## Tool-use integration (M2.4)
+## Tool-use integration
 
 `/api/chat` calls retrieval through Anthropic tool-use, not directly.
 Three source-scoped tools are exposed to Sonnet — `search_experience`
 (detailed role writeups), `search_resume` (compact summaries), and
-`search_readme` (GitHub project READMEs, M2.5) — and the model decides
+`search_readme` (GitHub project READMEs) — and the model decides
 per-turn whether to call any of them. The tool definitions live in
 [`api/_tools.ts`](../api/_tools.ts); each executes one embed + one
 `match_chunks` RPC and formats the top-3 chunks as a single
@@ -160,15 +138,15 @@ generation per Anthropic call (so per-call token / cache / cost
 breakdown survives multi-call turns), one `tool-execution` span per
 tool firing, and the per-turn trace carries `rag_retrieved`,
 `rag_queries`, `rag_sources`, and `rag_top_chunk_ids` metadata. The
-M3 `/ops` dashboard will filter on those metadata fields.
+`/ops` dashboard filters on those metadata fields.
 
 The system prompt steers the model toward NOT calling tools for the
 common cases (greetings, off-topic refusals, anything already covered
 by the inline role-specific facts). This is deliberate — there's
 substantial overlap between the inline facts and the corpus today, so
-tools should fire only when the inline facts run out. M2.7 (context
-compression) will trim the inline facts once retrieval is the
-load-bearing path.
+tools should fire only when the inline facts run out. A future
+context-compression pass will trim the inline facts once retrieval is
+the load-bearing path.
 
 ## No-match fabrication guardrail
 
@@ -198,20 +176,20 @@ Sonnet **not to fabricate** and to redirect to contact. The
 instruction lives in the tool result rather than the system prompt —
 in-context tool-result text is more reliably followed during the
 tool-use loop than system-prompt rules. The chat handler tags the
-turn's trace with `rag_no_match: true` so M3 evals can surface
+turn's trace with `rag_no_match: true` so the eval gate can surface
 fabrication-prone queries.
 
 Operator signal: when no-match fires, the handler emits
 `console.log('[rag] no_match', { query, source, threshold })` to
 Vercel runtime logs.
 
-### Threshold sweep — why 0.3 stays (M2.6.5)
+### Threshold sweep — why 0.3 stays
 
-The retrieval eval (M2.6 sub-spec 2) surfaced that at the production
-`0.3` floor the guardrail fires on **0/5** out-of-corpus queries —
-the fabrication-prevention story was largely fiction. M2.6.5 tested
-whether tightening the threshold could fix this without nuking
-retrieval quality on real queries.
+The retrieval eval surfaced that at the production `0.3` floor the
+guardrail fires on **0/5** out-of-corpus queries — the
+fabrication-prevention story was largely fiction. The threshold
+sweep tested whether tightening the floor could fix this without
+nuking retrieval quality on real queries.
 
 Method: extended [`scripts/eval/retrieval.ts`](../scripts/eval/retrieval.ts)
 with a `--threshold=N` flag that filters chunks at the requested
@@ -254,17 +232,16 @@ because they're not separable on the cosine axis.
 > **Cosine similarity is a continuous match-score, not a binary
 > relevance signal. At our corpus size, semantic-distance bands for
 > borderline-relevant and borderline-irrelevant chunks overlap, so a
-> scalar threshold cannot separate them. The reranker (M2.7) is the
+> scalar threshold cannot separate them. The Haiku reranker is the
 > architectural fix, not the next tuning iteration.**
 
-`RAG_MIN_COSINE_SIMILARITY` default stays at `0.3`. Raising it would
-shift the failure mode from "fabrication on OOC queries" to "refusing
-valid queries" without solving either. The `--threshold=N` runner
-support stays in place; revisit after M2.7's reranker score is
-available — the reranker score may replace cosine as the floor
-signal, or compose with it.
+`RAG_MIN_COSINE_SIMILARITY` default stays at `0.3` in the pre-rerank
+pipeline. Raising it would shift the failure mode from "fabrication
+on OOC queries" to "refusing valid queries" without solving either.
+The `--threshold=N` runner support stays in place; once the reranker
+ships, the reranker's verdict replaces cosine as the relevance signal.
 
-## Webhook setup (M2.5)
+## Webhook setup
 
 The README ingest loop closes via [`POST /api/github-webhook`](../api/github-webhook.ts).
 GitHub pushes the event, the handler verifies the HMAC, filters to
@@ -297,7 +274,7 @@ A single GitHub App across the org-level account is cleaner long-term
 but overkill for six repos; this manual per-repo install is the right
 size today.
 
-## Retrieval evaluation (M2.6)
+## Retrieval evaluation
 
 A labeled query set + deterministic runner that measures whether the
 three-tool pipeline actually surfaces the right chunks. This is the
@@ -312,8 +289,8 @@ queries — the former `out-of-corpus` set). 31 total, each labeled with
 (`realistic`, `adversarial`, `vocabulary-poor`, `single-source`,
 `cross-source`, `out-of-corpus`). Distribution: 15 readme, 10 experience,
 5 resume, 1 cross-source; the 5 `out-of-corpus` queries live in
-`absent-facts.json` for guardrail probing. (Restructured in M3 Phase 1a;
-IDs Q1–Q31 preserved.)
+`absent-facts.json` for guardrail probing. (IDs Q1–Q31 preserved
+from the original single-file dataset.)
 
 **Runner** is [`scripts/eval/retrieval.ts`](../scripts/eval/retrieval.ts),
 run via `npm run eval:retrieval`. Embeds all queries in one Voyage
@@ -328,9 +305,9 @@ batch, calls `match_chunks` per query against the query's
 
 Scoring differs for the `cross-source` tag: success requires ALL
 correct chunks in top-K (single-tool retrieval can't satisfy this by
-design). Q31 is the canonical example — sub-spec 3's consolidation
-question will use the contrast between three-tool and unified
-retrieval on cross-source queries as its primary signal.
+design). Q31 is the canonical example — the tool-consolidation
+question uses the contrast between three-tool and unified retrieval
+on cross-source queries as its primary signal.
 
 Per-run output: stdout summary table + a JSON file under
 `evals/retrieval/results-<timestamp>.json` so deltas across runs are
@@ -338,8 +315,8 @@ diff-able.
 
 ### Baseline (2026-05-21)
 
-Run against the post-sub-spec-1 corpus (24 experience + 17 resume + 41
-readme chunks) and the post-sub-spec-1 no-match guardrail (0.3 cosine
+Run against the post-chunker-refactor corpus (24 experience + 17
+resume + 41 readme chunks) and the no-match guardrail (0.3 cosine
 floor):
 
 | Metric                      | Value     |
@@ -368,27 +345,27 @@ Per-tag breakdown:
 - **Experience retrieval is solid (100% across the board).** Six chunks
   per role + clean H3 segmentation pay off for the experience corpus.
 - **Readme is the weak link at top-1** (53.8%) but recovers by top-5
-  (84.6%). The sliding-window-on-H2-only-READMEs structural issue from
-  M2.5 is the suspect — vox-agent and TensorflowChatbot lack H3s, so
-  their chunks are less semantically focused.
+  (84.6%). The sliding-window-on-H2-only-READMEs structural issue is
+  the suspect — vox-agent and TensorflowChatbot lack H3s, so their
+  chunks are less semantically focused.
 - **Guardrail fires 0/5 on out-of-corpus queries.** Every OOC query
   had chunks at 0.35–0.47 cosine — above the 0.3 production floor.
-  The threshold I picked in sub-spec 1's no-match guardrail is too
-  lenient for these query shapes. Production-side verification
-  succeeded (Rust query → guardrail fired) only because Sonnet
-  paraphrased the query to "Rust programming language" before
-  calling the tool; the eval uses the user's literal phrasing, which
-  cosine-scores higher. **Query-phrasing variance dominates threshold
-  behavior** — this is a real fabrication risk in production.
+  The threshold for the no-match guardrail is too lenient for these
+  query shapes. Production-side verification succeeded (Rust query →
+  guardrail fired) only because Sonnet paraphrased the query to
+  "Rust programming language" before calling the tool; the eval uses
+  the user's literal phrasing, which cosine-scores higher.
+  **Query-phrasing variance dominates threshold behavior** — this is
+  a real fabrication risk in production.
 - **Cross-source query Q31 fails by design** (first correct chunk at
   rank 7 within the resume-only retrieval; the labeled experience
-  chunks are unreachable). Sub-spec 3 will compare this against a
-  unified retriever where all sources are searched at once.
+  chunks are unreachable). The unified-retrieval comparison below
+  exercises this against the same query.
 
-This baseline is the comparison point for sub-spec 3 (tool
-consolidation) and M2.7 (reranker).
+This baseline is the comparison point for the tool-consolidation
+decision and the Haiku reranker work that follow.
 
-## Tool architecture decision (M2.6 sub-spec 3, 2026-05-21)
+## Tool architecture decision (2026-05-21)
 
 Question asked: keep three source-scoped tools (`search_experience`,
 `search_resume`, `search_readme`) or consolidate into one unified
@@ -501,27 +478,26 @@ The migration ([`0008_match_chunks_unified.sql`](../supabase/migrations/0008_mat
 and the `--mode=unified` runner support stay in place — both are
 cheap to retain and ready for the future revisit.
 
-## Reranker architecture (M2.7, 2026-05-22)
+## Reranker architecture (2026-05-22)
 
-M2.6.5 proved that a scalar cosine threshold cannot separate
-borderline-relevant from borderline-irrelevant chunks at this
-corpus size — the bands overlap at 0.35–0.47, so any single
+The threshold sweep proved that a scalar cosine threshold cannot
+separate borderline-relevant from borderline-irrelevant chunks at
+this corpus size — the bands overlap at 0.35–0.47, so any single
 threshold value trades off retrieval@5 against guardrail firing
-rate without ever clearing both. **M2.7 introduces a Haiku-based
-listwise reranker as the architectural fix**: cosine becomes a
-cost-control pre-filter, and the reranker is the sole relevance
-authority.
+rate without ever clearing both. **The Haiku-based listwise reranker
+is the architectural fix**: cosine becomes a cost-control pre-filter,
+and the reranker is the sole relevance authority.
 
 ### Semantic shift: cosine = pre-filter, reranker = relevance
 
-`RAG_MIN_COSINE_SIMILARITY` default drops from `0.3` to **`0.15`**.
-The threshold's job changes:
+`RAG_MIN_COSINE_SIMILARITY` default is **`0.15`**. The threshold's
+job:
 
-- **Pre-M2.7**: relevance signal. Chunks above the floor were
-  surfaced; chunks below triggered the no-match guardrail.
-- **Post-M2.7**: cost-control pre-filter. Chunks above the floor
-  are sent to the reranker for a binary yes/no verdict; chunks
-  below are dropped without paying for Haiku.
+- **Pre-rerank pipeline**: relevance signal. Chunks above the floor
+  were surfaced; chunks below triggered the no-match guardrail.
+- **Post-rerank pipeline**: cost-control pre-filter. Chunks above
+  the floor are sent to the reranker for a binary yes/no verdict;
+  chunks below are dropped without paying for Haiku.
 
 If the two roles ever blur in code, the design has drifted.
 
@@ -558,30 +534,30 @@ averaging is premature at K=10.
 
 **Failure mode:** any Haiku error (timeout, parse failure, 5xx) →
 log + fall back to the pre-filter top-N slice, diversified. Same
-philosophy as the M2.8 cache lock: gracefully degrade, never throw
-to the user.
+philosophy as the cache lock: gracefully degrade, never throw to
+the user.
 
-### Eval gate (M2.7 acceptance)
+### Eval gate (reranker acceptance)
 
 Two metrics, declared up front, measured by
 `npm run eval:retrieval -- --rerank`:
 
-| Metric                              | Required    | M2.7 result   | Status |
-| ----------------------------------- | ----------- | ------------- | ------ |
-| retrieval@5 (overall, n=26 labeled) | ≥ 80%       | **84.6%**     | ✓      |
-| OOC firing rate (n=5 OOC queries)   | ≥ 4/5 (80%) | **4/5 (80%)** | ✓      |
+| Metric                              | Required    | Reranker result | Status |
+| ----------------------------------- | ----------- | --------------- | ------ |
+| retrieval@5 (overall, n=26 labeled) | ≥ 80%       | **84.6%**       | ✓      |
+| OOC firing rate (n=5 OOC queries)   | ≥ 4/5 (80%) | **4/5 (80%)**   | ✓      |
 
-Per-tag deltas vs. the M2.6 baseline:
+Per-tag deltas vs. the pre-rerank baseline:
 
-| Tag             | M2.6 @5 / MRR | M2.7 @5 / MRR     | Δ               |
-| --------------- | ------------- | ----------------- | --------------- |
-| experience      | 100% / 1.000  | 87.5% / 0.875     | regressed on Q6 |
-| resume          | 75% / 0.750   | 75% / 0.750       | unchanged       |
-| readme          | 84.6% / 0.690 | **92.3% / 0.808** | improved        |
-| vocabulary-poor | 71.4% / 0.663 | **85.7% / 0.714** | improved        |
-| realistic       | 95% / 0.874   | 90% / 0.875       | -5pp on @5 (Q6) |
-| adversarial     | 50% / 0.500   | 50% / 0.500       | unchanged       |
-| cross-source    | 0% / 0.143    | 0% / 0.000        | structural      |
+| Tag             | Pre-rerank @5 / MRR | Reranker @5 / MRR | Δ               |
+| --------------- | ------------------- | ----------------- | --------------- |
+| experience      | 100% / 1.000        | 87.5% / 0.875     | regressed on Q6 |
+| resume          | 75% / 0.750         | 75% / 0.750       | unchanged       |
+| readme          | 84.6% / 0.690       | **92.3% / 0.808** | improved        |
+| vocabulary-poor | 71.4% / 0.663       | **85.7% / 0.714** | improved        |
+| realistic       | 95% / 0.874         | 90% / 0.875       | -5pp on @5 (Q6) |
+| adversarial     | 50% / 0.500         | 50% / 0.500       | unchanged       |
+| cross-source    | 0% / 0.143          | 0% / 0.000        | structural      |
 
 Notable: the OOC subset shifted from 0/5 → 4/5 firing. Q14
 (`"How does vox-agent rate-limit requests?"`) is the one silent
@@ -589,33 +565,33 @@ case — Haiku said "yes" to a `tusharjayanti.io` chunk that does
 discuss rate-limiting (just not in vox-agent). Reasonable
 interpretation; banked for follow-up.
 
-**Banked findings** (to followups.md / future work):
+**Banked findings** (to future work):
 
 - **Q6 regression**: `"Tushar's experience at DISCO"` was 100% at
-  every k pre-M2.7; reranker now drops all 7 DISCO experience
-  chunks. Likely Haiku reading the query as too vague to materially
-  answer until a specific topic is named. Tuning options: loosen
-  the system prompt's strictness on broad role queries, or re-label
-  Q6 with explicit topical sub-chunks. Net effect doesn't break the
-  gate (overall @5 unchanged at 84.6%) but it's a real behavioral
-  shift to watch.
+  every k in the pre-rerank pipeline; the reranker now drops all 7
+  DISCO experience chunks. Likely Haiku reading the query as too
+  vague to materially answer until a specific topic is named. Tuning
+  options: loosen the system prompt's strictness on broad role
+  queries, or re-label Q6 with explicit topical sub-chunks. Net
+  effect doesn't break the gate (overall @5 unchanged at 84.6%) but
+  it's a real behavioral shift to watch.
 - **Q14 silence**: described above. Defensible Haiku judgment
   rather than a clear bug.
 
-The reranker is the relevance authority. M2.7 ships; tuning
-iterates on the prompt and corpus, not on the threshold.
+The reranker is the relevance authority. The architecture ships;
+tuning iterates on the prompt and corpus, not on the threshold.
 
 ## Operations
 
 Three commands cover day-to-day:
 
 **`npm run ingest`** — embed and upsert every markdown source in
-`content/` in sequence (currently `experience.md` + `resume.md`;
-project READMEs join in M2.5). Default ingest workflow. Idempotent at
-the source level: each source diffs against its own DB rows and only
-re-embeds when `content_hash` changes. Success looks like one
-`ingest:<source> ok: ...` line per configured source. Fails fast — if
-a source throws, subsequent sources don't run.
+`content/` in sequence (experience.md, resume.md, READMEs, docs).
+Default ingest workflow. Idempotent at the source level: each source
+diffs against its own DB rows and only re-embeds when `content_hash`
+changes. Success looks like one `ingest:<source> ok: ...` line per
+configured source. Fails fast — if a source throws, subsequent
+sources don't run.
 
 **`npm run ingest:experience`** / **`npm run ingest:resume`** —
 per-source helpers, identical pipeline to `npm run ingest` but scoped
@@ -655,10 +631,9 @@ Honest gaps that remain:
   hand-curated query set; mining failing production traces into new
   eval cases is future work.
 
-README auto-sync (M2.5), the Haiku reranker (M2.7), and the
-no-match fabrication guardrail (M2.6 sub-spec 1) all shipped — see
-the sections above. Context compression (the original M2.7 scope)
-is banked but not yet scheduled.
+README auto-sync, the Haiku reranker, and the no-match fabrication
+guardrail all shipped — see the sections above. Context compression
+of the inline system-prompt facts is banked but not yet scheduled.
 
 ## Known issues
 
