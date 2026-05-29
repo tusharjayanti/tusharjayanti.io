@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "description": "Retrieval-quality queries for the three-tool RAG pipeline. Each query specifies the target source (which of search_experience / search_resume / search_readme runs) and the chunks that should appear in the top-K, plus one or more tags for slicing aggregate metrics. Lifted verbatim from the pre-M3 evals/retrieval/queries.json (M3 Phase 1a); query IDs preserved. M3 Phase 1b added 9 architecture queries (arch-001..arch-009) targeting the tusharjayanti.io README, tagged 'architecture'.",
+    "description": "Retrieval-quality queries for the three-tool RAG pipeline. Each query specifies the target source (which of search_experience / search_resume / search_readme runs) and the chunks that should appear in the top-K, plus one or more tags for slicing aggregate metrics. Lifted verbatim from the pre-M3 evals/retrieval/queries.json (M3 Phase 1a); query IDs preserved. M3 Phase 1b added 9 architecture queries (arch-001..arch-009) targeting the tusharjayanti.io README, tagged 'architecture'; arch-010..arch-012 target the docs/ corpus (RAG architecture writeup + reranker-temperature ADR) and were unblocked by the docs/ ingestion (PR #19).",
     "schema_version": 1,
     "scoring": {
       "default": "any correct_chunk in top-K → success",
@@ -672,6 +672,61 @@
         }
       ],
       "tags": ["vocabulary-poor", "architecture", "readme"]
+    },
+    {
+      "id": "arch-010",
+      "query": "Why is the reranker temperature pinned to zero?",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "docs",
+      "correct_chunks": [
+        {
+          "source": "docs",
+          "source_id": "docs/decisions/0001-reranker-temperature.md",
+          "chunk_index": 0
+        },
+        {
+          "source": "docs",
+          "source_id": "docs/decisions/0001-reranker-temperature.md",
+          "chunk_index": 1
+        }
+      ],
+      "tags": ["realistic", "architecture", "docs"]
+    },
+    {
+      "id": "arch-011",
+      "query": "How does the retrieval pipeline break ties between chunks with the same score?",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "docs",
+      "correct_chunks": [
+        {
+          "source": "docs",
+          "source_id": "docs/decisions/0001-reranker-temperature.md",
+          "chunk_index": 4
+        }
+      ],
+      "tags": ["realistic", "architecture", "docs"]
+    },
+    {
+      "id": "arch-012",
+      "query": "What's the cosine similarity threshold and why that value?",
+      "result_type": "retrieval",
+      "category": "rag-retrieval",
+      "target_source": "docs",
+      "correct_chunks": [
+        {
+          "source": "docs",
+          "source_id": "docs/rag.md",
+          "chunk_index": 7
+        },
+        {
+          "source": "docs",
+          "source_id": "docs/rag.md",
+          "chunk_index": 8
+        }
+      ],
+      "tags": ["realistic", "architecture", "docs"]
     }
   ]
 }
