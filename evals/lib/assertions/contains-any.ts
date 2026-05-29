@@ -1,4 +1,4 @@
-// contains_any (§6.3) — response text contains at least one of the
+// contains_any — response text contains at least one of the
 // listed strings. `values` are pre-resolved by the engine (values_ref is
 // resolved to concrete strings in index.ts before this runs).
 

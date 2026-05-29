@@ -1,8 +1,8 @@
 // Heuristic refusal detection. Matches the system prompt's refusal phrase
 // templates against the accumulated response. Cheap substring checks +
 // a word-count guard so a long substantive response that happens to
-// contain a refusal phrase mid-sentence is NOT flagged. M4 replaces this
-// with an LLM-judge once the eval harness lands.
+// contain a refusal phrase mid-sentence is NOT flagged. A future LLM
+// judge replaces this once the eval harness needs it.
 
 const REFUSAL_PHRASES = [
   'Not how this works',

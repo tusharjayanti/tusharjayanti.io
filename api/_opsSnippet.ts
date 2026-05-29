@@ -1,4 +1,4 @@
-// Aggregation logic for the M2.8 terminal-page ops snippet.
+// Aggregation logic for the terminal-page ops snippet.
 // Pulls counts from Langfuse + visitor hashes from Redis, mediates
 // access with a Redis SETNX lock + 5-min cache so the first-page-load
 // hot path stays cheap.

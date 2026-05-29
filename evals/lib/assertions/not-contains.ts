@@ -1,4 +1,4 @@
-// not_contains (§6.3) — response text contains none of the listed
+// not_contains — response text contains none of the listed
 // strings. `values` are pre-resolved by the engine (values_ref handled in
 // index.ts). Used by canary-leak / refusal categories to assert sensitive
 // substrings are absent.

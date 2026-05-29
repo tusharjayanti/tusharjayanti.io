@@ -1,11 +1,11 @@
 // Tests for the public chunker dispatcher and its two strategies.
 //
-// Adapted from M2.1's chunkMarkdown tests to the sub-spec 1 contract:
-// `content` is now the clean body text (no heading prefix), and the
-// heading-path-prefixed text moves to a new `embedding_text` field.
-// Same conceptual coverage as before — chunk count, chunk_index
-// continuity, heading metadata, paragraph-split fallback, dropping
-// orphan headings — just re-routed through the new fields.
+// Adapted from the original chunkMarkdown tests to the current
+// contract: `content` is the clean body text (no heading prefix), and
+// the heading-path-prefixed text lives in `embedding_text`. Same
+// conceptual coverage — chunk count, chunk_index continuity, heading
+// metadata, paragraph-split fallback, dropping orphan headings — just
+// re-routed through the new fields.
 
 import { describe, it, expect } from 'vitest';
 import { chunkMarkdown } from './markdown.js';

@@ -88,18 +88,18 @@ function parseMode(): Mode {
   return value;
 }
 
-// M2.7 flag — when set, the eval pipes match_chunks output through
+// Rerank flag — when set, the eval pipes match_chunks output through
 // the production reranker (api/_reranker.ts) before scoring. The
 // "visible to the model" list becomes the reranker's diversified
 // top-N, which is what production tool_results contain. Off by
-// default so the M2.6 baseline runner stays reproducible.
+// default so the pre-rerank baseline runner stays reproducible.
 function parseRerank(): boolean {
   return process.argv.includes('--rerank');
 }
 
 // Override the production cosine-similarity floor for this run. Used
-// by the M2.6.5 threshold sweep — sub-spec 2 found that at the
-// production default (0.3) the guardrail fires on 0/5 OOC queries,
+// by the threshold sweep — that found that at the production default
+// (0.3) the guardrail fires on 0/5 OOC queries,
 // so the sweep tests higher floors. Override applies to BOTH the
 // per-query retrieval@k computation (chunks below the floor are
 // dropped from the LLM-visible list, matching production) AND the
@@ -133,16 +133,16 @@ type Query = {
   target_source?: 'experience' | 'resume' | 'readme' | 'docs';
   correct_chunks?: ChunkRef[];
   tags: string[];
-  // M3 Phase 1a category-file fields. Present in the new structure; not
-  // used by this runner's scoring (tags drive scoring; result_type is for
-  // the Phase 3 assertion engine).
+  // Category-file fields. Present in the structure; not used by this
+  // runner's scoring (tags drive scoring; result_type is for the
+  // assertion engine).
   result_type?: 'retrieval' | 'assertion';
   category?: string;
-  // Assertion-type queries (Phase 1b) carry their assertion list here.
+  // Assertion-type queries carry their assertion list here.
   assertions?: Assertion[];
-  // M3 Phase 1b paraphrase entries carry this pointing at the canonical
-  // query ID they paraphrase. Documentation-only today; not read by the
-  // runner. Declared on the type so typos surface in tooling.
+  // Paraphrase entries carry this pointing at the canonical query ID
+  // they paraphrase. Documentation-only today; not read by the runner.
+  // Declared on the type so typos surface in tooling.
   paraphrase_of?: string;
 };
 
@@ -193,19 +193,18 @@ type PerQueryResult = {
   chunks_above_floor: number;
 };
 
-// M3 Phase 1a: the eval set lives as per-category files under
-// evals/categories/. This runner dispatches by `result_type`:
-// retrieval-type queries go through `processRetrievalQuery` (scored
-// against match_chunks); assertion-type queries go through
-// `processAssertionQuery` and the Phase 3 assertion engine. Phase 1b
-// adds off-topic.json (assertion-type, dormant until Phase 4 wires the
-// chat endpoint) and paraphrase.json (retrieval-type). Queries are
-// merged and re-sorted into their original Q-order so result files stay
-// diff-comparable with pre-migration runs. The sort key strips the
-// first character and parses the rest as a number; works for `Q1`/`Q31`
-// and produces NaN-comparators for `arch-NNN`/`mf-NNN`/`para-NNN`/
-// `ot-NNN` (treated as zero-difference → stable insertion order).
-// Cosmetic only; see Followup #92 for the fix.
+// The eval set lives as per-category files under evals/categories/.
+// This runner dispatches by `result_type`: retrieval-type queries go
+// through `processRetrievalQuery` (scored against match_chunks);
+// assertion-type queries go through `processAssertionQuery` and the
+// assertion engine. The off-topic.json category (assertion-type) is
+// dormant until the chat endpoint is wired into the runner. Queries
+// are merged and re-sorted into their original Q-order so result
+// files stay diff-comparable with pre-migration runs. The sort key
+// strips the first character and parses the rest as a number; works
+// for `Q1`/`Q31` and produces NaN-comparators for `arch-NNN`/`mf-NNN`/
+// `para-NNN`/`ot-NNN` (treated as zero-difference → stable insertion
+// order). Cosmetic only.
 async function loadDataset(): Promise<Dataset> {
   const here = dirname(fileURLToPath(import.meta.url));
   const categoriesDir = resolvePath(here, '..', '..', 'evals', 'categories');
@@ -295,9 +294,9 @@ function scoreQuery(
   }
 
   // Standard / cross-source scoring. "Hit" semantics differ per tag.
-  // Operates on visibleToModel — sub-spec 2 ran on `retrieved` (no
-  // threshold filter), which inflated retrieval@k vs. what the LLM
-  // actually saw. M2.6.5 sub-spec aligned this with production.
+  // Operates on visibleToModel — an earlier version ran on `retrieved`
+  // (no threshold filter), which inflated retrieval@k vs. what the LLM
+  // actually saw. Aligned with production.
   const correctInTopK = (k: number): boolean => {
     const slice = visibleToModel.slice(0, k).filter((r) => r.is_correct);
     if (isCrossSource) {
@@ -383,11 +382,11 @@ function pct(x: number): string {
   return `${(x * 100).toFixed(1)}%`;
 }
 
-// M3 Phase 2: map a scored retrieval result into the committed per-query
-// result shape (spec §7.2). passed = guardrail fired (out-of-corpus) or a
-// correct chunk in top-5 (everything else). Per-query latency/cost capture
-// and Langfuse trace linkage land in Phase 3 (§8.5/§8.2); null here.
-// response_text is null — this runner exercises retrieval only, not chat.
+// Map a scored retrieval result into the committed per-query result
+// shape. passed = guardrail fired (out-of-corpus) or a correct chunk
+// in top-5 (everything else). Per-query latency/cost capture and
+// Langfuse trace linkage land later; null here. response_text is
+// null — this runner exercises retrieval only, not chat.
 function toPerQueryEntry(
   r: PerQueryResult,
   category: string,
@@ -584,10 +583,10 @@ async function processRetrievalQuery(
   return scoreQuery(q, rows, effectiveThreshold);
 }
 
-// Assertion-type query: obtain a chat ResponseContext, then evaluate its
-// assertions. No assertion-type queries exist until Phase 1b, so this path
-// is dormant; if reached before Phase 4 wires the endpoint it errors and
-// is captured per-query.
+// Assertion-type query: obtain a chat ResponseContext, then evaluate
+// its assertions. This path is dormant until the chat endpoint is
+// wired into the runner; if reached before that it errors and is
+// captured per-query.
 async function processAssertionQuery(
   q: Query,
 ): Promise<{ assertions: AssertionResult[]; response: ResponseContext }> {
@@ -598,12 +597,12 @@ async function processAssertionQuery(
 
 function getResponseContext(_q: Query): Promise<ResponseContext> {
   // Producing a ResponseContext means calling /api/chat with the eval
-  // traffic header (§8.2) against a deployed endpoint — wired in Phase 4
-  // (workflow + endpoint URL + secrets). Until then there is no response
-  // source, so this rejects clearly and the runner captures it per-query.
+  // traffic header against a deployed endpoint — wired later (workflow
+  // + endpoint URL + secrets). Until then there is no response source,
+  // so this rejects clearly and the runner captures it per-query.
   return Promise.reject(
     new Error(
-      'assertion-query execution needs the chat endpoint wired in Phase 4 (§8.2)',
+      'assertion-query execution needs the chat endpoint wired into the runner',
     ),
   );
 }
@@ -628,7 +627,7 @@ async function main(): Promise<void> {
   const rerank = parseRerank();
   if (rerank) {
     console.log(
-      'rerank: ON (M2.7 reranker; threshold floor effectively 0 for scoring)',
+      'rerank: ON (Haiku reranker; threshold floor effectively 0 for scoring)',
     );
   }
 
@@ -640,10 +639,10 @@ async function main(): Promise<void> {
       : `running match_chunks_unified across the whole corpus (concurrency=${concurrency})...`,
   );
 
-  // M3 Phase 3 (§8.6): execute queries in parallel under a concurrency
-  // cap. One query throwing does not abort the run — it is captured as an
-  // error outcome and the run continues. Promise.all preserves input
-  // order, so embeddings[i] stays aligned with dataset.queries[i].
+  // Execute queries in parallel under a concurrency cap. One query
+  // throwing does not abort the run — it is captured as an error
+  // outcome and the run continues. Promise.all preserves input order,
+  // so embeddings[i] stays aligned with dataset.queries[i].
   const limit = pLimit(concurrency);
   const outcomes = await Promise.all(
     dataset.queries.map((q, i) =>
@@ -700,7 +699,7 @@ async function main(): Promise<void> {
 
   printSummary(retrievalResults);
 
-  // Legacy detailed JSON (retrieval only), retained until Phase 4.
+  // Legacy detailed JSON (retrieval only), retained for now.
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
   const thrTag = `thr${threshold.toFixed(2)}`;
   const rerankTag = rerank ? '-rerank' : '';
@@ -735,8 +734,8 @@ async function main(): Promise<void> {
   );
   console.log(`\nwrote results to ${outPath}`);
 
-  // M3 Phase 2/3: emit the per-commit result file in the new format
-  // (spec §7.2), covering retrieval + assertion + error outcomes.
+  // Emit the per-commit result file in the canonical format,
+  // covering retrieval + assertion + error outcomes.
   const env = await gatherEnvMetadata();
   const baseline = await loadBaseline();
   // Consistent fallback with the error-outcome category resolution above
@@ -782,7 +781,7 @@ async function main(): Promise<void> {
     trace_id: null,
   }));
 
-  // §8.6: per_query sorted by (category, id) for diff stability,
+  // per_query sorted by (category, id) for diff stability,
   // regardless of completion order.
   const perQuery = [
     ...retrievalEntries,
@@ -867,8 +866,9 @@ async function main(): Promise<void> {
   const { path: perCommitPath } = await writeResult(evalResult);
   console.log(`wrote per-commit result to ${perCommitPath}`);
 
-  // §8.6: a failure rate above the threshold fails the whole run,
-  // regardless of metric thresholds — partial coverage is unsafe to gate on.
+  // A failure rate above the threshold fails the whole run,
+  // regardless of metric thresholds — partial coverage is unsafe to
+  // gate on.
   if (
     totalQueries > 0 &&
     failedQueries / totalQueries > FAILURE_RATE_THRESHOLD

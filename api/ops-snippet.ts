@@ -12,8 +12,7 @@
 // `(req: VercelRequest, res: VercelResponse) => Promise<void>`.
 // Returning a `Response` is the edge-runtime pattern; under Node
 // serverless that return value is silently discarded and the
-// function hangs until the 300s timeout. Caught in preview after
-// the M2.8 ship.
+// function hangs until the 300s timeout. Caught in preview.
 
 import type { VercelRequest, VercelResponse } from './_types.js';
 import { Redis } from '@upstash/redis';

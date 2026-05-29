@@ -6,8 +6,8 @@
 //                   fallback, min-merge under same H2.
 //   - sliding-window (project READMEs) — byte-budget windows with
 //                   150-char overlap, paragraph-preferred breaks,
-//                   atomic code fences. Used in sub-spec 2's README
-//                   ingest path; not exercised in sub-spec 1.
+//                   atomic code fences. Used in the README ingest
+//                   path.
 //
 // `MarkdownChunk` unifies both strategies' output for the ingest
 // pipeline. The `metadata` field intentionally widens past the

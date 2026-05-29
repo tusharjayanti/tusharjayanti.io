@@ -1,15 +1,15 @@
 // POST /api/github-webhook — receives push events from the README
 // allowlist and re-ingests any repo whose root README was touched.
-// Closes the M2.5 loop: pushing to a README on a tracked repo updates
-// the chat's knowledge of that project within seconds.
+// Closes the README-sync loop: pushing to a README on a tracked repo
+// updates the chat's knowledge of that project within seconds.
 //
 // Runs in the Node serverless runtime so node:crypto's createHmac +
 // timingSafeEqual are available natively. The handler uses the
 // canonical Vercel Node shape — `(req: VercelRequest, res:
 // VercelResponse) => Promise<void>` — instead of the Edge-style
-// `(req: Request) => Promise<Response>` it briefly used in sub-spec
-// 3. Two production runtime errors (`req.text is not a function`,
-// then `req.headers.get is not a function`) revealed the abstraction
+// `(req: Request) => Promise<Response>` it briefly used. Two
+// production runtime errors (`req.text is not a function`, then
+// `req.headers.get is not a function`) revealed the abstraction
 // mismatch; the rewrite aligns the handler's API patterns with its
 // runtime instead of polyfilling Web APIs piecemeal.
 //

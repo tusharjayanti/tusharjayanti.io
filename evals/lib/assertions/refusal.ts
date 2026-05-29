@@ -1,4 +1,4 @@
-// refusal_detected (§6.3.1) — deterministic, regex-based refusal
+// refusal_detected — deterministic, regex-based refusal
 // heuristic; NO LLM in the path (that is the whole point of a
 // deterministic check). Matches common first-person refusal phrasings in
 // the Tony-Stark/Jarvis register the system prompt speaks in. If this

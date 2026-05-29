@@ -1,21 +1,24 @@
--- M2.2 — match_chunks extended to hybrid retrieval (semantic + BM25) via
--- Reciprocal Rank Fusion. The dense path is unchanged from M2.1; the sparse
--- path uses Postgres FTS with the 'english' config matching the `tsv`
--- generated column from migration 0001. RRF constant k = 60 is canonical
--- (Cormack et al. 2009 "Reciprocal Rank Fusion outperforms Condorcet and
--- individual rank learning methods") with equal weight on both retrievers;
--- alternative weights belong in M4 once eval-suite ground truth exists, not
--- tuned speculatively. Over-retrieves top-20 from each retriever and fuses
--- to top-`match_count`; the M2.6 Haiku reranker reads from this function's
+-- match_chunks extended to hybrid retrieval (semantic + BM25) via
+-- Reciprocal Rank Fusion. The dense path is unchanged from the v1
+-- function in 0003_match_chunks.sql; the sparse path uses Postgres FTS
+-- with the 'english' config matching the `tsv` generated column from
+-- 0001_init_chunks.sql. RRF constant k = 60 is canonical (Cormack et
+-- al. 2009 "Reciprocal Rank Fusion outperforms Condorcet and
+-- individual rank learning methods") with equal weight on both
+-- retrievers; alternative weights belong to a future revision once
+-- eval-suite ground truth exists, not tuned speculatively.
+-- Over-retrieves top-20 from each retriever and fuses to
+-- top-`match_count`; the Haiku reranker reads from this function's
 -- output and reshuffles the top-K. The function signature gains a
--- `query_text` parameter so the BM25 path doesn't have to round-trip back
--- to the caller — semantic-only callers must still pass it (a literal "" is
--- valid and produces an empty tsquery match).
+-- `query_text` parameter so the BM25 path doesn't have to round-trip
+-- back to the caller — semantic-only callers must still pass it (a
+-- literal "" is valid and produces an empty tsquery match).
 --
--- The return type changes from M2.1's 7 columns to 11, which Postgres
--- treats as a different function. Drop the M2.1 signature explicitly before
--- CREATE OR REPLACE; this also drops the M2.1 grant, so re-grant at the
--- bottom.
+-- The return type changes from the 7 columns of
+-- 0003_match_chunks.sql to 11, which Postgres treats as a different
+-- function. Drop the 0003 signature explicitly before CREATE OR
+-- REPLACE; this also drops the 0002_chunks_grants.sql grant, so
+-- re-grant at the bottom.
 
 drop function if exists match_chunks(vector, int, text);
 

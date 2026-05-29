@@ -1,10 +1,11 @@
-// M3 Phase 3 — assertion engine shared types (spec §6.3, §8.3).
+// Assertion engine shared types.
 //
-// Assertion modules are pure functions over a ResponseContext: the chat
-// response text, the cited sources, the rag_used flag, and trace
-// metadata. The context is produced by the eval runner (the chat-endpoint
-// call that produces it is wired in Phase 4 — see the runner's dispatch
-// note); the engine here only evaluates a context it is handed.
+// Assertion modules are pure functions over a ResponseContext: the
+// chat response text, the cited sources, the rag_used flag, and trace
+// metadata. The context is produced by the eval runner (the
+// chat-endpoint call that produces it is wired in later — see the
+// runner's dispatch note); the engine here only evaluates a context
+// it is handed.
 
 export interface CitedSource {
   source: string;
@@ -28,7 +29,7 @@ export interface AssertionResult {
   detail: string;
 }
 
-// ---- Assertion shapes (discriminated by `type`), spec §6.3 ----
+// ---- Assertion shapes (discriminated by `type`) ----
 
 export interface ContainsAnyAssertion {
   type: 'contains_any';

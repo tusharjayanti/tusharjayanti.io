@@ -1,14 +1,14 @@
 // Anthropic tool definitions for the RAG-over-chat loop. Three
-// source-scoped retrieval tools that wrap the M2.2 hybrid match_chunks
-// RPC. Sonnet picks one or more per turn; the chat handler executes
-// each, appends tool_result blocks, and re-prompts Sonnet for the
-// final streamed answer.
+// source-scoped retrieval tools that wrap the hybrid match_chunks RPC.
+// Sonnet picks one or more per turn; the chat handler executes each,
+// appends tool_result blocks, and re-prompts Sonnet for the final
+// streamed answer.
 //
-// - search_experience (M2.4) — detailed role writeups
-// - search_resume (M2.4)     — compact summaries
-// - search_readme (M2.5)     — GitHub project READMEs, ingested via
-//                              `ingestReadme` and refreshed on push
-//                              via `/api/github-webhook`
+// - search_experience — detailed role writeups
+// - search_resume     — compact summaries
+// - search_readme     — GitHub project READMEs, ingested via
+//                       `ingestReadme` and refreshed on push via
+//                       `/api/github-webhook`
 //
 // `executeTool` performs the embed + RPC round-trip per call and is the
 // only callsite outside scripts/ that hits Voyage at retrieval time.
@@ -53,8 +53,8 @@ const SEARCH_SOURCE_MAP: Record<
   [SEARCH_README]: 'readme',
 };
 
-// M2.7: K=10 over-retrieve, reranker drops "no" verdicts and
-// diversifies to N=5 for the final tool_result. Pre-M2.7 was K=N=3.
+// K=10 over-retrieve; reranker drops "no" verdicts and diversifies to
+// N=5 for the final tool_result.
 const MATCH_COUNT = 10;
 
 export const TOOLS = [
@@ -128,7 +128,7 @@ export type ToolCallResult = {
   formatted: string;
   metadata: {
     // The user-facing input — query string for search_*, the URL for
-    // fetch_url. Stored verbatim in the trace for M3 eval surfacing.
+    // fetch_url. Stored verbatim in the trace for eval surfacing.
     query: string;
     source: ToolSource;
     chunk_ids: number[];
@@ -153,13 +153,12 @@ type MatchRow = {
   semantic_distance: number | null;
 };
 
-// M2.7: the cosine floor is now a cost-control PRE-FILTER, not the
-// relevance signal — those duties moved to the reranker. Default
-// drops from 0.3 → 0.15 (configurable via RAG_MIN_COSINE_SIMILARITY)
-// because the threshold now exists only to skip obvious noise before
-// paying for Haiku, not to separate borderline-relevant from
-// borderline-irrelevant. The reranker handles that separation via
-// binary verdicts.
+// The cosine floor is a cost-control pre-filter, not the relevance
+// signal — those duties belong to the reranker. Default is 0.15
+// (configurable via RAG_MIN_COSINE_SIMILARITY) because the threshold
+// exists only to skip obvious noise before paying for Haiku, not to
+// separate borderline-relevant from borderline-irrelevant. The
+// reranker handles that separation via binary verdicts.
 
 // Sent to the model as tool_result when retrieval returns nothing
 // above the cosine-similarity floor. The MUST NOT line is the
@@ -328,12 +327,11 @@ async function executeSearch(
     console.error('[langfuse] retrieval span end failed:', err);
   }
 
-  // M2.7: the reranker owns the cosine pre-filter (default 0.15)
-  // AND the Haiku verdict pass that decides which chunks reach the
+  // The reranker owns the cosine pre-filter (default 0.15) AND the
+  // Haiku verdict pass that decides which chunks reach the
   // tool_result. An empty return means either everything failed
   // pre-filter (low cosine) or Haiku marked every survivor "no"
-  // (out-of-corpus). Both paths trigger the no_match guardrail
-  // here.
+  // (out-of-corpus). Both paths trigger the no_match guardrail here.
   // Child: rerank (duration + Haiku tokens). A model call, so it's a
   // generation — only generations carry usageDetails for cost rollup.
   let rerankGen = null;

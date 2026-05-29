@@ -546,7 +546,7 @@ describe('chat handler — q length cap (50,000 chars)', () => {
   });
 });
 
-describe('chat handler — M2.4 tool-use', () => {
+describe('chat handler — tool-use', () => {
   let captured: Promise<unknown>[];
   let ctx: { waitUntil: (p: Promise<unknown>) => void };
 
@@ -610,7 +610,7 @@ describe('chat handler — M2.4 tool-use', () => {
 
     // Two generations (one per Anthropic round): anthropic_first_call
     // then anthropic_second_call. Tool-execution span is a child of the
-    // first generation per M2.4 PART 4 spec.
+    // first generation per the trace taxonomy.
     expect(lf.trace.generation).toHaveBeenCalledTimes(2);
     expect(lf.generation.end).toHaveBeenCalledTimes(2);
     const generationCalls = lf.trace.generation.mock

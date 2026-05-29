@@ -1,4 +1,4 @@
-// source_excludes (§6.3) — none of the listed sources are cited.
+// source_excludes — none of the listed sources are cited.
 
 import type { AssertionResult, ResponseContext } from './types.js';
 

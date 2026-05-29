@@ -1,4 +1,4 @@
-// Integration tests for the M2.2 match_chunks RPC. Hits the live linked
+// Integration tests for the match_chunks RPC. Hits the live linked
 // Supabase project and Voyage API, so it's slow and pulled out of the
 // default `npm test` run. Invoke via `npm run test:integration` from a
 // shell with .env.local loaded. Skips entirely when SUPABASE_URL,
@@ -47,7 +47,7 @@ const QUERIES = {
   sourceScope: 'PurpleToko',
 } as const;
 
-describe.skipIf(!HAS_ENV)('match_chunks (M2.2 hybrid)', () => {
+describe.skipIf(!HAS_ENV)('match_chunks (hybrid)', () => {
   let embeddings: Record<keyof typeof QUERIES, number[]>;
 
   beforeAll(async () => {

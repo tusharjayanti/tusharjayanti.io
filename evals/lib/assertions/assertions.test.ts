@@ -1,4 +1,4 @@
-// Node-env unit tests for the assertion engine (M3 Phase 3). One describe
+// Node-env unit tests for the assertion engine. One describe
 // block per assertion type, plus values_ref resolution, the
 // values/values_ref mutual-exclusion rule, and runAssertions dispatch.
 // llm_judge uses an injected mock judge; refs uses a temp prompt file —

@@ -6,7 +6,7 @@
 
 ## Context
 
-By the end of Phase 0.2, every chat turn was being written to Upstash
+By the time of this decision, every chat turn was being written to Upstash
 Redis with a hand-rolled JSON envelope containing ipHash, q, aPreview,
 token counts (input/output/cache-creation/cache-read), model, and
 latency. The log was already populated by `logChatTurn` on each
@@ -98,7 +98,7 @@ Specifics:
 - System prompt registered as `tarvis-system-prompt` with a SHA-256
   prefix label (12 hex chars) over canary-normalized content.
 - Hand-rolled Redis log keeps writing in parallel as the local audit
-  trail. Cutover decision deferred to M3 (`/ops` dashboard).
+  trail. Cutover decision deferred to the `/ops` dashboard work.
 
 ## Consequences
 
@@ -109,9 +109,10 @@ Specifics:
 - Prompt-cache token math surfaces correctly in cost display.
 - Prompt versioning makes A/B reasoning about prompt edits possible.
 - The trace/generation/score primitives prepare the schema for
-  M3 (eval CI gate writes scores) and M4 (online Haiku judge writes
-  scores) without further infrastructure work.
-- M2 RAG plugs in cleanly — retrieval/rerank become sibling
+  the eval CI gate (writes scores from offline evals) and a future
+  online Haiku judge (writes scores from live traffic) without
+  further infrastructure work.
+- The RAG layer plugs in cleanly — retrieval/rerank become sibling
   observations under the same trace.
 
 ### Negative
@@ -125,7 +126,7 @@ Specifics:
 - v3 SDK is upstream-deprecated. Migration to v4 (the
   `@langfuse/tracing` and `@langfuse/client` family, OTel-based) is
   a separate decision, banked for a focused session when triggered
-  by v3 sunset or M2 RAG surfacing v4 features.
+  by v3 sunset or the RAG layer surfacing v4 features.
 
 ### Neutral
 

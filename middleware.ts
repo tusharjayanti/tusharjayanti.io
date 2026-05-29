@@ -1,4 +1,4 @@
-// Vercel Edge Middleware — M2.8 visitor counter.
+// Vercel Edge Middleware — visitor counter.
 // Runs on `/` and `/terminal`; increments a per-day Redis hash with
 // the visitor's hashed IP. Hashing + counter logic lives in
 // `api/_visitorCounter.ts` so it's unit-testable without a real

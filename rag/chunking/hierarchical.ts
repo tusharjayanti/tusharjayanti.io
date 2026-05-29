@@ -1,25 +1,25 @@
 // Hierarchical chunker for authored sources (experience.md, resume.md).
 // Walks the H1/H2/H3 heading tree and emits one chunk per H3 section
 // (or per paragraph-pack when an H3 exceeds the soft cap). Two key
-// changes from the pre-sub-spec-1 chunker:
+// design points vs. a flat chunker:
 //
-// 1. `content` is now CLEAN — just the body text under the H3, with
-//    no H2/H3 prefix. The model sees uncluttered prose in tool_result
+// 1. `content` is CLEAN — just the body text under the H3, with no
+//    H2/H3 prefix. The model sees uncluttered prose in tool_result
 //    blocks.
 // 2. `embedding_text` is what gets embedded into the dense vector. It
 //    prepends the parent H2 heading and the chunk's own H3 heading so
 //    semantic retrieval picks up section context that would otherwise
 //    be lost from the chunk body alone.
 //
-// Other invariants preserved from M2.1:
+// Other invariants:
 // - H1 is ignored (document title).
 // - H3s with no body are dropped (no orphan-heading chunks).
 // - Soft cap: H3 sections >500 estimated tokens (chars/4) split on
 //   blank-line paragraph boundaries; no overlap.
 // - Code fences (lines fenced by ```...```) are atomic — a paragraph
 //   that opens a fence stays joined to the paragraph that closes it,
-//   even if that pushes the pack above the soft cap. "No hard cap"
-//   per the sub-spec.
+//   even if that pushes the pack above the soft cap (no hard cap by
+//   design).
 // - Min-merge: emitted chunks whose content is shorter than 200 chars
 //   merge into the previous chunk under the same H2 parent. If no
 //   such sibling exists, merge forward; if neither, keep as-is.
@@ -37,11 +37,11 @@ export type HierarchicalChunk = {
 
 const SOFT_CHUNK_TOKEN_CAP = 500;
 // Min-merge threshold: chunks shorter than this collapse into the
-// previous sibling under the same H2. Lowered from 200 → 100 after
-// sub-spec 1 first-pass landed showed 37% chunk-count drop on the
-// experience corpus (many H3 bodies between 100–200 chars). At 100,
-// only genuinely tiny H3s merge — preserves more chunk granularity
-// while still pulling fragments together.
+// previous sibling under the same H2. Set to 100 after the original
+// 200 produced a 37% chunk-count drop on the experience corpus (many
+// H3 bodies between 100–200 chars). At 100, only genuinely tiny H3s
+// merge — preserves more chunk granularity while still pulling
+// fragments together.
 const MIN_CHUNK_CHARS = 100;
 
 function estimateTokens(text: string): number {

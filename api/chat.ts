@@ -42,8 +42,8 @@ const MAX_Q_LENGTH = 50_000;
 const MODEL_ID = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
 // Cap on tool-use rounds per turn. 3 rounds = initial + 2 tool follow-ups,
-// which is more than Sonnet ever needs for the two RAG tools in M2.4 and
-// guards against runaway loops if a future tool returns ambiguous results.
+// which is more than Sonnet ever needs for the two RAG tools and guards
+// against runaway loops if a future tool returns ambiguous results.
 const MAX_TOOL_ROUNDS = 3;
 
 const REFUSAL_TEXT = 'Not how this works. Want to know what I built at DISCO?';
@@ -398,10 +398,9 @@ export default async function handler(
           // round), so Langfuse must see the input state at THIS call's
           // moment, not the final array.
           const inputSnapshot = JSON.parse(JSON.stringify(messages));
-          // Per the M2.4 spec PART 4 trace taxonomy: round 0 is the call
-          // that may produce tool_use ("anthropic_first_call"); rounds 1+
-          // are the follow-up responses after tool_results land
-          // ("anthropic_second_call").
+          // Per the trace taxonomy: round 0 is the call that may produce
+          // tool_use ("anthropic_first_call"); rounds 1+ are the follow-up
+          // responses after tool_results land ("anthropic_second_call").
           const generationName =
             roundIndex === 0 ? 'anthropic_first_call' : 'anthropic_second_call';
           generation =

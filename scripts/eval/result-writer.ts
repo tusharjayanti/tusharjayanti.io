@@ -1,9 +1,9 @@
-// M3 Phase 2 — result file format + writer.
+// Eval result file format + writer.
 //
-// Defines the committed eval result shape (spec §7.2) and the three
-// persistence functions from §7.3:
+// Defines the committed eval result shape and the three persistence
+// functions:
 //   - writeResult   — write a per-commit result file to evals/results/by-commit/<sha>.json
-//   - loadBaseline  — read the current baseline result, or null on bootstrap (§9.2)
+//   - loadBaseline  — read the current baseline result, or null on bootstrap
 //   - updateBaseline— repoint evals/results/baseline.json (post-merge only)
 //
 // Plus gatherEnvMetadata(), a helper the runner uses to assemble the
@@ -29,7 +29,7 @@ const DEFAULT_RESULTS_DIR = resolvePath(REPO_ROOT, 'evals', 'results');
 const DEFAULT_BY_COMMIT_DIR = resolvePath(DEFAULT_RESULTS_DIR, 'by-commit');
 const MANIFEST_PATH = resolvePath(REPO_ROOT, 'evals', 'manifest.json');
 
-// ---- Result file shape (spec §7.2) ----
+// ---- Result file shape ----
 
 export interface ResultMetadata {
   commit_sha: string;
@@ -96,7 +96,7 @@ export interface PerQueryResultEntry {
   category: string;
   result_type: 'retrieval' | 'assertion';
   passed: boolean;
-  // Per-query latency/cost capture is Phase 3 (§8.5); null until then.
+  // Per-query latency/cost capture lands later; null until then.
   error: string | null;
   latency_seconds: number | null;
   cost_usd: number | null;
@@ -117,7 +117,7 @@ export interface EvalResult {
   per_query: PerQueryResultEntry[];
 }
 
-// ---- Baseline pointer (spec §7.1) ----
+// ---- Baseline pointer ----
 
 export interface BaselinePointer {
   baseline_commit_sha: string;
@@ -125,7 +125,7 @@ export interface BaselinePointer {
   updated_at: string;
 }
 
-// ---- Writer (spec §7.3) ----
+// ---- Writer ----
 
 /**
  * Write a per-commit result file to `${dir}/${commit_sha}.json`.
@@ -144,9 +144,9 @@ export async function writeResult(
 
 /**
  * Read the current baseline result. Returns null on bootstrap — when
- * baseline.json is absent, or its referenced by-commit file is missing
- * (spec §9.2). The threshold checker (Phase 4/5) treats null as
- * "no baseline, skip checks, this run becomes the baseline on merge".
+ * baseline.json is absent, or its referenced by-commit file is missing.
+ * The threshold checker treats null as "no baseline, skip checks, this
+ * run becomes the baseline on merge".
  */
 export async function loadBaseline(
   opts: { resultsDir?: string } = {},
@@ -181,7 +181,7 @@ export async function loadBaseline(
 
 /**
  * Repoint baseline.json at the given commit's result file. Post-merge
- * only (spec §7.1) — never called during a PR run.
+ * only — never called during a PR run.
  */
 export async function updateBaseline(
   commit_sha: string,
