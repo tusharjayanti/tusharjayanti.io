@@ -14,11 +14,12 @@ import {
   updateBaseline,
   type BaselinePointer,
   type EvalResult,
+  type PerQueryResultEntry,
 } from './result-writer.js';
 
 function fixture(commit_sha = 'a'.repeat(40)): EvalResult {
   return {
-    schema_version: '1.0.0',
+    schema_version: '1.1.0',
     metadata: {
       commit_sha,
       branch: 'test-branch',
@@ -58,6 +59,7 @@ function fixture(commit_sha = 'a'.repeat(40)): EvalResult {
         total_queries: 31,
         successful_queries: 31,
         failed_queries: 0,
+        skipped_queries: 0,
         runtime_seconds: 1.5,
       },
     },
@@ -133,5 +135,54 @@ describe('result-writer', () => {
 
     const loaded = await loadBaseline({ resultsDir });
     expect(loaded).toEqual(result);
+  });
+
+  it('round-trips skipped per-query entries and skipped_queries aggregate cleanly', async () => {
+    // Construct a fixture with one retrieval, one assertion, one
+    // error, and one skipped entry — covers every variant the per-
+    // query shape supports. Asserts the JSON encoding preserves
+    // skipped: true, skip_reason: '...', and passed: null exactly.
+    const sha = 'c'.repeat(40);
+    const result = fixture(sha);
+    const retrievalEntry: PerQueryResultEntry = {
+      id: 'Q1',
+      category: 'rag-retrieval',
+      result_type: 'retrieval',
+      passed: true,
+      error: null,
+      latency_seconds: null,
+      cost_usd: null,
+      response_text: null,
+      trace_id: null,
+    };
+    const skippedEntry: PerQueryResultEntry = {
+      id: 'ot-001',
+      category: 'off-topic',
+      result_type: 'assertion',
+      passed: null,
+      skipped: true,
+      skip_reason: 'chat-endpoint-not-wired',
+      error: null,
+      latency_seconds: null,
+      cost_usd: null,
+      response_text: null,
+      trace_id: null,
+    };
+    result.per_query = [retrievalEntry, skippedEntry];
+    result.aggregate.execution.total_queries = 2;
+    result.aggregate.execution.successful_queries = 1;
+    result.aggregate.execution.skipped_queries = 1;
+
+    const { path } = await writeResult(result, { dir: byCommitDir });
+    const back = JSON.parse(await readFile(path, 'utf-8')) as EvalResult;
+    expect(back).toEqual(result);
+
+    // Spot-check the on-disk shape — `passed: null` and the optional
+    // skip fields land as proper JSON, not stringified or dropped.
+    const skipped = back.per_query.find((e) => e.id === 'ot-001');
+    expect(skipped?.passed).toBeNull();
+    expect(skipped?.skipped).toBe(true);
+    expect(skipped?.skip_reason).toBe('chat-endpoint-not-wired');
+    expect(back.aggregate.execution.skipped_queries).toBe(1);
   });
 });

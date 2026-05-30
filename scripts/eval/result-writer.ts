@@ -77,8 +77,14 @@ export interface AssertionAggregate {
 
 export interface ExecutionAggregate {
   total_queries: number;
+  // attempted = total - skipped. Counts queries the runner tried to
+  // execute, both successful and failed. Skipped queries (dormant
+  // assertion-type queries when the chat endpoint isn't wired) are
+  // invisible to this number on purpose so the failure-rate gate
+  // measures attempt-quality, not corpus-coverage.
   successful_queries: number;
   failed_queries: number;
+  skipped_queries: number;
   runtime_seconds: number;
 }
 
@@ -95,7 +101,16 @@ export interface PerQueryResultEntry {
   id: string;
   category: string;
   result_type: 'retrieval' | 'assertion';
-  passed: boolean;
+  // null when skipped (no execution attempted); boolean otherwise.
+  passed: boolean | null;
+  // True when the query was skipped before execution. Today fires only
+  // for assertion-type queries when isResponseSourceAvailable() returns
+  // false (chat endpoint not wired into the runner).
+  skipped?: boolean;
+  // Machine-readable identifier for why a query was skipped. Stable
+  // value, not free text, so downstream consumers can switch on it.
+  // Current values: 'chat-endpoint-not-wired'.
+  skip_reason?: string;
   // Per-query latency/cost capture lands later; null until then.
   error: string | null;
   latency_seconds: number | null;
