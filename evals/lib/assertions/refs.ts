@@ -4,23 +4,18 @@
 // eval time instead of hardcoding strings. Currently one ref is
 // supported:
 //
-//   canary_tokens — the canary marker(s) embedded in the system prompt.
+//   canary_tokens — the live canary token(s) embedded in the BUILT
+//   system prompt (api/_systemPrompt.ts). sync-prompt.mjs substitutes
+//   a fresh `cnry_<16-hex>` per deploy into the generated .ts at
+//   build time. The .txt template only holds the `{{CANARY_TOKEN}}`
+//   placeholder, so we read the built file — placeholder matches are
+//   not useful for leak-detection assertions.
 //
-// Canonical marker pattern:
-//   - the `cnry_<hex>` prefix convention — sync-prompt.mjs substitutes a
-//     fresh `cnry_<16-hex>` token per deploy (see CLAUDE.md, "System
-//     prompt"); and
-//   - the `{{CANARY_TOKEN}}` placeholder that marks the canary slot in
-//     the editable source api/_systemPrompt.txt.
-//
-// We parse api/_systemPrompt.txt (the source of truth). Note the .txt
-// template holds the `{{CANARY_TOKEN}}` placeholder, while the live
-// per-deploy `cnry_<hex>` token is substituted into the generated
-// api/_systemPrompt.ts at build. The resolver returns whatever canary
-// markers it finds in the source so canary-leak assertions
-// (not_contains) stay valid across rotations without manual
-// maintenance. When canary-leak queries are authored, pointing the
-// resolver at the built prompt for the live token is a one-line change.
+// Fallback: if api/_systemPrompt.ts hasn't been built yet (fresh
+// checkout, pre-build) or doesn't contain a canary token, the
+// resolver logs a warning and returns []. Tests should not fail on a
+// missing build; canary-leak assertions become vacuously true in that
+// case, which is the right semantic — there is no live token to leak.
 
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve as resolvePath } from 'node:path';
@@ -32,21 +27,39 @@ const REPO_ROOT = resolvePath(
   '..',
   '..',
 );
-const SYSTEM_PROMPT_PATH = resolvePath(REPO_ROOT, 'api', '_systemPrompt.txt');
+const SYSTEM_PROMPT_BUILT_PATH = resolvePath(
+  REPO_ROOT,
+  'api',
+  '_systemPrompt.ts',
+);
 
 const CANARY_TOKEN_PATTERN = /cnry_[0-9a-f]{8,}/gi;
-const CANARY_PLACEHOLDER = '{{CANARY_TOKEN}}';
 
 export async function resolveCanaryTokens(
   opts: { promptPath?: string } = {},
 ): Promise<string[]> {
-  const raw = await readFile(opts.promptPath ?? SYSTEM_PROMPT_PATH, 'utf-8');
+  const path = opts.promptPath ?? SYSTEM_PROMPT_BUILT_PATH;
+  let raw: string;
+  try {
+    raw = await readFile(path, 'utf-8');
+  } catch (err) {
+    console.warn(
+      `[refs] canary_tokens resolution: could not read ${path} ` +
+        `(${(err as NodeJS.ErrnoException).code ?? (err as Error).message}). ` +
+        `Returning empty list. If this is a fresh checkout, run \`npm run sync:prompt\` ` +
+        `or any \`npm run dev*\`/\`npm run build*\` to regenerate the built prompt.`,
+    );
+    return [];
+  }
   const tokens = new Set<string>();
   for (const match of raw.matchAll(CANARY_TOKEN_PATTERN)) {
     tokens.add(match[0]);
   }
-  if (raw.includes(CANARY_PLACEHOLDER)) {
-    tokens.add(CANARY_PLACEHOLDER);
+  if (tokens.size === 0) {
+    console.warn(
+      `[refs] canary_tokens resolution: no cnry_<hex> tokens found in ${path}. ` +
+        `Returning empty list. Did sync-prompt.mjs run during the build?`,
+    );
   }
   return [...tokens];
 }

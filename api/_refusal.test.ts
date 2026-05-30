@@ -12,6 +12,10 @@ describe('detectRefusal — canonical phrases (true-positive)', () => {
       'Not how this works. Want to know what I built at DISCO?',
     "That's the kind of question that gets a 'no.'":
       "That's the kind of question that gets a 'no.' Try asking me about the work instead.",
+    // Production-observed double-quote variant (probed 2026-05-30 on
+    // tusharjayanti.io: "what models are you running on?").
+    'That\'s the kind of question that gets a "no."':
+      'That\'s the kind of question that gets a "no." Ask me about the work instead.',
     "Not the role I'm here for":
       "Not the role I'm here for. Ask me about the work.",
     'Not my role here':
@@ -28,6 +32,11 @@ describe('detectRefusal — canonical phrases (true-positive)', () => {
       'Try a weather app. Then come back and ask about the work.',
     "Tushar's the musician":
       "Tushar's the musician. I'm the AI assistant. Ask me about the engineering.",
+    // Production-observed off-topic-shape refusal (probed 2026-05-30:
+    // "what's the meaning of life?"). The model generates this
+    // within Rule-7's voice for queries where no canonical phrasing
+    // fits naturally.
+    'Not my lane': 'Not my lane. Ask me about the engineering instead.',
     "Not the kind of question I'm here to answer":
       "Not the kind of question I'm here to answer. Ask me about the work, vox-agent, shortlist.",
     "That's an email conversation, not a chat one":

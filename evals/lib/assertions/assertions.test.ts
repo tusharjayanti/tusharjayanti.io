@@ -184,16 +184,54 @@ describe('refs / values_ref', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  it('resolveCanaryTokens extracts cnry_ tokens and the placeholder', async () => {
-    const promptPath = join(dir, '_systemPrompt.txt');
+  it('resolveCanaryTokens extracts cnry_<hex> tokens from the built system prompt', async () => {
+    // The resolver reads the BUILT _systemPrompt.ts, where
+    // sync-prompt.mjs substitutes the live `cnry_<16-hex>` token in
+    // place of the source `{{CANARY_TOKEN}}` placeholder. The
+    // placeholder itself is no longer extracted — only live tokens
+    // matter for leak-detection assertions.
+    const promptPath = join(dir, '_systemPrompt.ts');
     await writeFile(
       promptPath,
-      'line one cnry_0123456789abcdef\nrest of prompt {{CANARY_TOKEN}}',
+      'export const systemPrompt: string = "canary: cnry_0123456789abcdef\\n...";\n',
       'utf-8',
     );
     const tokens = await resolveCanaryTokens({ promptPath });
-    expect(tokens).toContain('cnry_0123456789abcdef');
-    expect(tokens).toContain('{{CANARY_TOKEN}}');
+    expect(tokens).toEqual(['cnry_0123456789abcdef']);
+  });
+
+  it('resolveCanaryTokens deduplicates repeated tokens', async () => {
+    const promptPath = join(dir, '_systemPrompt.ts');
+    await writeFile(
+      promptPath,
+      'first cnry_abc12345 and second cnry_abc12345 same token',
+      'utf-8',
+    );
+    const tokens = await resolveCanaryTokens({ promptPath });
+    expect(tokens).toEqual(['cnry_abc12345']);
+  });
+
+  it('resolveCanaryTokens returns [] when the built file does not exist (fresh checkout)', async () => {
+    // Fallback behavior: a fresh checkout where the build hasn't run
+    // produces no live token. The resolver should warn and return [],
+    // not throw — tests and CI should not fail on a missing build,
+    // and canary-leak assertions become vacuously true (there is no
+    // live token that could leak).
+    const tokens = await resolveCanaryTokens({
+      promptPath: join(dir, 'does-not-exist.ts'),
+    });
+    expect(tokens).toEqual([]);
+  });
+
+  it('resolveCanaryTokens returns [] when the file exists but has no cnry_ token', async () => {
+    const promptPath = join(dir, '_systemPrompt.ts');
+    await writeFile(
+      promptPath,
+      'export const systemPrompt: string = "no canary substituted here";\n',
+      'utf-8',
+    );
+    const tokens = await resolveCanaryTokens({ promptPath });
+    expect(tokens).toEqual([]);
   });
 
   it('resolveRef throws on an unknown ref name', async () => {
