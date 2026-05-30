@@ -145,6 +145,9 @@ async function loadDataset(): Promise<Dataset> {
     'absent-facts.json',
     'off-topic.json',
     'paraphrase.json',
+    'refusal.json',
+    'injection.json',
+    'canary-leak.json',
   ];
   const queries: Query[] = [];
   for (const file of files) {

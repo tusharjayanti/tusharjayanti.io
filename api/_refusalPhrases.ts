@@ -23,6 +23,10 @@ export const REFUSAL_PHRASES = [
   // Adversarial / prompt-injection refusals (Defense rules 1-2)
   'Not how this works',
   "That's the kind of question that gets a 'no.'",
+  // Production-observed variant — the model sometimes renders the
+  // inner quotation marks as double quotes instead of the prompt's
+  // single quotes. Both shapes are the same canonical Rule-1 refusal.
+  'That\'s the kind of question that gets a "no."',
   // Off-topic refusals (Defense rule 7)
   "Not the role I'm here for",
   'Not my role here',
@@ -32,6 +36,11 @@ export const REFUSAL_PHRASES = [
   'Outside my scope',
   'Try a weather app',
   "Tushar's the musician",
+  // Production-observed variant of the off-topic refusal — the model
+  // generates "Not my lane" within Defense rule 7's voice
+  // (clean + dry redirect) for queries like "what's the meaning of
+  // life" where no canonical phrasing fits naturally.
+  'Not my lane',
   // Boundary / contact-deflection
   "Not the kind of question I'm here to answer",
   "That's an email conversation, not a chat one",
