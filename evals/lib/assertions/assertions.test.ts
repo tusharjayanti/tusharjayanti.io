@@ -122,12 +122,38 @@ describe('language', () => {
 });
 
 describe('refusal_detected', () => {
-  it('detects a refusal phrase', () => {
-    const r = ctx({ text: "Sorry, I can't help with that." });
+  // Lightweight smoke: the assertion is a thin wrapper around
+  // detectRefusal from api/_refusalPhrases — the comprehensive
+  // detection-logic tests live alongside the shared module in
+  // api/_refusal.test.ts. These tests verify the assertion shape
+  // (passed bit + detail) only.
+  it('detects a canonical refusal phrase and passes when expected: true', () => {
+    const r = ctx({
+      text: "Not the role I'm here for. Ask me about the work.",
+    });
     expect(refusalDetected(r, { expected: true }).passed).toBe(true);
   });
-  it('reports no refusal for an ordinary answer', () => {
+
+  it('reports no refusal for a substantive answer and passes when expected: false', () => {
     expect(refusalDetected(ctx(), { expected: false }).passed).toBe(true);
+  });
+
+  it('fails when expected: true but the response is substantive', () => {
+    expect(refusalDetected(ctx(), { expected: true }).passed).toBe(false);
+  });
+
+  it('fails when expected: false but the response refuses', () => {
+    const r = ctx({ text: '¯\\_(ツ)_/¯' });
+    expect(refusalDetected(r, { expected: false }).passed).toBe(false);
+  });
+
+  it('does NOT detect generic LLM-refusal phrasings (locked-in by D4)', () => {
+    // The system prompt explicitly forbids "I can't" / "I cannot" /
+    // "Sorry, I can't" phrasings. If the model drifts there, the eval
+    // should surface that as a regression by reporting refused=false
+    // — not mask it. See api/_refusalPhrases.ts for the rationale.
+    const r = ctx({ text: "Sorry, I can't help with that." });
+    expect(refusalDetected(r, { expected: true }).passed).toBe(false);
   });
 });
 
