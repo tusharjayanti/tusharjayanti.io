@@ -295,9 +295,53 @@ export default async function handler(
     console.error('[langfuse] trace creation failed:', err);
   }
 
-  // (c) rate limit
+  // (b.2) Eval-bypass: skip rate-limiting for trusted eval-runner
+  // traffic. The X-Eval-Bypass header carries the shared secret
+  // (compared constant-time against EVAL_BYPASS_SECRET). Fail-closed:
+  // if the env var is unset, ALL inbound bypass headers are rejected
+  // and the request goes through the normal rate-limit path.
+  //
+  // CRITICAL: the bypass skips rate-limiting ONLY. The injection
+  // regex below (api/_injection.ts) is part of the defense being
+  // tested by the eval; it runs unchanged for eval traffic. Any
+  // future refactor that widens the bypass to skip the injection
+  // check would invalidate the injection-category eval coverage —
+  // don't.
+  const evalBypassHeader = getHeader(req, 'x-eval-bypass');
+  const evalBypassSecret = process.env.EVAL_BYPASS_SECRET;
+  let isEvalRequest = false;
+  if (
+    evalBypassSecret &&
+    typeof evalBypassHeader === 'string' &&
+    evalBypassHeader.length === evalBypassSecret.length
+  ) {
+    let acc = 0;
+    for (let i = 0; i < evalBypassHeader.length; i++) {
+      acc |= evalBypassHeader.charCodeAt(i) ^ evalBypassSecret.charCodeAt(i);
+    }
+    if (acc === 0) {
+      isEvalRequest = true;
+    }
+  }
+  if (isEvalRequest) {
+    tags.push('eval-source');
+    const evalQueryId = getHeader(req, 'x-eval-query-id');
+    if (typeof evalQueryId === 'string' && evalQueryId.length > 0) {
+      try {
+        trace?.update({ metadata: { eval_query_id: evalQueryId } });
+      } catch (err) {
+        console.error('[langfuse] trace eval-query-id update failed:', err);
+      }
+    }
+  }
+  const traceId: string | null = trace?.id ?? null;
+
+  // (c) rate limit. Eval-source requests skip this branch entirely
+  // (see (b.2)); they still increment the counter (no special
+  // skip-incr API exists in checkRateLimit) but the limit gate
+  // does not apply to them.
   const { ok, count } = await checkRateLimit(ipHash);
-  if (!ok) {
+  if (!ok && !isEvalRequest) {
     console.warn(
       '[chat] rate limit exceeded for ip:',
       ipHash.slice(0, 8),
@@ -342,7 +386,31 @@ export default async function handler(
     tags.push('injection-detected');
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
+        // Stream-event protocol additions for eval consumers (Phase 4a):
+        //   trace (first, before any delta) — exposes trace_id for the
+        //     runner to store in PerQueryResultEntry.trace_id
+        //   rag    (after content, before done) — surfaces rag_used +
+        //     sources for source_includes / source_excludes assertions
+        //   usage  (after content, before done) — surfaces token counts
+        //     so the runner computes cost USD from its price table
+        // This path doesn't call the LLM (regex short-circuited), so
+        // rag_used is false and token counts are zero. The events still
+        // fire so the eval runner sees a uniform protocol on every path.
+        emit(controller, { type: 'trace', traceId });
         emit(controller, { type: 'delta', text: REFUSAL_TEXT });
+        emit(controller, {
+          type: 'rag',
+          rag_used: false,
+          sources: [],
+        });
+        emit(controller, {
+          type: 'usage',
+          input_tokens: 0,
+          output_tokens: 0,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+          model: null,
+        });
         emit(controller, { type: 'done' });
         await fireAndForget(
           resOrCtx,
@@ -373,6 +441,18 @@ export default async function handler(
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      // Stream-event protocol additions for eval consumers (Phase 4a):
+      //   trace (first, before any delta) — exposes trace_id for the
+      //     runner to store in PerQueryResultEntry.trace_id
+      //   rag    (after content, before done) — surfaces rag_used +
+      //     sources for source_includes / source_excludes assertions
+      //   usage  (after content, before done) — surfaces token counts
+      //     so the runner computes cost USD from its price table
+      // Emitted on every terminal branch (success done at line below;
+      // error-in-stream done a few lines down) so the eval runner
+      // never has to handle a missing event.
+      emit(controller, { type: 'trace', traceId });
+
       let accumulated = '';
       let totalTokensIn: number | undefined;
       let totalTokensOut: number | undefined;
@@ -717,6 +797,19 @@ export default async function handler(
           // Loop continues for the next round.
         }
 
+        emit(controller, {
+          type: 'rag',
+          rag_used: ragMeta.rag_retrieved,
+          sources: ragMeta.rag_sources,
+        });
+        emit(controller, {
+          type: 'usage',
+          input_tokens: totalTokensIn ?? 0,
+          output_tokens: totalTokensOut ?? 0,
+          cache_creation_input_tokens: totalCacheCreationTokens ?? 0,
+          cache_read_input_tokens: totalCacheReadTokens ?? 0,
+          model: model ?? null,
+        });
         emit(controller, { type: 'done' });
       } catch (err) {
         console.error('[chat] anthropic stream error:', err);
@@ -734,6 +827,22 @@ export default async function handler(
         emit(controller, {
           type: 'error',
           message: err instanceof Error ? err.message : String(err),
+        });
+        // Partial rag/usage state — emit what's known so the eval
+        // runner's stream parser sees a uniform protocol on the
+        // error path too.
+        emit(controller, {
+          type: 'rag',
+          rag_used: ragMeta.rag_retrieved,
+          sources: ragMeta.rag_sources,
+        });
+        emit(controller, {
+          type: 'usage',
+          input_tokens: totalTokensIn ?? 0,
+          output_tokens: totalTokensOut ?? 0,
+          cache_creation_input_tokens: totalCacheCreationTokens ?? 0,
+          cache_read_input_tokens: totalCacheReadTokens ?? 0,
+          model: model ?? null,
         });
         emit(controller, { type: 'done' });
       } finally {

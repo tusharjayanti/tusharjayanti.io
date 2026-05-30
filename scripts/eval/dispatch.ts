@@ -14,6 +14,7 @@ import {
   runAssertions,
   type Assertion,
   type AssertionResult,
+  type CitedSource,
   type ResponseContext,
 } from '../../evals/lib/assertions/index.js';
 
@@ -104,11 +105,17 @@ export type QueryOutcome =
       assertions: AssertionResult[];
       responseText: string | null;
       traceId: string | null;
+      latencySeconds: number | null;
+      costUsd: number | null;
     }
   | {
       // Pre-flight skip — assertion-type query where the chat endpoint
-      // wasn't wired into the runner. No execution attempted; invisible
-      // to the failure-rate gate.
+      // wasn't wired into the runner. Also fires post-flight when the
+      // endpoint is configured but unreachable at request time
+      // (ENOTFOUND / ECONNREFUSED) — a deploy outage shouldn't trip
+      // the failure-rate gate. No execution attempted (pre-flight) or
+      // executed but the call never reached the server (unreachable);
+      // either way, invisible to the failure-rate gate.
       kind: 'skipped';
       id: string;
       category: string;
@@ -135,14 +142,23 @@ export interface DispatchDeps {
 }
 
 // Returns true when the runner can produce a ResponseContext for an
-// assertion-type query — i.e., the chat endpoint URL + credentials
-// are configured. Returns false today; the production wiring lands in
-// a later iteration. Kept sync because a config check is sync, and a
-// liveness ping would be over-engineering — an endpoint configured
-// but unreachable already surfaces as a per-query error via the
-// per-query catch in dispatchQuery.
+// assertion-type query — i.e., both EVAL_CHAT_ENDPOINT_URL (where to
+// send the request) and EVAL_BYPASS_SECRET (rate-limit bypass header
+// secret) are set and non-empty. Either missing → assertion queries
+// classify as skipped via the PR #24 path with
+// skip_reason: 'chat-endpoint-not-wired'.
+//
+// Kept sync because a config check is sync, and a liveness ping would
+// be over-engineering — an endpoint configured but unreachable
+// surfaces in getResponseContext below, where ENOTFOUND / ECONNREFUSED
+// classify as the same skipped outcome rather than a failure.
 export function isResponseSourceAvailable(): boolean {
-  return false;
+  return (
+    typeof process.env.EVAL_CHAT_ENDPOINT_URL === 'string' &&
+    process.env.EVAL_CHAT_ENDPOINT_URL.length > 0 &&
+    typeof process.env.EVAL_BYPASS_SECRET === 'string' &&
+    process.env.EVAL_BYPASS_SECRET.length > 0
+  );
 }
 
 // Pure threshold math, extracted for testability. Skipped queries are
@@ -195,6 +211,9 @@ export async function dispatchQuery(
         assertions,
         responseText: response.text,
         traceId: (response.trace.trace_id as string | undefined) ?? null,
+        latencySeconds:
+          (response.trace.latency_seconds as number | undefined) ?? null,
+        costUsd: (response.trace.cost_usd as number | undefined) ?? null,
       };
     }
     const scored = await processRetrievalQuery(
@@ -207,6 +226,15 @@ export async function dispatchQuery(
     );
     return { kind: 'retrieval', scored };
   } catch (err) {
+    if (err instanceof EndpointUnreachableError) {
+      return {
+        kind: 'skipped',
+        id: q.id,
+        category: q.category ?? 'unknown',
+        result_type: 'assertion',
+        reason: 'endpoint-unreachable',
+      };
+    }
     return {
       kind: 'error',
       id: q.id,
@@ -284,16 +312,217 @@ async function processAssertionQuery(
   return { assertions, response };
 }
 
-function getResponseContext(_q: Query): Promise<ResponseContext> {
-  // Producing a ResponseContext means calling /api/chat with the eval
-  // traffic header against a deployed endpoint — wired later (workflow
-  // + endpoint URL + secrets). Until then there is no response source,
-  // so this rejects clearly and the runner captures it per-query.
-  return Promise.reject(
-    new Error(
-      'assertion-query execution needs the chat endpoint wired into the runner',
-    ),
+// Endpoint-unreachable error signal — thrown by getResponseContext
+// when the chat endpoint can't be reached (DNS failure or TCP
+// connection refused). dispatchQuery's catch maps this to the
+// `skipped` outcome with reason 'endpoint-unreachable' so a deploy
+// outage doesn't trip the failure-rate gate.
+export class EndpointUnreachableError extends Error {
+  readonly reason: string;
+  constructor(reason: string, cause?: unknown) {
+    super(
+      `endpoint unreachable: ${reason}` +
+        (cause instanceof Error ? ` (${cause.message})` : ''),
+    );
+    this.name = 'EndpointUnreachableError';
+    this.reason = reason;
+  }
+}
+
+// USD per million tokens, per Anthropic's published Claude Sonnet 4.6
+// pricing (verify before launch / when model strings update). Match
+// keys are prefixes — Anthropic sometimes returns dated model ids
+// like "claude-sonnet-4-6-20251022"; we match by `startsWith`.
+// Unknown model → cost_usd: null (soft degradation, not an error).
+const PRICING_USD_PER_M_TOKENS: Record<
+  string,
+  {
+    input: number;
+    output: number;
+    cache_creation: number;
+    cache_read: number;
+  }
+> = {
+  'claude-sonnet-4-6': {
+    input: 3.0,
+    output: 15.0,
+    cache_creation: 3.75,
+    cache_read: 0.3,
+  },
+};
+
+export type UsageEvent = {
+  input_tokens: number;
+  output_tokens: number;
+  cache_creation_input_tokens: number;
+  cache_read_input_tokens: number;
+  model: string | null;
+};
+
+export function computeCostUSD(usage: UsageEvent | null): number | null {
+  if (!usage || !usage.model) return null;
+  const priceKey = Object.keys(PRICING_USD_PER_M_TOKENS).find((k) =>
+    usage.model!.startsWith(k),
   );
+  if (!priceKey) return null;
+  const p = PRICING_USD_PER_M_TOKENS[priceKey];
+  return (
+    (usage.input_tokens * p.input +
+      usage.output_tokens * p.output +
+      usage.cache_creation_input_tokens * p.cache_creation +
+      usage.cache_read_input_tokens * p.cache_read) /
+    1_000_000
+  );
+}
+
+// Parses one line of the chat endpoint's NDJSON stream and folds it
+// into the accumulating ResponseContext-in-progress. Exported so the
+// stream-parser unit tests can drive it directly without spinning up
+// fetch mocks. Throws on `{type:"error"}` events — the caller turns
+// those into kind:'error' outcomes via dispatchQuery's catch.
+export type StreamAccum = {
+  text: string;
+  trace_id: string | null;
+  rag_used: boolean;
+  sources: CitedSource[];
+  usage: UsageEvent | null;
+};
+
+export function applyStreamEvent(accum: StreamAccum, line: string): void {
+  const trimmed = line.trim();
+  if (!trimmed) return;
+  let evt: { type?: string; [k: string]: unknown };
+  try {
+    evt = JSON.parse(trimmed);
+  } catch {
+    return; // skip malformed lines
+  }
+  switch (evt.type) {
+    case 'trace':
+      accum.trace_id = (evt.traceId as string | null) ?? null;
+      return;
+    case 'delta':
+      if (typeof evt.text === 'string') accum.text += evt.text;
+      return;
+    case 'rag':
+      accum.rag_used = Boolean(evt.rag_used);
+      if (Array.isArray(evt.sources)) {
+        accum.sources = (evt.sources as unknown[])
+          .filter((s): s is string => typeof s === 'string')
+          .map((s) => ({ source: s }));
+      }
+      return;
+    case 'usage':
+      accum.usage = {
+        input_tokens: Number(evt.input_tokens ?? 0),
+        output_tokens: Number(evt.output_tokens ?? 0),
+        cache_creation_input_tokens: Number(
+          evt.cache_creation_input_tokens ?? 0,
+        ),
+        cache_read_input_tokens: Number(evt.cache_read_input_tokens ?? 0),
+        model: typeof evt.model === 'string' ? evt.model : null,
+      };
+      return;
+    case 'error':
+      throw new Error(
+        `chat endpoint emitted error event: ${String(evt.message ?? 'unknown')}`,
+      );
+    case 'done':
+    default:
+      return;
+  }
+}
+
+async function getResponseContext(q: Query): Promise<ResponseContext> {
+  const endpoint = process.env.EVAL_CHAT_ENDPOINT_URL;
+  const secret = process.env.EVAL_BYPASS_SECRET;
+  if (!endpoint || !secret) {
+    // isResponseSourceAvailable should have prevented this — defensive.
+    throw new Error('eval chat endpoint or bypass secret not configured');
+  }
+
+  const startMs = Date.now();
+  let resp: Response;
+  try {
+    resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-eval-bypass': secret,
+        'x-trace-source': 'eval',
+        'x-eval-query-id': q.id,
+      },
+      body: JSON.stringify({ q: q.query }),
+    });
+  } catch (err) {
+    // Node fetch wraps low-level errors; the actual code lives at
+    // err.cause.code (e.g. fetch failed → cause = { code: 'ENOTFOUND' }).
+    const code = extractFetchErrorCode(err);
+    if (code === 'ENOTFOUND' || code === 'ECONNREFUSED') {
+      throw new EndpointUnreachableError(code, err);
+    }
+    throw err;
+  }
+  if (!resp.ok) {
+    throw new Error(`chat endpoint returned HTTP ${resp.status}`);
+  }
+  if (!resp.body) {
+    throw new Error('chat endpoint returned no response body');
+  }
+
+  const accum: StreamAccum = {
+    text: '',
+    trace_id: null,
+    rag_used: false,
+    sources: [],
+    usage: null,
+  };
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      applyStreamEvent(accum, line);
+    }
+  }
+  // Flush trailing partial line if any (shouldn't normally exist with
+  // NDJSON's trailing newline, but be defensive).
+  if (buffer.trim()) applyStreamEvent(accum, buffer);
+
+  const latencyMs = Date.now() - startMs;
+
+  return {
+    text: accum.text,
+    sources: accum.sources,
+    rag_used: accum.rag_used,
+    trace: {
+      trace_id: accum.trace_id,
+      latency_seconds: latencyMs / 1000,
+      cost_usd: computeCostUSD(accum.usage),
+      usage: accum.usage,
+    },
+  };
+}
+
+// Walks the (potentially wrapped) error chain to find a Node-style
+// errno code. Node's fetch can surface ENOTFOUND/ECONNREFUSED either
+// directly on the error or one level deeper as `err.cause.code`.
+function extractFetchErrorCode(err: unknown): string | null {
+  if (!err || typeof err !== 'object') return null;
+  const direct = (err as { code?: unknown }).code;
+  if (typeof direct === 'string') return direct;
+  const cause = (err as { cause?: unknown }).cause;
+  if (cause && typeof cause === 'object') {
+    const causeCode = (cause as { code?: unknown }).code;
+    if (typeof causeCode === 'string') return causeCode;
+  }
+  return null;
 }
 
 function isChunkCorrect(row: MatchRow, correct: ChunkRef[]): boolean {
