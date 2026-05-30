@@ -21,7 +21,7 @@ import {
   FAILURE_RATE_THRESHOLD,
   type Query,
   type DispatchDeps,
-} from './retrieval.js';
+} from './dispatch.js';
 import { getSupabaseClient } from '../../api/_supabase.js';
 
 // Builds a DispatchDeps with optional overrides. The default supabase
