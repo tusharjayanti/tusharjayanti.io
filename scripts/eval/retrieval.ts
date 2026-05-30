@@ -73,7 +73,7 @@ const TOP_K = 10;
 // the retrieval-only runner; recorded in result metadata for provenance.
 const RESPONSE_MODEL = 'claude-sonnet-4-6';
 
-type Mode = 'three-tool' | 'unified';
+export type Mode = 'three-tool' | 'unified';
 
 function parseMode(): Mode {
   const arg = process.argv.find((a) => a.startsWith('--mode='));
@@ -124,7 +124,7 @@ type ChunkRef = {
   chunk_index: number;
 };
 
-type Query = {
+export type Query = {
   id: string;
   query: string;
   // Required for retrieval-type queries (drives processRetrievalQuery's
@@ -499,7 +499,37 @@ function printSummary(results: PerQueryResult[]): void {
 }
 
 const DEFAULT_CONCURRENCY = 8;
-const FAILURE_RATE_THRESHOLD = 0.1;
+export const FAILURE_RATE_THRESHOLD = 0.1;
+
+// Returns true when the runner can produce a ResponseContext for an
+// assertion-type query — i.e., the chat endpoint URL + credentials
+// are configured. Returns false today; the production wiring lands in
+// a later iteration. Kept sync because a config check is sync, and a
+// liveness ping would be over-engineering — an endpoint configured
+// but unreachable already surfaces as a per-query error via the
+// per-query catch in dispatchQuery.
+export function isResponseSourceAvailable(): boolean {
+  return false;
+}
+
+// Pure threshold math, extracted for testability. Skipped queries are
+// invisible to both numerator and denominator on purpose — see
+// ExecutionAggregate's `successful_queries` comment. attempted = 0
+// (everything was skipped) trips no gate; the run can't fail on a
+// rate computed against zero.
+export function computeFailureRate(args: {
+  total: number;
+  skipped: number;
+  failed: number;
+}): { attempted: number; rate: number; shouldFail: boolean } {
+  const attempted = args.total - args.skipped;
+  const rate = attempted > 0 ? args.failed / attempted : 0;
+  return {
+    attempted,
+    rate,
+    shouldFail: attempted > 0 && rate > FAILURE_RATE_THRESHOLD,
+  };
+}
 
 function parseConcurrency(): number {
   const value = process.env.EVAL_CONCURRENCY;
@@ -509,7 +539,7 @@ function parseConcurrency(): number {
 }
 
 // One query's processing yields exactly one of these outcomes.
-type QueryOutcome =
+export type QueryOutcome =
   | { kind: 'retrieval'; scored: PerQueryResult }
   | {
       kind: 'assertion';
@@ -521,12 +551,86 @@ type QueryOutcome =
       traceId: string | null;
     }
   | {
+      // Pre-flight skip — assertion-type query where the chat endpoint
+      // wasn't wired into the runner. No execution attempted; invisible
+      // to the failure-rate gate.
+      kind: 'skipped';
+      id: string;
+      category: string;
+      result_type: 'assertion';
+      reason: string;
+    }
+  | {
       kind: 'error';
       id: string;
       category: string;
       result_type: 'retrieval' | 'assertion';
       message: string;
     };
+
+// Dependencies dispatchQuery needs. Passed in explicitly rather than
+// reaching into module-scope state so tests can mock each independently.
+export interface DispatchDeps {
+  embedding: number[];
+  mode: Mode;
+  threshold: number;
+  rerank: boolean;
+  supabase: ReturnType<typeof getSupabaseClient>;
+  isResponseSourceAvailable: () => boolean;
+}
+
+// Pure dispatch: maps a Query to an outcome. Side-effect-free — the
+// caller is responsible for logging based on the returned outcome
+// kind. Catching is per-query so one failure doesn't abort the run.
+export async function dispatchQuery(
+  q: Query,
+  deps: DispatchDeps,
+): Promise<QueryOutcome> {
+  // Pre-flight skip path. Only assertion-type queries qualify;
+  // retrieval-type queries are unaffected by isResponseSourceAvailable
+  // (locked in by a dedicated test).
+  if (q.result_type === 'assertion' && !deps.isResponseSourceAvailable()) {
+    return {
+      kind: 'skipped',
+      id: q.id,
+      category: q.category ?? 'unknown',
+      result_type: 'assertion',
+      reason: 'chat-endpoint-not-wired',
+    };
+  }
+
+  try {
+    if (q.result_type === 'assertion') {
+      const { assertions, response } = await processAssertionQuery(q);
+      return {
+        kind: 'assertion',
+        id: q.id,
+        category: q.category ?? 'unknown',
+        passed: assertions.every((a) => a.passed),
+        assertions,
+        responseText: response.text,
+        traceId: (response.trace.trace_id as string | undefined) ?? null,
+      };
+    }
+    const scored = await processRetrievalQuery(
+      q,
+      deps.embedding,
+      deps.mode,
+      deps.threshold,
+      deps.rerank,
+      deps.supabase,
+    );
+    return { kind: 'retrieval', scored };
+  } catch (err) {
+    return {
+      kind: 'error',
+      id: q.id,
+      category: q.category ?? 'unknown',
+      result_type: q.result_type ?? 'retrieval',
+      message: (err as Error).message,
+    };
+  }
+}
 
 // Retrieval-type query: match_chunks (+ optional rerank) then score.
 // Both `target_source` and `correct_chunks` are required here; they're
@@ -642,43 +746,27 @@ async function main(): Promise<void> {
   // Execute queries in parallel under a concurrency cap. One query
   // throwing does not abort the run — it is captured as an error
   // outcome and the run continues. Promise.all preserves input order,
-  // so embeddings[i] stays aligned with dataset.queries[i].
+  // so embeddings[i] stays aligned with dataset.queries[i]. Logging
+  // happens here (not in dispatchQuery) so dispatchQuery stays pure
+  // and trivially testable.
   const limit = pLimit(concurrency);
   const outcomes = await Promise.all(
     dataset.queries.map((q, i) =>
       limit(async (): Promise<QueryOutcome> => {
-        try {
-          if (q.result_type === 'assertion') {
-            const { assertions, response } = await processAssertionQuery(q);
-            return {
-              kind: 'assertion',
-              id: q.id,
-              category: q.category ?? 'unknown',
-              passed: assertions.every((a) => a.passed),
-              assertions,
-              responseText: response.text,
-              traceId: (response.trace.trace_id as string | undefined) ?? null,
-            };
-          }
-          const scored = await processRetrievalQuery(
-            q,
-            embeddings[i],
-            mode,
-            threshold,
-            rerank,
-            supabase,
-          );
-          return { kind: 'retrieval', scored };
-        } catch (err) {
-          console.error(`query ${q.id} failed:`, (err as Error).message);
-          return {
-            kind: 'error',
-            id: q.id,
-            category: q.category ?? 'unknown',
-            result_type: q.result_type ?? 'retrieval',
-            message: (err as Error).message,
-          };
+        const outcome = await dispatchQuery(q, {
+          embedding: embeddings[i],
+          mode,
+          threshold,
+          rerank,
+          supabase,
+          isResponseSourceAvailable,
+        });
+        if (outcome.kind === 'error') {
+          console.error(`query ${q.id} failed:`, outcome.message);
+        } else if (outcome.kind === 'skipped') {
+          console.log(`query ${q.id} skipped: ${outcome.reason}`);
         }
+        return outcome;
       }),
     ),
   );
@@ -695,6 +783,10 @@ async function main(): Promise<void> {
   );
   const errorOutcomes = outcomes.filter(
     (o): o is Extract<QueryOutcome, { kind: 'error' }> => o.kind === 'error',
+  );
+  const skippedOutcomes = outcomes.filter(
+    (o): o is Extract<QueryOutcome, { kind: 'skipped' }> =>
+      o.kind === 'skipped',
   );
 
   printSummary(retrievalResults);
@@ -780,6 +872,19 @@ async function main(): Promise<void> {
     response_text: null,
     trace_id: null,
   }));
+  const skippedEntries: PerQueryResultEntry[] = skippedOutcomes.map((o) => ({
+    id: o.id,
+    category: o.category,
+    result_type: o.result_type,
+    passed: null,
+    skipped: true,
+    skip_reason: o.reason,
+    error: null,
+    latency_seconds: null,
+    cost_usd: null,
+    response_text: null,
+    trace_id: null,
+  }));
 
   // per_query sorted by (category, id) for diff stability,
   // regardless of completion order.
@@ -787,6 +892,7 @@ async function main(): Promise<void> {
     ...retrievalEntries,
     ...assertionEntries,
     ...errorEntries,
+    ...skippedEntries,
   ].sort(
     (a, b) => a.category.localeCompare(b.category) || a.id.localeCompare(b.id),
   );
@@ -811,11 +917,18 @@ async function main(): Promise<void> {
   const assertionPassCount = assertionOutcomes.filter((o) => o.passed).length;
 
   const totalQueries = dataset.queries.length;
+  const skippedQueries = skippedOutcomes.length;
   const failedQueries = errorOutcomes.length;
-  const successfulQueries = totalQueries - failedQueries;
+  const failureMath = computeFailureRate({
+    total: totalQueries,
+    skipped: skippedQueries,
+    failed: failedQueries,
+  });
+  const attemptedQueries = failureMath.attempted;
+  const successfulQueries = attemptedQueries - failedQueries;
 
   const evalResult: EvalResult = {
-    schema_version: '1.0.0',
+    schema_version: '1.1.0',
     metadata: {
       commit_sha: env.commit_sha,
       branch: env.branch,
@@ -858,6 +971,7 @@ async function main(): Promise<void> {
         total_queries: totalQueries,
         successful_queries: successfulQueries,
         failed_queries: failedQueries,
+        skipped_queries: skippedQueries,
         runtime_seconds: runtimeSeconds,
       },
     },
@@ -868,13 +982,12 @@ async function main(): Promise<void> {
 
   // A failure rate above the threshold fails the whole run,
   // regardless of metric thresholds — partial coverage is unsafe to
-  // gate on.
-  if (
-    totalQueries > 0 &&
-    failedQueries / totalQueries > FAILURE_RATE_THRESHOLD
-  ) {
+  // gate on. Denominator is attempted (= total - skipped), not total:
+  // dormant queries the runner can't reach shouldn't shield real
+  // failures by inflating the denominator.
+  if (failureMath.shouldFail) {
     console.error(
-      `eval run FAILED: ${failedQueries}/${totalQueries} queries errored ` +
+      `eval run FAILED: ${failedQueries}/${attemptedQueries} attempted queries errored ` +
         `(> ${(FAILURE_RATE_THRESHOLD * 100).toFixed(0)}% threshold)`,
     );
     process.exitCode = 1;
