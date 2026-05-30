@@ -994,20 +994,7 @@ async function main(): Promise<void> {
   }
 }
 
-// Only invoke main() when this file is executed directly as the
-// script entry point (e.g., `tsx scripts/eval/retrieval.ts`), NOT when
-// imported by another module. ESM imports evaluate module-level
-// statements, so an unconditional `main()` call would run the entire
-// eval pipeline every time scripts/eval/dispatch.test.ts (or any
-// future consumer) imports `dispatchQuery` — burning Voyage tokens
-// during unit tests in the best case, failing on missing env vars in
-// CI in the worst.
-const invokedAsScript =
-  process.argv[1] !== undefined &&
-  fileURLToPath(import.meta.url) === process.argv[1];
-if (invokedAsScript) {
-  main().catch((err) => {
-    console.error('eval:retrieval failed:', err);
-    process.exit(1);
-  });
-}
+main().catch((err) => {
+  console.error('eval:retrieval failed:', err);
+  process.exit(1);
+});
