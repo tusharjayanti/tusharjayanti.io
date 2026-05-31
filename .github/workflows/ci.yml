@@ -97,10 +97,17 @@ jobs:
   # status check stays satisfied.
   eval:
     runs-on: ubuntu-latest
+    # PR-scoped, unlike the fast jobs above. Three reasons:
+    # 1. Push-to-main triggers baseline.yml on the corresponding
+    #    `pull_request closed && merged` event — a push-triggered
+    #    eval here would double-run.
+    # 2. github.event.pull_request.head.sha is empty on push events,
+    #    so the artifact upload path would collapse.
+    # 3. The 'eval-skip' label kill switch only resolves on PR events;
+    #    on push, vars.EVAL_ENABLED is the sole off-switch.
     if: >
-      github.event_name != 'pull_request' ||
-      github.event.action != 'edited' ||
-      github.event.changes.base != null
+      github.event_name == 'pull_request' &&
+      (github.event.action != 'edited' || github.event.changes.base != null)
     permissions:
       pull-requests: read
       statuses: read
