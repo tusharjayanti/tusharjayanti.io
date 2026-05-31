@@ -1,0 +1,59 @@
+name: Baseline update
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'evals/results/baseline.json'
+      - 'evals/results/by-commit/**'
+
+jobs:
+  update-baseline:
+    # Same cost-saver as eval.yml: when EVAL_ENABLED=false, post-merge
+    # baseline runs also skip. Not a required check, so a job-level if:
+    # is fine here (no step-level guard pattern needed).
+    if: vars.EVAL_ENABLED != 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run eval against production endpoint
+        env:
+          EVAL_CHAT_ENDPOINT_URL: ${{ secrets.EVAL_MAIN_ENDPOINT_URL }}
+          EVAL_BYPASS_SECRET: ${{ secrets.EVAL_BYPASS_SECRET }}
+          # VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          # Main-branch runs produce the baseline; they don't gate themselves.
+          # Verdict is still printed for the audit trail.
+          CI_GATE: off
+        run: npx tsx scripts/eval/retrieval.ts
+
+      - name: Promote result to baseline
+        run: npx tsx scripts/eval/update-baseline.ts ${{ github.sha }}
+
+      - name: Commit baseline
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add evals/results/baseline.json
+          # evals/results/by-commit/*.json is gitignored (keeps local-run
+          # noise out of status). The single CI-produced by-commit file
+          # this baseline points at needs -f to track.
+          git add -f evals/results/by-commit/${{ github.sha }}.json
+          if git diff --staged --quiet; then
+            echo "No baseline change."
+            exit 0
+          fi
+          git commit -m "chore(eval): update baseline to ${{ github.sha }} [skip ci]"
+          git push
