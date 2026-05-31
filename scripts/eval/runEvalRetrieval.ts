@@ -471,8 +471,8 @@ export async function runEvalRetrieval(): Promise<void> {
       result_type: 'assertion',
       passed: o.passed,
       error: null,
-      latency_seconds: null,
-      cost_usd: null,
+      latency_seconds: o.latencySeconds,
+      cost_usd: o.costUsd,
       assertion_result: {
         assertions: o.assertions.map((a) => ({
           type: a.type,
