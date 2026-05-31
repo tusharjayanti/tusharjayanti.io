@@ -35,8 +35,10 @@ jobs:
           EVAL_BYPASS_SECRET: ${{ secrets.EVAL_BYPASS_SECRET }}
           # VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           # Main-branch runs produce the baseline; they don't gate themselves.
-          # Verdict is still printed for the audit trail.
-          CI_GATE: off
+          # Verdict is still printed for the audit trail. Quoted: unquoted
+          # `off` is a YAML boolean and would inject as 'false', which is
+          # truthy as a non-empty string in bash and ambiguous downstream.
+          CI_GATE: 'off'
         run: npx tsx scripts/eval/retrieval.ts
 
       - name: Promote result to baseline

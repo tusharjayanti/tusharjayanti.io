@@ -57,7 +57,10 @@ jobs:
           EVAL_BYPASS_SECRET: ${{ secrets.EVAL_BYPASS_SECRET }}
           # Uncomment when preview Vercel Authentication is re-enabled:
           # VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-          CI_GATE: on
+          # Quoted: unquoted `on` is a YAML boolean and gets injected as
+          # 'true', which would silently break `process.env.CI_GATE === 'on'`
+          # in the runner — exit code would never get set.
+          CI_GATE: 'on'
         run: npx tsx scripts/eval/retrieval.ts
 
       - name: Upload eval result
