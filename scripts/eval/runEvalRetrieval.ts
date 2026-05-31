@@ -59,6 +59,7 @@ import {
   type EvalResult,
   type PerQueryResultEntry,
 } from './result-writer.js';
+import { compareToBaseline, DEFAULT_GATE_CONFIG } from './gate.js';
 import pLimit from 'p-limit';
 import {
   TOP_K,
@@ -602,6 +603,36 @@ export async function runEvalRetrieval(): Promise<void> {
   };
   const { path: perCommitPath } = await writeResult(evalResult);
   console.log(`wrote per-commit result to ${perCommitPath}`);
+
+  // Phase 4b: gate verdict. Pure comparator from gate.ts; this block
+  // owns the kill switch (env-driven) and process.exitCode wiring so
+  // local runs stay observational and only CI enforces.
+  //
+  // Two env knobs:
+  //   EVAL_ENABLED=false / EVAL_GATE=off — runner-internal kill switch
+  //     (local-dev override). The workflow gates before the runner
+  //     runs, so this is mostly belt-and-suspenders.
+  //   CI_GATE=on — translate a block verdict into process.exitCode=1.
+  //     The workflow sets this; local runs leave it unset and stay
+  //     observational regardless of verdict (no broken local devloop).
+  const gateEnabled =
+    process.env.EVAL_ENABLED !== 'false' && process.env.EVAL_GATE !== 'off';
+  const verdict = compareToBaseline(evalResult, baseline, {
+    ...DEFAULT_GATE_CONFIG,
+    enabled: gateEnabled,
+  });
+
+  console.log('\n=== eval gate ===');
+  console.log(
+    `passed: ${verdict.passed}${verdict.bootstrap ? ' (bootstrap)' : ''}`,
+  );
+  for (const r of verdict.reasons) {
+    console.log(`  [${r.severity}] ${r.code}: ${r.message}`);
+  }
+
+  if (process.env.CI_GATE === 'on' && !verdict.passed) {
+    process.exitCode = 1;
+  }
 
   // A failure rate above the threshold fails the whole run,
   // regardless of metric thresholds — partial coverage is unsafe to
