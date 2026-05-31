@@ -1,0 +1,69 @@
+name: Eval
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      statuses: read
+      deployments: read
+    steps:
+      # Cost-saver guard runs FIRST, before checkout / npm ci / preview wait /
+      # eval, so a disabled gate consumes zero API credits and zero npm install
+      # time. The job still completes (posting a pass status), so a required
+      # status check stays satisfied without needing to flip branch protection.
+      - name: Evaluate gate enablement
+        id: guard
+        run: |
+          if [[ "${{ vars.EVAL_ENABLED }}" == "false" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Eval gate disabled by repo variable EVAL_ENABLED=false. No API credits consumed."
+          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'eval-skip') }}" == "true" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Eval gate skipped via 'eval-skip' label on this PR. No API credits consumed."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.enabled == 'true'
+
+      - name: Wait for Vercel preview deployment
+        id: vercel
+        if: steps.guard.outputs.enabled == 'true'
+        uses: patrickedqvist/wait-for-vercel-preview@v1.3.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_timeout: 600
+
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.enabled == 'true'
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - run: npm ci
+        if: steps.guard.outputs.enabled == 'true'
+
+      - name: Run eval against preview
+        if: steps.guard.outputs.enabled == 'true'
+        env:
+          EVAL_CHAT_ENDPOINT_URL: ${{ steps.vercel.outputs.url }}/api/chat
+          EVAL_BYPASS_SECRET: ${{ secrets.EVAL_BYPASS_SECRET }}
+          # Uncomment when preview Vercel Authentication is re-enabled:
+          # VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          CI_GATE: on
+        run: npx tsx scripts/eval/retrieval.ts
+
+      - name: Upload eval result
+        if: always() && steps.guard.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-result-${{ github.event.pull_request.head.sha }}
+          path: evals/results/by-commit/${{ github.event.pull_request.head.sha }}.json
+          if-no-files-found: warn
