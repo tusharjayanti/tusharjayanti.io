@@ -61,8 +61,6 @@ jobs:
           VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-          # Uncomment when preview Vercel Authentication is re-enabled:
-          # VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           # Quoted: unquoted `on` is a YAML boolean and gets injected as
           # 'true', which would silently break `process.env.CI_GATE === 'on'`
           # in the runner — exit code would never get set.

@@ -10,7 +10,6 @@
 
 import { getSupabaseClient } from '../../api/_supabase.js';
 import { rerankChunks, type RerankerCandidate } from '../../api/_reranker.js';
-import { vercelBypassHeaders } from '../../api/_vercelBypass.js';
 import {
   runAssertions,
   type Assertion,
@@ -452,10 +451,6 @@ async function getResponseContext(q: Query): Promise<ResponseContext> {
         'x-eval-bypass': secret,
         'x-trace-source': 'eval',
         'x-eval-query-id': q.id,
-        // Forwards Vercel's Deployment Protection bypass header when
-        // VERCEL_AUTOMATION_BYPASS_SECRET is set; {} otherwise. No-op
-        // today (preview protection disabled); ready when re-enabled.
-        ...vercelBypassHeaders(),
       },
       body: JSON.stringify({ q: q.query }),
     });
