@@ -33,6 +33,12 @@ jobs:
         env:
           EVAL_CHAT_ENDPOINT_URL: ${{ secrets.EVAL_MAIN_ENDPOINT_URL }}
           EVAL_BYPASS_SECRET: ${{ secrets.EVAL_BYPASS_SECRET }}
+          # Same retrieval-side dependencies as eval.yml — required for
+          # the labeled retrieval queries even when assertion queries
+          # skip.
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           # VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           # Main-branch runs produce the baseline; they don't gate themselves.
           # Verdict is still printed for the audit trail. Quoted: unquoted

@@ -55,6 +55,12 @@ jobs:
         env:
           EVAL_CHAT_ENDPOINT_URL: ${{ steps.vercel.outputs.url }}/api/chat
           EVAL_BYPASS_SECRET: ${{ secrets.EVAL_BYPASS_SECRET }}
+          # Retrieval queries embed via Voyage + score against Supabase
+          # directly from the runner (NOT through /api/chat) — these
+          # secrets are required regardless of chat-endpoint state.
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           # Uncomment when preview Vercel Authentication is re-enabled:
           # VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           # Quoted: unquoted `on` is a YAML boolean and gets injected as
