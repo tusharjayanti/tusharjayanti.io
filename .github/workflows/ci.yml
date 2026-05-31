@@ -87,3 +87,86 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm audit --audit-level=high
+
+  # Phase 4b eval gate. Runs in parallel with the fast jobs above
+  # so the format/typecheck/build/test/audit lane never inherits
+  # eval's preview-wait + 72-query spend. Cost-saver guard step
+  # runs first and gates every subsequent step on
+  # `steps.guard.outputs.enabled == 'true'`; a disabled run uses
+  # zero API credits while still completing green so a required
+  # status check stays satisfied.
+  eval:
+    runs-on: ubuntu-latest
+    # PR-scoped, unlike the fast jobs above. Three reasons:
+    # 1. Push-to-main triggers baseline.yml on the corresponding
+    #    `pull_request closed && merged` event — a push-triggered
+    #    eval here would double-run.
+    # 2. github.event.pull_request.head.sha is empty on push events,
+    #    so the artifact upload path would collapse.
+    # 3. The 'eval-skip' label kill switch only resolves on PR events;
+    #    on push, vars.EVAL_ENABLED is the sole off-switch.
+    if: >
+      github.event_name == 'pull_request' &&
+      (github.event.action != 'edited' || github.event.changes.base != null)
+    permissions:
+      pull-requests: read
+      statuses: read
+      deployments: read
+    steps:
+      - name: Evaluate gate enablement
+        id: guard
+        run: |
+          if [[ "${{ vars.EVAL_ENABLED }}" == "false" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Eval gate disabled by repo variable EVAL_ENABLED=false. No API credits consumed."
+          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'eval-skip') }}" == "true" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Eval gate skipped via 'eval-skip' label on this PR. No API credits consumed."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.enabled == 'true'
+
+      - name: Wait for Vercel preview deployment
+        id: vercel
+        if: steps.guard.outputs.enabled == 'true'
+        uses: patrickedqvist/wait-for-vercel-preview@v1.3.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_timeout: 600
+
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.enabled == 'true'
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - run: npm ci
+        if: steps.guard.outputs.enabled == 'true'
+
+      - name: Run eval against preview
+        if: steps.guard.outputs.enabled == 'true'
+        env:
+          EVAL_CHAT_ENDPOINT_URL: ${{ steps.vercel.outputs.url }}/api/chat
+          EVAL_BYPASS_SECRET: ${{ secrets.EVAL_BYPASS_SECRET }}
+          # Retrieval queries embed via Voyage + score against Supabase
+          # directly from the runner (NOT through /api/chat) — these
+          # secrets are required regardless of chat-endpoint state.
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          # Quoted: unquoted `on` is a YAML boolean and gets injected as
+          # 'true', which would silently break `process.env.CI_GATE === 'on'`
+          # in the runner — exit code would never get set.
+          CI_GATE: 'on'
+        run: npx tsx scripts/eval/retrieval.ts
+
+      - name: Upload eval result
+        if: always() && steps.guard.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-result-${{ github.event.pull_request.head.sha }}
+          path: evals/results/by-commit/${{ github.event.pull_request.head.sha }}.json
+          if-no-files-found: warn

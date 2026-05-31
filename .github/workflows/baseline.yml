@@ -1,0 +1,78 @@
+name: Baseline update
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  update-baseline:
+    # Run on (a) actual PR merge to main, or (b) manual dispatch from the
+    # Actions tab. Skip PR-close-without-merge. Respect the EVAL_ENABLED
+    # kill switch. Direct pushes to main (operator cleanups, bot baseline
+    # commits) don't fire pull_request events, so no loop guard needed.
+    if: ${{ vars.EVAL_ENABLED != 'false' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run eval against production endpoint
+        env:
+          EVAL_CHAT_ENDPOINT_URL: ${{ secrets.EVAL_MAIN_ENDPOINT_URL }}
+          EVAL_BYPASS_SECRET: ${{ secrets.EVAL_BYPASS_SECRET }}
+          # Same retrieval-side dependencies as eval.yml — required for
+          # the labeled retrieval queries even when assertion queries
+          # skip.
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          # Main-branch runs produce the baseline; they don't gate themselves.
+          # Verdict is still printed for the audit trail. Quoted: unquoted
+          # `off` is a YAML boolean and would inject as 'false', which is
+          # truthy as a non-empty string in bash and ambiguous downstream.
+          CI_GATE: 'off'
+        run: npx tsx scripts/eval/retrieval.ts
+
+      - name: Promote result to baseline
+        # On pull_request events github.sha is the synthetic test-merge
+        # ref; on workflow_dispatch it's context-dependent. The checked-
+        # out HEAD on `ref: main` is unambiguous in both cases — it's
+        # whatever main's tip is at run time, which is what baseline.json
+        # should point at.
+        run: |
+          SHA=$(git rev-parse HEAD)
+          npx tsx scripts/eval/update-baseline.ts "$SHA"
+
+      - name: Commit baseline
+        run: |
+          SHA=$(git rev-parse HEAD)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add evals/results/baseline.json
+          # evals/results/by-commit/*.json is gitignored (keeps local-run
+          # noise out of status). The single CI-produced by-commit file
+          # this baseline points at needs -f to track.
+          git add -f "evals/results/by-commit/${SHA}.json"
+          if git diff --staged --quiet; then
+            echo "No baseline change."
+            exit 0
+          fi
+          # [skip ci] is technically redundant now that no workflow on
+          # this branch fires on `push: branches: [main]` — kept as cheap
+          # defensive scaffolding in case a future workflow adds one.
+          git commit -m "chore(eval): update baseline to ${SHA} [skip ci]"
+          git push origin main
