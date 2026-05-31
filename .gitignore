@@ -36,3 +36,4 @@ specs/
 
 # generated eval run artifacts (keep .gitkeep)
 evals/results/by-commit/*.json
+evals/results/by-commit/
