@@ -126,7 +126,12 @@ export default async function handler(
     getHeader(req, 'authorization'),
     process.env.CRON_SECRET,
   );
-  if (!auth.ok) {
+  // Use `=== false` rather than `!auth.ok` for explicit literal narrowing:
+  // under Vercel's per-file tsc invocation (no project tsconfig, default
+  // lib/strict settings), `!auth.ok` widens auth.ok to `boolean` and the
+  // narrowing inside this block doesn't surface `reason`. Local
+  // `npm run typecheck` (tsc -b) narrows fine; this form is byte-portable.
+  if (auth.ok === false) {
     if (auth.reason === 'not-configured') {
       console.error('[cron/digest] CRON_SECRET not set; rejecting');
       return writeResponse(
