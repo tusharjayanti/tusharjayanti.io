@@ -58,10 +58,13 @@ jobs:
           npx tsx scripts/eval/update-baseline.ts "$SHA"
 
       - name: Commit baseline
+        env:
+          BASELINE_PUSH_TOKEN: ${{ secrets.BASELINE_PUSH_TOKEN }}
         run: |
           SHA=$(git rev-parse HEAD)
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${BASELINE_PUSH_TOKEN}@github.com/${{ github.repository }}.git"
           git add evals/results/baseline.json
           # evals/results/by-commit/*.json is gitignored (keeps local-run
           # noise out of status). The single CI-produced by-commit file
