@@ -23,7 +23,8 @@
 //   - retrieval@1 / @3 / @5: success rate over labeled queries
 //   - MRR (mean reciprocal rank): 1/rank of first correct chunk
 //   - guardrail firing rate: for `out-of-corpus` queries, % where
-//     zero chunks land above the production 0.3 cosine floor
+//     zero chunks land above the eval's cosine floor (see
+//     DEFAULT_COSINE_FLOOR in dispatch.ts; tuned to 0.28 in M3 Phase 5)
 //
 // Scoring conventions per query:
 //   - default (any tag, non-empty correct_chunks): success at K =
@@ -33,8 +34,8 @@
 //     these queries fail under the current three-tool pipeline,
 //     succeed under a future unified retriever)
 //   - out-of-corpus (correct_chunks empty): success = "zero chunks
-//     above cosine 0.3" — the guardrail fires cleanly. Tracked as
-//     guardrail_firing_rate, not retrieval@k.
+//     above the cosine floor" — the guardrail fires cleanly. Tracked
+//     as guardrail_firing_rate, not retrieval@k.
 //
 // Output: stdout summary table + JSON results to
 // evals/retrieval/results-<UTC-timestamp>.json so deltas across runs
@@ -100,13 +101,13 @@ function parseRerank(): boolean {
   return process.argv.includes('--rerank');
 }
 
-// Override the production cosine-similarity floor for this run. Used
-// by the threshold sweep — that found that at the production default
-// (0.3) the guardrail fires on 0/5 OOC queries,
-// so the sweep tests higher floors. Override applies to BOTH the
-// per-query retrieval@k computation (chunks below the floor are
-// dropped from the LLM-visible list, matching production) AND the
-// OOC guardrail firing rate.
+// Override the eval's cosine-similarity floor for this run. Used by the
+// threshold sweep during M3 Phase 5 tuning — that swept 0.25/0.28/0.30/
+// 0.32 against the hard-OOC + in-corpus distributions and settled on
+// 0.28 as DEFAULT_COSINE_FLOOR. Override applies to BOTH the per-query
+// retrieval@k computation (chunks below the floor are dropped from the
+// LLM-visible list, simulating what production would surface as
+// tool_result) AND the OOC guardrail firing rate.
 function parseThreshold(): number {
   const arg = process.argv.find((a) => a.startsWith('--threshold='));
   if (!arg) return DEFAULT_COSINE_FLOOR;
@@ -149,6 +150,7 @@ async function loadDataset(): Promise<Dataset> {
     'refusal.json',
     'injection.json',
     'canary-leak.json',
+    'out-of-corpus.json',
   ];
   const queries: Query[] = [];
   for (const file of files) {

@@ -18,7 +18,18 @@ import {
   type ResponseContext,
 } from '../../evals/lib/assertions/index.js';
 
-export const DEFAULT_COSINE_FLOOR = 0.3;
+// Eval-side cosine floor — the threshold at which the eval treats a
+// retrieved chunk as "visible to the model" for retrieval@k scoring and
+// for the OOC guardrail-firing-rate metric. Distinct from production's
+// `RAG_MIN_COSINE_SIMILARITY` cost-control pre-filter (default 0.15 in
+// api/_reranker.ts), which exists only to skip obvious noise before
+// paying for Haiku; production's actual relevance gate is the Haiku
+// reranker, not a scalar cosine. Tuned to 0.28 in M3 Phase 5 against
+// the cosine distribution observed on the labeled set: hard-OOC max
+// 0.243, in-corpus min 0.328 (Q10). 0.28 sits roughly mid-gap with a
+// slight bias toward in-corpus margin. See
+// docs/eval/ooc-threshold-tuning.md for the data and rationale.
+export const DEFAULT_COSINE_FLOOR = 0.28;
 export const TOP_K = 10;
 export const FAILURE_RATE_THRESHOLD = 0.1;
 
@@ -88,8 +99,8 @@ export type PerQueryResult = {
   // not found (or out-of-corpus).
   first_correct_rank: number | null;
   reciprocal_rank: number | null;
-  // Out-of-corpus only: did the guardrail fire? (zero chunks above
-  // 0.3 cosine).
+  // Out-of-corpus only: did the guardrail fire? (zero chunks above the
+  // current cosine floor — see DEFAULT_COSINE_FLOOR above).
   guardrail_fired: boolean | null;
   chunks_above_floor: number;
 };

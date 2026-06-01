@@ -1,0 +1,83 @@
+{
+  "_meta": {
+    "description": "Hard-OOC queries (M3 Phase 5 OOC threshold tuning). Questions a user might plausibly ask Tarvis that are semantically distant from the portfolio corpus (weather, sports, recipes, celebrity trivia). Distinct from absent-facts.json, whose entries are semantically adjacent to the corpus (in-domain but factually absent — e.g. 'Tushar's Rust experience' pulls experience.md chunks at cosine 0.37–0.47 even though Rust isn't mentioned). These hard-OOC queries target top-1 cosines <0.30 against any source-scoped search, giving the guardrail-firing-rate metric a population that can actually move when the cosine floor is tuned. Both files keep the `out-of-corpus` tag so they contribute to the same firing-rate aggregate; the writeup at docs/eval/ooc-threshold-tuning.md explains the soft-vs-hard distinction and the rationale for the chosen floor.",
+    "schema_version": 1,
+    "scoring": {
+      "out-of-corpus": "correct_chunks is empty; success = zero chunks above the current cosine floor (see DEFAULT_COSINE_FLOOR in scripts/eval/dispatch.ts)"
+    }
+  },
+  "queries": [
+    {
+      "id": "ooc-001",
+      "query": "What's the weather like in Tokyo this week?",
+      "result_type": "retrieval",
+      "category": "out-of-corpus",
+      "target_source": "readme",
+      "correct_chunks": [],
+      "tags": ["out-of-corpus", "hard-ooc", "weather"]
+    },
+    {
+      "id": "ooc-002",
+      "query": "Will it rain tomorrow in Mumbai?",
+      "result_type": "retrieval",
+      "category": "out-of-corpus",
+      "target_source": "readme",
+      "correct_chunks": [],
+      "tags": ["out-of-corpus", "hard-ooc", "weather"]
+    },
+    {
+      "id": "ooc-003",
+      "query": "Who won the cricket world cup final?",
+      "result_type": "retrieval",
+      "category": "out-of-corpus",
+      "target_source": "readme",
+      "correct_chunks": [],
+      "tags": ["out-of-corpus", "hard-ooc", "sports"]
+    },
+    {
+      "id": "ooc-004",
+      "query": "What's the latest NBA score?",
+      "result_type": "retrieval",
+      "category": "out-of-corpus",
+      "target_source": "experience",
+      "correct_chunks": [],
+      "tags": ["out-of-corpus", "hard-ooc", "sports"]
+    },
+    {
+      "id": "ooc-005",
+      "query": "Any big news headlines today?",
+      "result_type": "retrieval",
+      "category": "out-of-corpus",
+      "target_source": "experience",
+      "correct_chunks": [],
+      "tags": ["out-of-corpus", "hard-ooc", "current-events"]
+    },
+    {
+      "id": "ooc-006",
+      "query": "How do I make carbonara from scratch?",
+      "result_type": "retrieval",
+      "category": "out-of-corpus",
+      "target_source": "experience",
+      "correct_chunks": [],
+      "tags": ["out-of-corpus", "hard-ooc", "recipe"]
+    },
+    {
+      "id": "ooc-007",
+      "query": "Best chocolate chip cookie recipe?",
+      "result_type": "retrieval",
+      "category": "out-of-corpus",
+      "target_source": "resume",
+      "correct_chunks": [],
+      "tags": ["out-of-corpus", "hard-ooc", "recipe"]
+    },
+    {
+      "id": "ooc-008",
+      "query": "How tall is LeBron James?",
+      "result_type": "retrieval",
+      "category": "out-of-corpus",
+      "target_source": "resume",
+      "correct_chunks": [],
+      "tags": ["out-of-corpus", "hard-ooc", "celebrity-trivia"]
+    }
+  ]
+}
