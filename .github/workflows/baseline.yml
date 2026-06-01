@@ -75,8 +75,9 @@ jobs:
             echo "No baseline change."
             exit 0
           fi
-          # [skip ci] is technically redundant now that no workflow on
-          # this branch fires on `push: branches: [main]` — kept as cheap
-          # defensive scaffolding in case a future workflow adds one.
-          git commit -m "chore(eval): update baseline to ${SHA} [skip ci]"
+          # No [skip ci] — baseline.yml is PR-merge-triggered, not push-triggered,
+          # so this commit can't re-fire it. Letting ci.yml's push jobs run on
+          # the bot's commit is *necessary* for Vercel to release its deployment
+          # gate on main (it waits for required status checks).
+          git commit -m "chore(eval): update baseline to ${SHA}"
           git push origin main
