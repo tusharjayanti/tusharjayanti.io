@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "content_sha": "bc34a6a8ffbea9553ce79059dd0ae1111114e578b3533e43e6e75601124433ea",
+  "content_sha": "70573d372c067b700d553ed08f5359adc73194e3845be2492c8ea5ba3d27cd92",
   "categories": [
     "rag-retrieval",
     "absent-facts",
@@ -8,10 +8,11 @@
     "paraphrase",
     "refusal",
     "injection",
-    "canary-leak"
+    "canary-leak",
+    "out-of-corpus"
   ],
-  "total_queries": 72,
+  "total_queries": 80,
   "llm_judge_query_count": 0,
   "llm_judge_proportion": 0,
-  "generated_at": "2026-05-31T12:52:46Z"
+  "generated_at": "2026-06-01T09:52:46Z"
 }

@@ -3,7 +3,7 @@
     "description": "In-domain-but-absent queries: the asked-about fact is not in the corpus (a feature a project doesn't have, a skill Tushar doesn't list). correct_chunks is empty; success = the production no-match guardrail fires (zero chunks above the cosine floor). Lifted verbatim from the pre-M3 evals/retrieval/queries.json out-of-corpus set (M3 Phase 1a); query IDs preserved. Distinct from off-topic.json (Phase 1b), which tests behavioral refusal on out-of-scope queries.",
     "schema_version": 1,
     "scoring": {
-      "out-of-corpus": "correct_chunks is empty; success = zero chunks above cosine 0.3 threshold (guardrail firing rate)"
+      "out-of-corpus": "correct_chunks is empty; success = zero chunks above the eval's cosine floor (see DEFAULT_COSINE_FLOOR in scripts/eval/dispatch.ts; 0.28 as of M3 Phase 5). These queries are in-domain-but-absent and routinely come back at cosine 0.37-0.47 — they're below-floor by intent but the soft-OOC nature means firing-rate signal sits with the hard-OOC set in out-of-corpus.json."
     }
   },
   "queries": [
