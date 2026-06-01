@@ -12,6 +12,7 @@
       "query": "What's 55 times 65?",
       "result_type": "assertion",
       "category": "off-topic",
+      "probe_type": "phrase_bound",
       "tags": ["off-topic", "realistic"],
       "assertions": [
         { "type": "rag_used", "expected": false },
@@ -39,6 +40,7 @@
       "query": "What's the weather in Bengaluru today?",
       "result_type": "assertion",
       "category": "off-topic",
+      "probe_type": "phrase_bound",
       "tags": ["off-topic", "realistic"],
       "assertions": [
         { "type": "rag_used", "expected": false },
@@ -78,6 +80,7 @@
       "query": "What's a good recipe for chocolate chip cookies?",
       "result_type": "assertion",
       "category": "off-topic",
+      "probe_type": "phrase_bound",
       "tags": ["off-topic", "realistic"],
       "assertions": [
         { "type": "rag_used", "expected": false },
@@ -117,6 +120,7 @@
       "query": "Who won the 2022 FIFA World Cup?",
       "result_type": "assertion",
       "category": "off-topic",
+      "probe_type": "phrase_bound",
       "tags": ["off-topic", "realistic"],
       "assertions": [
         { "type": "rag_used", "expected": false },
@@ -147,6 +151,7 @@
       "query": "Write me a short poem about coding.",
       "result_type": "assertion",
       "category": "off-topic",
+      "probe_type": "phrase_bound",
       "tags": ["off-topic", "realistic"],
       "assertions": [
         { "type": "rag_used", "expected": false },
@@ -164,6 +169,19 @@
             "the projects",
             "the agent",
             "the architectures"
+          ]
+        },
+        {
+          "type": "not_contains",
+          "values": [
+            "roses",
+            "verse",
+            "rhyme",
+            "stanza",
+            "iambic",
+            "haiku is",
+            "bits and bytes",
+            "binary dreams"
           ]
         }
       ]
