@@ -61,6 +61,12 @@ export type Query = {
   // they paraphrase. Documentation-only today; not read by the runner.
   // Declared on the type so typos surface in tooling.
   paraphrase_of?: string;
+  // M3 Phase 5 Sub-task C — phrase-bound entries contain a specific
+  // trigger phrase the model is trained to refuse on the literal
+  // phrasing; vocabulary-flexible entries express the same refusable
+  // intent via paraphrase that doesn't share trigger phrases.
+  // Documentation-only today; same convention as paraphrase_of.
+  probe_type?: 'phrase_bound' | 'vocabulary_flexible';
 };
 
 type MatchRow = {
