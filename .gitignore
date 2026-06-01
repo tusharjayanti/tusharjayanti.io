@@ -37,3 +37,6 @@ specs/
 # generated eval run artifacts (keep .gitkeep)
 evals/results/by-commit/*.json
 evals/results/by-commit/
+
+# cost:measure local cache of raw Langfuse payloads
+scripts/cost/.cache/

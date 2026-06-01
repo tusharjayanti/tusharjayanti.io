@@ -22,6 +22,7 @@
     "smoke:retrieval": "dotenv -e .env.local -- tsx scripts/rag/smoke-retrieval.ts",
     "smoke:chat": "dotenv -e .env.local -- tsx scripts/rag/smoke-chat.ts",
     "eval:retrieval": "dotenv -e .env.local -- tsx scripts/eval/retrieval.ts",
+    "cost:measure": "dotenv -e .env.local -- tsx scripts/cost/measure.ts",
     "test:lock-contention": "dotenv -e .env.local -- tsx scripts/test/lock-contention.ts",
     "predev": "npm run sync:prompt",
     "prebuild": "npm run sync:prompt"

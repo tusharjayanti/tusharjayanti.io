@@ -170,6 +170,15 @@ to M5 (online Haiku scoring via `waitUntil`).
 
 ## Cost optimization
 
+### Per-turn cost
+
+- **~$0.013 per chat turn** at production traffic. Sonnet 4.6 (tool_use decision + streaming generation) accounts for ~98% of cost; Haiku 4.5 reranking the other ~2%; Voyage embeddings round to <0.01%. Measured over 215 real-user production traces in the 30 days ending 2026-06-01; eval-source CI traffic excluded.
+- **Cost shape depends on RAG firing.** Retrieval fires on 9.8% of real-user turns; those cost ~$0.028. Skipped-retrieval turns cost ~$0.011. The delta is the Haiku rerank pass + the Voyage embed round-trip.
+- **~$75/month at 200 turns/day** projected, scaling linearly with no fixed model overhead. 50 turns/day → ~$19/month; 1,000 turns/day → ~$377/month. Current real-user traffic (~7/day) projects to ~$2.70/month.
+- **$0 infrastructure at current volume** — Vercel Edge, Supabase, Langfuse Cloud, Upstash Redis, and Resend all sit within free-tier limits. Tightest ratio: Langfuse at ~2% of its 50,000 units/month cap.
+- **Voyage AI embeddings** — paid from request 1, but at the current `tool_use` firing rate rounds to under $0.01 per 1,000 turns.
+- **Re-run via `npm run cost:measure`** to refresh these numbers from current Langfuse data. The script bulk-paginates traces + observations to avoid per-trace rate limits, caches raw payloads locally for same-day re-runs, and exits non-zero if the 7-day cost average diverges more than 20% from the HUD's headline.
+
 ### Prompt caching
 
 Tarvis sends the same ~3,800 token system prompt on every chat turn.
