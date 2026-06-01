@@ -26,18 +26,6 @@
 
 ---
 
-## What this is
-
-A production LLMOps demo built around a real chat agent on Claude
-Sonnet 4.6. M1 shipped Langfuse observability — every chat turn becomes
-a structured, queryable trace with token, cost, and prompt-version
-fidelity. M2 shipped agentic RAG over experience, resume, and project
-READMEs, with a Haiku-based reranker, a no-match fabrication
-guardrail, and a terminal-page ops snippet; eval gates and
-closed-loop scoring land in M3+.
-
----
-
 ## The problem
 
 Traditional resumes are static. They list technologies, roles, and achievements, but they rarely show how someone actually thinks, builds, or communicates as an engineer.
@@ -51,124 +39,229 @@ A portfolio that reflects how I actually work. Terminal-first, conversational, b
 
 PS: yes, Tarvis == Tushar + Jarvis. I'm an Iron Man nerd, deal with it.
 
-### What's built today:
-
-- **Chat endpoint** with NDJSON streaming, structured logging, daily
-  digest cron, and error-spike alerts on Resend.
-- **Layered prompt-injection defense** — length cap, rate limit, regex
-  prefilter with canary scan, system-prompt rules, response-length cap.
-  Five layers, in code, not just in the system prompt.
-- **Terminal interface** with autoplay welcome, Unix-style command
-  dispatch (`whoami`, `cat <role>`, `help`), and chat invocation.
-- **Schema-driven content** — one data source feeds both terminal
-  `cat <role>` and the structured `/cv` page.
-- **Output-side canary scrubber and leak alerting** — post-stream substring
-  check on the model's response. On hit, redacts the canary in the log
-  preview and fires an immediate email via Resend, with leak events
-  persisted to Redis. Per-deploy canary rotation makes a leaked token
-  stale on next push.
-- **Langfuse observability** — every chat turn traces to Langfuse Cloud
-  (Tokyo region): input, output, model, token counts (including prompt
-  cache reads/writes), latency, TTFT, cost. Five-tag taxonomy classifies
-  trace behavior. System prompt is registered and versioned in Langfuse's
-  prompt registry, with traces linked to the prompt version that
-  produced them.
-
 ---
 
 ## Architecture
 
 The chat request path, end to end:
 
+```mermaid
+flowchart LR
+    User([User])
+
+    User -->|POST /api/chat| Edge
+
+    subgraph Edge["Edge defenses"]
+        direction TB
+        L1["Length cap ≤50k"]
+        L2["Rate limit 40/hr<br/>(Upstash)"]
+        L3["Injection prefilter<br/>canary + 7 regex"]
+        L1 --> L2 --> L3
+    end
+
+    Edge --> Plan{Sonnet tool_use:<br/>retrieve?}
+    Plan -->|yes| RAG
+    Plan -->|skip| Gen
+
+    subgraph RAG["Agentic RAG (Supabase)"]
+        direction TB
+        H["Voyage-3 embed →<br/>pgvector + BM25"]
+        R["Haiku 4.5 listwise rerank"]
+        F{"top cosine ≥ 0.15"}
+        H --> R --> F
+    end
+
+    F -->|yes| Gen["Sonnet 4.6 streaming"]
+    F -->|no| OOC["Refuse: out-of-corpus"]
+    Gen --> Canary{canary in output?}
+    Canary -->|no| Stream["NDJSON → User"]
+    Canary -->|yes| Leak["Refuse + alert"]
+
+    Stream --> User
+    OOC --> User
+    Leak --> User
+
+    Edge -.->|trace| LF[("Langfuse v3")]
+    RAG -.->|trace| LF
+    Gen -.->|trace| LF
+
+    Leak -.->|immediate email| Resend[("Resend")]
+    Leak -.->|persist event| KV[("Upstash Redis")]
 ```
-  POST /api/chat
-       │
-       ▼
-  ┌──────────────────────────────────────────────────────────────┐
-  │  Layer 1: shape + length              method=POST,           │
-  │                                        q ∈ string,           │
-  │                                        len ≤ 500             │
-  └──────────────────────────────────────────────────────────────┘
-       │
-       ▼
-  ┌──────────────────────────────────────────────────────────────┐
-  │  Layer 2: rate limit                  Upstash Redis,         │
-  │                                        40/hr/IP hash         │
-  └──────────────────────────────────────────────────────────────┘
-       │
-       ▼
-  ┌──────────────────────────────────────────────────────────────┐
-  │  Layer 3: injection prefilter         canary scan first,     │
-  │                                        then 7 regex patterns │
-  │                                        (no tokens spent)     │
-  └──────────────────────────────────────────────────────────────┘
-       │
-       ▼
-  ┌──────────────────────────────────────────────────────────────┐
-  │  Anthropic Sonnet 4.6                  system: _systemPrompt │
-  │   ├─ Layer 4: system-prompt rules      max_tokens: 1024      │
-  │   └─ Layer 5: response cap                                   │
-  └──────────────────────────────────────────────────────────────┘
-       │
-       ▼
-  ┌──────────────────────────────────────────────────────────────┐
-  │  NDJSON streaming → client            { type: 'delta', text }│
-  │                                        emitted per token     │
-  └──────────────────────────────────────────────────────────────┘
-       │
-       ▼
-  ┌──────────────────────────────────────────────────────────────┐
-  │  Fire-and-forget: logChatTurn          ipHash, q,            │
-  │  → Upstash Redis                       aPreview (280 chars), │
-  │                                        timestamp             │
-  └──────────────────────────────────────────────────────────────┘
-       │
-       ▼
-  ┌──────────────────────────────────────────────────────────────┐
-  │  Daily cron → digest email             Resend, 00:00 UTC,    │
-  │                                        spike alerts on error│
-  └──────────────────────────────────────────────────────────────┘
+
+```
+  User message → src/modes/terminal/ → api/chat.ts (Vercel Edge)
+                                        ├── Edge defenses:
+                                        │     ├── Length cap (≤50,000 chars)
+                                        │     ├── Rate limit (Upstash, 40/hr/IP hash) — skipped on X-Eval-Bypass match
+                                        │     └── Injection prefilter (canary check + 7 regex)
+                                        ├── System prompt (Langfuse registry, SHA-256 versioned, ephemeral prompt cache)
+                                        ├── Claude Sonnet 4.6 (tool_use decision; ≤ 3 rounds on one stream)
+                                        ├── Agentic RAG (if tool_use fires):
+                                        │     ├── Tools: search_experience / search_resume / search_readme / fetch_url
+                                        │     ├── Voyage-3 embeddings (1024d, asymmetric: document at ingest / query at retrieval)
+                                        │     ├── Supabase pgvector (semantic) + BM25 (full-text), RRF k=60
+                                        │     ├── Claude Haiku 4.5 (listwise reranking)
+                                        │     └── OOC guardrail: NO_MATCH_TOOL_RESULT if max cosine < 0.15
+                                        ├── Claude Sonnet 4.6 (NDJSON streaming: trace / delta / rag / usage / done)
+                                        ├── Output canary scan → on leak: persist + Resend email
+                                        ├── Langfuse v3 tracing (every span with cost + latency; flushAt:1 on Edge)
+                                        └── Fire-and-forget: chat turn log → Upstash chat:log:YYYY-MM-DD (30d TTL),
+                                            plus spike alert via Resend if chat:errors > 10/hr (2-hr cooldown)
+
+  Cron → api/cron/digest.ts (daily, 00:00 UTC):
+            ├── verifyCronAuth (Bearer == CRON_SECRET, timingSafeEqual; 503 fail-CLOSED if unset)
+            ├── Upstash LRANGE chat:log + chat:errors (yesterday UTC)
+            ├── Claude Sonnet 4.6 summary (< > escaped; <logged_chat>/<logged_error> tags)
+            └── Resend (Tokyo / tusharjayanti.io) → tj@tusharjayanti.io
+
+  Ops widget → src/modes/terminal/ (ops view) → Langfuse 7d aggregate
+                                                (visitors, queries, tokens, queries_grounded%, cost)
+
+  CI on PR → .github/workflows/ci.yml
+                ├── format / typecheck / build / test / audit (parallel, ~20–30s each)
+                └── eval (parallel, ~20s under p-limit=8 concurrency)
+                      ├── wait-for-vercel-preview → preview URL
+                      ├── Voyage + Supabase: 44 labeled retrieval + 13 OOC
+                      │   (eval cosine floor 0.28, distinct from production's RAG_MIN_COSINE_SIMILARITY=0.15)
+                      ├── Production /api/chat with X-Eval-Bypass: 33 assertion queries
+                      │     └── refusal × 10  ·  injection × 10  ·  canary-leak × 8  ·  off-topic × 5
+                      ├── scripts/eval/gate.ts → compareToBaseline:
+                      │     ├── BLOCK on errored queries · assertion pass_count drop ·
+                      │     │   per-query regression · per-category pass_rate drop
+                      │     └── WARN-only on retrieval drift (tolerance still null)
+                      └── upload-artifact: evals/results/by-commit/<sha>.json
+
+  Merge to main → Vercel auto-deploy + .github/workflows/baseline.yml
+                                          ├── Same eval against EVAL_MAIN_ENDPOINT_URL (CI_GATE: 'off')
+                                          ├── scripts/eval/update-baseline.ts → evals/results/baseline.json
+                                          └── git push origin main via BASELINE_PUSH_TOKEN (PAT, admin
+                                                bypass of branch protection's 6 required checks)
 ```
 
 ### Key files
 
-| File                    | Purpose                                                                                 |
-| ----------------------- | --------------------------------------------------------------------------------------- |
-| `api/chat.ts`           | Edge function. Orchestrates the layers, calls Anthropic, streams NDJSON, logs the turn. |
-| `api/_injection.ts`     | Regex prefilter + canary scan. 7 patterns, first-match-wins.                            |
-| `api/_systemPrompt.txt` | Source of truth for Tarvis's identity, role facts, and behavioral defense rules.        |
-| `api/_systemPrompt.ts`  | Generated from `.txt` by `scripts/sync-prompt.mjs`. Imported by the edge function.      |
-| `api/_kv.ts`            | Upstash bindings, rate-limit counter, chat-turn logging.                                |
-| `api/cron/digest.ts`    | Daily Resend email of chat activity, plus spike-alert trigger.                          |
-| `src/modes/terminal/`   | Terminal UI, command dispatch, autoplay.                                                |
-| `src/modes/cv/`         | CV rendering of the same content layer.                                                 |
+**Edge function & system prompt**
+
+| File                    | Purpose                                                                                                          |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `api/chat.ts`           | Edge function. Orchestrates defenses, tool-use loop, RAG, streaming, post-stream tagging, and logging.           |
+| `api/_systemPrompt.txt` | Source of truth for Tarvis's identity, role facts, and behavioral defense rules.                                 |
+| `api/_systemPrompt.ts`  | Generated from `.txt` by `scripts/sync-prompt.mjs` with live canary substitution. Imported by the edge function. |
+
+**Defenses**
+
+| File                                                        | Purpose                                                                                                                                                                                             |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `api/_injection.ts`                                         | Input regex prefilter (7 patterns + canary check via `detectInjection`, first-match-wins) and post-stream output canary scan via `detectOutputLeak`. Canary token imported from `_systemPrompt.ts`. |
+| `api/_kv.ts`                                                | Upstash bindings, rate-limit counter, chat-turn logging.                                                                                                                                            |
+| `api/_refusalPhrases.ts` (re-exported by `api/_refusal.ts`) | Canonical refusal-phrase list + `detectRefusal()` (literal substring + 50-word guard). Shared by the production `model-refused` trace tagger and the eval `refusal_detected` assertion.             |
+
+**Agentic RAG**
+
+| File                        | Purpose                                                                                               |
+| --------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `api/_tools.ts`             | Tool definitions: `search_experience`, `search_resume`, `search_readme`, `fetch_url`.                 |
+| `api/_reranker.ts`          | Cosine pre-filter at `RAG_MIN_COSINE_SIMILARITY=0.15`, then Claude Haiku 4.5 binary yes/no per chunk. |
+| Supabase `match_chunks` RPC | Hybrid pgvector + BM25 with RRF (k=60).                                                               |
+
+**Crons**
+
+| File                 | Purpose                                                              |
+| -------------------- | -------------------------------------------------------------------- |
+| `api/cron/digest.ts` | Daily 00:00 UTC Resend email of chat activity + spike-alert trigger. |
+
+**Evals & CI**
+
+| File                              | Purpose                                                                                                                 |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `evals/categories/`               | Labeled retrieval, OOC, and assertion query sets (44 + 13 + 33). Content-hashed, versioned.                             |
+| `evals/lib/assertions/`           | Assertion engine: `contains_any`, `not_contains`, `rag_used`, `source_excludes`, `refusal_detected`.                    |
+| `scripts/eval/gate.ts`            | Compare-to-baseline logic. BLOCK on assertion drop / per-query regression / per-category drop; WARN on retrieval drift. |
+| `scripts/eval/update-baseline.ts` | Refresh `evals/results/baseline.json` to point at the merge SHA.                                                        |
+| `.github/workflows/ci.yml`        | PR gate: format / typecheck / build / test / audit + eval (against Vercel preview).                                     |
+| `.github/workflows/baseline.yml`  | On merge: rerun eval against production, push baseline via `BASELINE_PUSH_TOKEN`.                                       |
+
+**Frontend**
+
+| File                  | Purpose                                                                                |
+| --------------------- | -------------------------------------------------------------------------------------- |
+| `src/modes/terminal/` | Terminal UI, command dispatch, autoplay. Hosts the chat invocation and the `ops` view. |
+| `src/modes/cv/`       | CV rendering of the same content layer.                                                |
 
 ---
 
 ## Defense
 
-Five layers in the request path, in order of execution:
+Six layers in the request path, in order of execution:
 
-| Layer                      | Where                                   | What it does                                                                                                                                                                                                                                                                            |
-| -------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Length cap (500 chars)     | `api/chat.ts` shape validation          | Bounds prompt size. Cost cap + blast-radius cap.                                                                                                                                                                                                                                        |
-| Rate limit (40/hr/IP)      | `api/_kv.ts` `checkRateLimit`           | Hour-bucketed per-IP-hash counter on Upstash. Blocks abuse without leaking raw IPs to storage.                                                                                                                                                                                          |
-| Injection prefilter        | `api/_injection.ts` `detectInjection`   | Canary scan first (literal token match = high-signal, zero false-positive), then 7 regex patterns (override-instructions, prompt-extraction, DAN, jailbreak, developer-mode, role-hijack). First match wins. Refuses with `REFUSAL_TEXT` without calling Anthropic — zero tokens spent. |
-| System-prompt rules        | `api/_systemPrompt.txt` Defense section | Behavioral layer for paraphrased attacks the regex can't catch. Refuses to reveal the prompt or the canary, refuses role hijacks, refuses off-topic with one-line wit and redirect.                                                                                                     |
-| Response cap (1024 tokens) | `max_tokens` on the Anthropic call      | Stops the model mid-generation regardless of what it was about to say. Bounds exfiltration size.                                                                                                                                                                                        |
+| Layer                      | Where                                                                     | What it does                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Length cap (50,000 chars)  | `api/chat.ts` shape validation                                            | Bounds prompt size. Cost cap + blast-radius cap. Generous to support context pasting (job descriptions, resume excerpts); abuse caps come from the rate limit and response cap below.                                                                                                                                                                       |
+| Rate limit (40/hr/IP)      | `api/_kv.ts` `checkRateLimit`                                             | Hour-bucketed per-IP-hash counter on Upstash. Blocks abuse without leaking raw IPs to storage. Skipped on `X-Eval-Bypass` match (constant-time XOR vs `EVAL_BYPASS_SECRET`) so the CI gate can hit production without consuming user-facing quota. **Bypass scope is rate-limiting only — the injection prefilter still runs for eval traffic, by design.** |
+| Input injection prefilter  | `api/_injection.ts` `detectInjection`                                     | Canary scan first (literal token match = high-signal, zero false-positive), then 7 regex patterns (override-instructions, prompt-extraction, DAN, jailbreak, developer-mode, role-hijack). First match wins. Refuses with `REFUSAL_TEXT` without calling Anthropic — zero tokens spent.                                                                     |
+| System-prompt rules        | `api/_systemPrompt.txt` Defense section                                   | Behavioral layer for paraphrased attacks the regex can't catch. Refuses to reveal the prompt or the canary, refuses role hijacks, refuses off-topic with one-line wit and redirect.                                                                                                                                                                         |
+| Response cap (1024 tokens) | `max_tokens` on the Anthropic call                                        | Stops the model mid-generation regardless of what it was about to say. Bounds exfiltration size.                                                                                                                                                                                                                                                            |
+| Output canary tripwire     | `api/_injection.ts` `detectOutputLeak`, called after the stream completes | Scans the buffered response for the canary token. On hit: tags the Langfuse trace `canary-leak`, persists an event to Upstash, fires an immediate Resend email. Canary rotates on the next deploy, invalidating the leaked value.                                                                                                                           |
 
-**Explicit design choice:** layer 3 is cheap regex, not LLM-based classification. Trivially bypassable by paraphrase (`ign0re previous` slips through). That's intentional — cheap layer 1 catches the loud attacks for free, behavioral layer 2 catches the subtle ones at API cost. Better than nothing, honest about its bypass surface.
+**Two explicit design choices:**
 
-**What this isn't (still):** there's no LLM-as-judge for hallucination
-scoring on the response, and no detection of paraphrased prompt
-extraction (the model summarizing the system prompt without emitting
-the canary verbatim). The output-side canary scrubber shipped in Phase
-0.1 — see "What's built today." LLM-judge quality scoring is deferred
-to M5 (online Haiku scoring via `waitUntil`).
+The **input injection prefilter** is cheap regex, not LLM-based classification. Trivially bypassable by paraphrase (`ign0re previous` slips through). That's intentional, the regex catches loud attacks for free, the behavioral system-prompt layer catches the subtler ones at API cost. Better than nothing, honest about its bypass surface.
+
+The **output canary scan** is a tripwire, not a block. By the time it runs, the response has already streamed to the user, the first successful extractor gets the canary value. The rotation-on-deploy invalidates the leaked value before anyone else can re-extract it. A truly blocking output filter would either need to buffer the entire response before streaming (killing UX) or do per-delta scanning with rollback (complex, and the prefix already shipped). Detection + invalidation is the honest tradeoff.
+
+**What this isn't:** there's no LLM-as-judge scoring response quality before it streams to the user, and no detection of paraphrased prompt extraction (the model summarizing the system prompt without emitting the canary verbatim). Both are real gaps, the system trusts the model's instruction-following for paraphrase resistance, and trusts the eval gate to catch quality regressions before they ship to production.
+
+---
+
+## LLMOps
+
+Production observability via Langfuse v3.
+
+- **Tracing.** Per-turn trace with per-step spans for retrieval, reranking, and generation. Cost and latency surface in the trace metadata.
+- **Six-tag taxonomy.** `rate-limited`, `injection-detected`, `canary-leak`, `model-refused`, and `streamed-error` fire from the same detection layers used in the request pipeline — a tag firing in production matches a regression the eval gate would catch in CI. `grounded` is the retrieval-outcome tag, firing when RAG ran and at least one source returned usable chunks; it drives the HUD's `queries_grounded` percentage.
+- **Prompt versioning.** System prompt registered in Langfuse's prompt registry with a canary-normalized SHA-256 hash. Prompt drift is auditable per-trace; rotating the per-build canary doesn't churn the version.
+
+The HUD on the terminal page renders 7-day aggregates pulled from Langfuse, refreshed on page load:
+
+<img src="docs/HUD.png" width="400" alt="HUD widget on the terminal page showing 7-day production telemetry from Langfuse" />
+
+Visitor count, chat turns, total token spend, the fraction of turns where retrieval actually fired (`tool_use` decision returned a search call), and aggregate USD cost. Intentionally public — visit the site to see live numbers refreshing, not a frozen snapshot.
+
+Cost covers Sonnet and Haiku (Anthropic). Voyage embedding calls are recorded as generations but report `calculatedTotalCost: 0` because Langfuse doesn't carry Voyage pricing data — at the true per-query cost of ~$0.0000024, they sit well below the HUD's two-decimal display precision, so this omission is invisible at current traffic.
+
+---
+
+## Eval gate
+
+Self-refreshing quality gate. Every PR is tested against the current production baseline; every merge rolls the baseline forward.
+
+- **Eval set.** 90 hand-curated queries, content-hashed and versioned in [`evals/categories/`](evals/categories/): 44 labeled retrieval, 33 assertion (refusal × 10, injection × 10, canary-leak × 8, off-topic × 5), and 13 OOC.
+- **CI gate.** Every PR's eval job runs the full set against the Vercel preview deployment; `scripts/eval/gate.ts` compares to the current baseline. BLOCKs on errored queries, assertion `pass_count` drop, per-query regression, or per-category `pass_rate` drop. WARN-only on retrieval drift.
+- **Baseline refresh.** On merge, `baseline.yml` re-runs the eval against production (via the `X-Eval-Bypass` mechanism from [Defense](#defense)), updates `evals/results/baseline.json` to point at the merge SHA, and force-tracks the per-commit result JSON. The next PR gates against the fresh baseline.
+
+**Three design choices.** Refusal assertions split **22 phrase-bound / 11 vocabulary-flexible** — phrase-bound checks specific tokens (`not_contains: "salary"`), vocabulary-flexible checks refusal _intent_, so paraphrased attacks still get caught. Two **distinct cosine thresholds** run in parallel: production at `0.15` (loose — cost control, with Haiku reranking doing the heavy lifting), eval gate at a tighter `0.28` for drift detection on the no-match path. The gate runs against **production `/api/chat`, not a staging copy** — same code path as user-facing traffic; staging would inevitably drift. Full methodology in [`docs/eval/`](docs/eval/).
+
+**Current state:**
+
+| Metric                 | Value                 |
+| ---------------------- | --------------------- |
+| Retrieval@1 / @5 / MRR | 68.2% / 86.4% / 0.847 |
+| Assertion pass rate    | 33 / 33               |
+| OOC firing rate        | 61.5% (8 / 13)        |
 
 ---
 
 ## Cost optimization
+
+### Per-turn cost
+
+- **~$0.013 per chat turn** at production traffic. Sonnet 4.6 (tool_use decision + streaming generation) accounts for ~98% of cost; Haiku 4.5 reranking the other ~2%; Voyage embeddings round to <0.01%. Measured over 215 real-user production traces in the 30 days ending 2026-06-01; eval-source CI traffic excluded.
+- **Cost shape depends on RAG firing.** Retrieval fires on 9.8% of real-user turns; those cost ~$0.028. Skipped-retrieval turns cost ~$0.011. The delta is the Haiku rerank pass + the Voyage embed round-trip.
+- **~$75/month at 200 turns/day** projected, scaling linearly with no fixed model overhead. 50 turns/day → ~$19/month; 1,000 turns/day → ~$377/month. Current real-user traffic (~7/day) projects to ~$2.70/month.
+- **$0 infrastructure at current volume** — Vercel Edge, Supabase, Langfuse Cloud, Upstash Redis, and Resend all sit within free-tier limits. Tightest ratio: Langfuse at ~2% of its 50,000 units/month cap.
+- **Voyage AI embeddings** — paid from request 1, but at the current `tool_use` firing rate rounds to under $0.01 per 1,000 turns.
+- **Re-run via `npm run cost:measure`** to refresh these numbers from current Langfuse data. The script bulk-paginates traces + observations to avoid per-trace rate limits, caches raw payloads locally for same-day re-runs, and exits non-zero if the 7-day cost average diverges more than 20% from the HUD's headline.
 
 ### Prompt caching
 
@@ -241,202 +334,17 @@ $0.058 → $0.019, ~67% saved on input cost.
 
 ---
 
-## Observability
+## Things to explore
 
-Every chat turn becomes a structured trace in Langfuse Cloud (Tokyo
-region). One trace per `/api/chat` request, one generation observation
-inside it for the Sonnet streaming call. The structure scales for M2 RAG
-— when retrieval + rerank steps ship, they become sibling observations
-inside the same trace.
+Open engineering questions and directions worth investigating. Not commitments — just things on the wishlist.
 
-### What's captured per trace
+- **Bot detection via Cloudflare Turnstile, replacing IP rate limiting.** The current limiter is correct but blunt: shared NAT means household devices count against each other, and a scripted abuser pays the same per-request cost as a curious visitor. Turnstile separates humans from automation directly, with smarter cost-shaping than per-IP buckets can provide.
 
-| Dimension                  | Where it lives                                                          |
-| -------------------------- | ----------------------------------------------------------------------- |
-| Input (the user's `q`)     | trace input                                                             |
-| Output (the response text) | trace output                                                            |
-| User ID                    | anonymized `ipHash` (SHA-256 prefix)                                    |
-| Model                      | `claude-sonnet-4-6`                                                     |
-| Token counts               | input, output, `cache_creation_input_tokens`, `cache_read_input_tokens` |
-| Cost                       | auto-computed by Langfuse from model pricing                            |
-| Latency                    | generation latency + total trace duration                               |
-| Time-to-first-token        | server-side measurement of first stream chunk                           |
-| Metadata                   | userAgent, geoCountry (from Vercel Edge)                                |
+- **Model routing for cost discipline.** Today every chat turn hits Sonnet 4.6 regardless of complexity. A cheap classifier (Haiku, or even a regex heuristic) could route greetings and model-identity questions to Haiku, standard substantive questions to Sonnet at normal budget, and complex multi-step questions to Sonnet at a higher token cap. The cost savings at portfolio scale are small; the architectural exercise is the point.
 
-### Tag taxonomy
+- **Latency profiling and reduction.** Per-trace latency is captured in Langfuse, but no systematic profiling has been done. Worth understanding where the budget actually goes (tool_use decision, retrieval, rerank, generation, network) before optimizing. Once profiled, candidates include speculative RAG (start retrieval before `tool_use` confirms), reduced system-prompt footprint on simple queries, and regional edge tuning.
 
-Six tags classify trace behavior. Tags 1–2 are exclusive (short-circuit
-returns); the rest can co-exist.
-
-| Tag                  | Fires when                                                                                     |
-| -------------------- | ---------------------------------------------------------------------------------------------- |
-| `rate-limited`       | IP rate limit hit, no LLM call                                                                 |
-| `injection-detected` | Regex prefilter caught injection, no LLM call                                                  |
-| `streamed-error`     | Stream failed partway through generation                                                       |
-| `canary-leak`        | Output contained the system prompt's canary token                                              |
-| `model-refused`      | Model declined (heuristic match on refusal phrase templates)                                   |
-| `grounded`           | RAG fired and at least one source returned usable chunks (drives the HUD's queries_grounded %) |
-
-### Prompt versioning
-
-The system prompt is registered in Langfuse's prompt registry as
-`tarvis-system-prompt`. Version label is a SHA-256 prefix (12 hex chars)
-of the prompt content with the per-deploy canary normalized — so canary
-rotation doesn't generate noise versions, only real editorial edits do.
-
-Each trace's generation links to the version that produced it.
-
-### Cost metric
-
-The HUD's `cost` shows total inference spend over the trailing 7 days,
-summed from Langfuse's `calculatedTotalCost` across all generation
-observations. It covers Sonnet and Haiku (Anthropic) costs. Voyage
-embedding calls are recorded as generations but report
-`calculatedTotalCost: 0` because Langfuse doesn't carry Voyage pricing
-data. Voyage's true per-query cost is ~$0.0000024 — well below the HUD's
-two-decimal display precision — so this omission is invisible at current
-traffic.
-
-### What this isn't (yet)
-
-- The terminal-page ops snippet exposes a minimal public observability
-  surface (visitor count, queries, tokens, queries-grounded %, 7-day
-  cost, last-aggregated timestamp). Full `/ops` dashboard is M4 —
-  private, basic-auth-gated,
-  expands the same data sources with per-tool breakdown, cost split,
-  latency percentiles, retrieval eval results, and a recent-queries
-  tail. Langfuse UI remains the read interface for deep trace
-  inspection.
-- No quality scoring on traces — `score` is part of the schema but
-  unpopulated. M5 (online Haiku scoring) and M3 (eval CI gate) write
-  scores.
-- Trace updates (output text, post-stream tags) intermittently fail to
-  land in Langfuse Cloud due to a known v3 SDK bug on Edge runtime where
-  waitUntil-wrapped flushAsync() can return before all events flush
-  (langfuse/langfuse#5843). The trace and generation observation always
-  land; the post-stream trace.update({ output, tags }) may not.
-  Verified empirically during M1.3 development. Three of five tags
-  (rate-limited, injection-detected, canary-leak) land reliably
-  because they're pushed earlier in the request lifecycle; two
-  (model-refused, streamed-error) are post-stream and hit the bug
-  more often. The v4 OTel-based SDK eliminates this — migration tracked
-  in followups.md.
-- No closed loop from low-scored traces to auto-generated eval cases —
-  M6 territory.
-- The existing Redis chat log keeps writing in parallel. Cutover happens
-  when M4's dashboard reads from Langfuse reliably.
-
-### Operational notes
-
-Langfuse failures are caught and logged; they never break user-facing
-chat. Trace writes use `flushAt: 1` and an explicit `flushAsync()` in
-the finally block — Edge runtime has no persistent process to batch for.
-Langfuse Cloud's Hobby tier has variable ingest lag (sub-second to ~10
-minutes). The v4 SDK eliminates this; v3→v4 migration is banked in
-followups.
-
----
-
-## Roadmap
-
-This portfolio is also a working LLMOps demo. The chat assistant (Tarvis)
-runs on a real Anthropic API integration, not a mock, and the items below
-are the next things being built on top of that foundation. Each item
-explains _why_ it's on the list.
-
-Status legend: `[ ]` queued, `[~]` in progress, `[x]` shipped.
-
-### Chat / LLM
-
-- `[x]` **Anthropic prompt caching on the system prompt.** Shipped — see
-  [Cost optimization](#cost-optimization) for the mechanism, the
-  three-bucket token breakdown, and measured numbers from production.
-
-- `[ ]` **Smart model routing.** A cheap Haiku classifier routes
-  greetings to Haiku, standard questions to Sonnet, complex multi-step
-  questions to Sonnet at higher budget. Real cost discipline at scale.
-
-### Bot defense
-
-- `[ ]` **Cloudflare Turnstile to replace IP-based rate limiting.**
-  The current limiter is correct but blunt. Shared NAT means household
-  devices count against each other, and a determined script costs the
-  same as a curious visitor. Turnstile separates humans from automation
-  directly.
-
-### LLMOps
-
-- `[ ]` **Deterministic eval suite with CI gate.** A small fast test
-  set (~15 tests, regex/contains/word-count) that runs on every PR and
-  blocks deploy on failure. "Do you have evals?" is a default AI-role
-  interview question and a working CI gate is a better answer than a
-  plan.
-
-- `[x]` **Langfuse tracing with per-span cost.** Shipped in M1 — see
-  [Observability](#observability) for the trace structure, tag
-  taxonomy, and prompt versioning details. Prompt-cache token math
-  surfaces correctly in Langfuse's cost display.
-
-### Recently shipped
-
-- `[x]` **M2 — agentic RAG with hybrid retrieval, reranker, and ops
-  snippet.** Tool-use-gated retrieval over experience / resume /
-  READMEs, semantic + BM25 hybrid with RRF, Haiku 4.5 listwise
-  reranker (with verdict-based out-of-corpus detection), no-match
-  fabrication guardrail, `fetch_url` tool with SSRF protection,
-  retrieval eval harness (31 labeled queries, retrieval@5 84.6%),
-  terminal-page ops snippet with hashed-IP visitor counter and
-  Langfuse-sourced metrics. v0.3.0. Sub-milestone breakdown in
-  [`docs/rag.md`](docs/rag.md).
-- `[x]` **M1 — Langfuse observability foundation.** Trace/generation/tag
-  taxonomy, prompt versioning, cost computation. v0.2.0.
-- `[x]` **Phase 0.2 — Canary rotation and leak alerting.** Per-deploy
-  rotation via `sync-prompt.mjs`, leak event persistence in Redis,
-  synchronous email alerting via Resend on detection.
-- `[x]` **Phase 0.1 — Output canary scrubber.** Post-stream substring
-  check on the model's response, with redaction in the log preview.
-- `[x]` Phase 2: real CV content in resume-register voice, schema
-  migration to support grouped bullets, inline markdown bold parser,
-  system prompt rewrite with role-specific facts, terminal whoami
-  autoplay.
-- `[x]` Tarvis chat endpoint: NDJSON streaming, input-side regex
-  prefilter and canary check, voice-consistent error handling,
-  shrug-thread signature.
-- `[x]` IP-based rate limiting (40/hr, hour-bucketed) and daily
-  digest cron with error-spike alerts.
-
-### What's not on this list, deliberately
-
-- A full real-time LLMOps platform with ClickHouse, Kafka, and ML-based
-  bot scoring. Real ambition, but premature here. The site has near-zero
-  traffic; building production-grade telemetry infrastructure for that
-  reads as over-engineering, not vision. Defers until traffic is real.
-- Voice mode and other flashy integrations. Demo-flash without
-  interview signal.
-- Conversation history / multi-turn context. Useful, but only after
-  retrieval and eval foundations are in. Not load-bearing on its own.
-
-The list above is what's actually next, in roughly the order it'll
-happen. It updates as items ship.
-
----
-
-## Stack
-
-- Vite + React 19 + TypeScript on the frontend.
-- Vercel Edge Functions for `/api/*`.
-- Upstash Redis (Mumbai) — chat logs, error logs, rate-limit counters.
-- Langfuse Cloud (Tokyo) — primary trace destination.
-- Resend (Tokyo) — outbound mail (daily digest, spike alerts).
-- Supabase Postgres + pgvector — RAG storage.
-- Voyage `voyage-3` embeddings (1024 dims, asymmetric).
-- Anthropic Claude Sonnet 4.6 for chat; Haiku 4.5 planned for evals and reranking.
-
-## Status
-
-- **M1** (observability foundation) — shipped at `v0.2.0`. Langfuse tracing, prompt versioning, cost computation. Details in [`docs/observability.md`](docs/observability.md), rationale in [`docs/decisions/0001-observability-foundation.md`](docs/decisions/0001-observability-foundation.md).
-- **M2** (agentic RAG + observability surface) — shipped at `v0.3.0`. Hybrid retrieval (semantic + BM25), Haiku reranker, multi-source ingest (experience, resume, READMEs), tool-use integration, no-match guardrail, `fetch_url` tool, eval harness, terminal-page ops snippet. Details in [`docs/rag.md`](docs/rag.md), rationale in [`docs/decisions/0002-agentic-rag.md`](docs/decisions/0002-agentic-rag.md).
-- **M3–M6** — roadmap. Eval CI gate, `/ops` dashboard, online Haiku scoring, closed-loop eval generation.
+- **Claude-driven UI regression suite.** The eval gate covers `/api/chat` behavior, but the terminal UI (command dispatch, autoplay, mode switching, focus management, scrollback) is currently tested only by hand. A Claude-driven Playwright suite could execute predefined user journeys against the deployed site and use Claude as a semantic judge ("did the autoplay finish without flicker? did focus return to the input after switching modes?"), catching the class of UX bugs that pass typecheck but break the feel.
 
 ---
 
