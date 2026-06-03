@@ -732,6 +732,15 @@ button:hover {
   padding-block: 0.15rem;
 }
 
+/* small ASCII art for hidden eggs (coffee cup, steam train) */
+.term-egg {
+  font-family: var(--font-mono);
+  margin: 0;
+  white-space: pre;
+  line-height: 1.1;
+  overflow-x: hidden;
+}
+
 /* hire-me / dont-hire-me pitch blocks */
 .term-banner {
   font-family: var(--font-mono);

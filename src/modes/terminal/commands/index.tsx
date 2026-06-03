@@ -58,7 +58,47 @@ export type Command = {
 const whoami: Command = {
   name: 'whoami',
   summary: 'short bio',
-  run: ({ append }) => {
+  run: ({ args, append }) => {
+    // Piped grep for "recruiter" (whoami | grep recruiter). Dispatch
+    // splits the line on whitespace and does no shell parsing, so the
+    // pipe and grep arrive as plain tokens. Sniff them directly; using
+    // includes() rather than equality catches glued forms like `|grep`.
+    const grepsRecruiter =
+      args.some((a) => a.includes('grep')) &&
+      args.some((a) => a.includes('recruiter'));
+    if (grepsRecruiter) {
+      append({
+        kind: 'output',
+        node: (
+          <div className="term-block">
+            <div className="term-line term-comment">matching "recruiter":</div>
+            <div className="term-line">&nbsp;</div>
+            <div className="term-line">
+              Hi. Since you grepped for it, here's what I'd lead with:
+            </div>
+            <div className="term-line">&nbsp;</div>
+            {[
+              'Senior backend engineer, ~7 years, now building production AI systems.',
+              'I ship real LLMOps, not demos. This site is the evidence.',
+              "I communicate like someone you'd put in front of a customer.",
+              'Bengaluru-based, open to senior AI/backend roles.',
+            ].map((b, i) => (
+              <div key={i} className="term-pitch-bullet">
+                <span className="term-arrow">→</span>
+                <span>{b}</span>
+              </div>
+            ))}
+            <div className="term-line">&nbsp;</div>
+            <div className="term-line">
+              full pitch: type <span className="term-cmd">hire-me</span>
+              {'   '}reach me:{' '}
+              <span className="term-cmd">tj@tusharjayanti.io</span>
+            </div>
+          </div>
+        ),
+      });
+      return;
+    }
     const paragraphs = whoamiText.split('\n\n');
     append({
       kind: 'output',
@@ -495,6 +535,214 @@ const dontHireMe: Command = {
   },
 };
 
+// Hidden easter eggs. None of these appear in `help` (it's a hand-written
+// JSX block, not generated from the registry) so they stay discoverable
+// only by typing. They must be registered here regardless, because
+// Terminal.tsx routes any unknown first token to the chat backend.
+
+// One-line gag with an optional dim aside, the terminal's `// ...` voice.
+function quip(main: ReactNode, aside?: string): ReactNode {
+  return (
+    <div className="term-block">
+      <div className="term-line">{main}</div>
+      {aside ? <div className="term-line term-comment">{aside}</div> : null}
+    </div>
+  );
+}
+
+const sudo: Command = {
+  name: 'sudo',
+  summary: 'elevate privileges',
+  run: ({ append }) => {
+    append({
+      kind: 'output',
+      node: quip(
+        'Permission denied.',
+        "// there's one root here, and you're talking to him.",
+      ),
+    });
+  },
+};
+
+const rm: Command = {
+  name: 'rm',
+  summary: 'remove files',
+  run: ({ args, append }) => {
+    // -rf in any glued or split form (-rf, -fr, -Rf). Bare `rm` or any
+    // args without the force flags fall through to the dare.
+    const forced = args.some(
+      (a) => a.startsWith('-') && /r/i.test(a) && /f/i.test(a),
+    );
+    append({
+      kind: 'output',
+      node: forced
+        ? quip(
+            'Permission denied.',
+            "// I lost a working tree once. we don't talk about it.",
+          )
+        : quip('rm?', "// really? where's the -rf? go on, I dare you."),
+    });
+  },
+};
+
+const vim: Command = {
+  name: 'vim',
+  summary: 'text editor',
+  run: ({ append }) => {
+    append({
+      kind: 'output',
+      node: quip(
+        "vim: entered. good news, you're in. bad news, you're in.",
+        '// :q! is theoretical.',
+      ),
+    });
+  },
+};
+
+const emacs: Command = {
+  name: 'emacs',
+  summary: 'text editor',
+  run: ({ append }) => {
+    append({
+      kind: 'output',
+      node: quip(
+        'emacs: somewhere in here is a text editor.',
+        '// the vim user next door left an hour ago.',
+      ),
+    });
+  },
+};
+
+const coffeeCup = `    ( (
+     ) )
+  ........
+  |      |]
+  |      |
+  '------'`;
+
+const coffee: Command = {
+  name: 'coffee',
+  summary: 'brew a cup',
+  run: ({ append }) => {
+    append({
+      kind: 'output',
+      node: (
+        <div className="term-block">
+          <pre className="term-egg">{coffeeCup}</pre>
+          <div className="term-line">brewing...</div>
+        </div>
+      ),
+    });
+    // The punchline lands a beat later, like a real pour.
+    setTimeout(() => {
+      append({
+        kind: 'output',
+        node: (
+          <div className="term-line term-comment">
+            // the only dependency I refuse to mock.
+          </div>
+        ),
+      });
+    }, 900);
+  },
+};
+
+const tushar: Command = {
+  name: 'tushar',
+  summary: 'the maintainer',
+  run: ({ args, append }) => {
+    if (args.includes('--version')) {
+      append({
+        kind: 'output',
+        node: (
+          <div className="term-block">
+            <div className="term-line">tushar 7.x (latest)</div>
+            <div className="term-line">
+              {'  '}
+              <span className="term-status-shipped">+ added:</span> production
+              AI systems
+            </div>
+            <div className="term-line">
+              {'  '}
+              <span className="term-status-shipped">+ improved:</span>{' '}
+              explaining things to people who don't write code
+            </div>
+            <div className="term-line">
+              {'  '}
+              <span className="term-error">- removed:</span> the reflex to say
+              yes to everything
+            </div>
+            <div className="term-line">
+              {'  '}
+              <span className="term-status-in-progress">
+                ! known issue:
+              </span>{' '}
+              still cannot mark anything "done"
+            </div>
+          </div>
+        ),
+      });
+      return;
+    }
+    append({
+      kind: 'output',
+      node: quip("that's me.", "// type 'tushar --version' for the changelog."),
+    });
+  },
+};
+
+const trainArt = `      ====        ________
+  _D _|  |_______/        |__
+ |(_)---  |   H\\________/ |  |
+  O-O--O-O   'O-O'   O-O--O-O`;
+
+const sl: Command = {
+  name: 'sl',
+  summary: 'steam locomotive',
+  run: ({ append }) => {
+    append({
+      kind: 'output',
+      node: (
+        <div className="term-block">
+          <pre className="term-egg">{trainArt}</pre>
+          <div className="term-line term-comment">
+            // you meant ls. enjoy the ride.
+          </div>
+        </div>
+      ),
+    });
+  },
+};
+
+const man: Command = {
+  name: 'man',
+  summary: 'manual pages',
+  run: ({ args, append }) => {
+    if (args.length === 0) {
+      append({ kind: 'output', node: quip('What manual page do you want?') });
+      return;
+    }
+    append({
+      kind: 'output',
+      node: quip(
+        `no manual entry for ${args[0]}.`,
+        '// have you tried reading the source? I have.',
+      ),
+    });
+  },
+};
+
+const fortyTwo: Command = {
+  name: '42',
+  summary: 'the answer',
+  run: ({ append }) => {
+    append({
+      kind: 'output',
+      node: quip('the answer. now what was your question?'),
+    });
+  },
+};
+
 export const commands: Record<string, Command> = {
   whoami,
   ls,
@@ -505,6 +753,15 @@ export const commands: Record<string, Command> = {
   history,
   'hire-me': hireMe,
   'dont-hire-me': dontHireMe,
+  sudo,
+  rm,
+  vim,
+  emacs,
+  coffee,
+  tushar,
+  sl,
+  man,
+  '42': fortyTwo,
 };
 
 export const commandNames = Object.keys(commands);
