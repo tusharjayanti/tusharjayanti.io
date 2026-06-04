@@ -63,7 +63,11 @@ export default async function handler(
 
   const cacheKey = `ops:conv:${windowDays}:${includeEvals}`;
   try {
-    const { data: all, cached, stale } = await cacheAside<{
+    const {
+      data: all,
+      cached,
+      stale,
+    } = await cacheAside<{
       items: ConversationListItem[];
     }>(
       redis,

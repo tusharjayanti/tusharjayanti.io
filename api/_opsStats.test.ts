@@ -197,10 +197,16 @@ describe('cacheAside (stale-while-revalidate)', () => {
     const { redis, set } = fakeRedis(async () => envelope(sample, NOW - 1000));
     const compute = vi.fn(async () => sample);
     const scheduleRefresh = vi.fn();
-    const { data, cached, stale } = await cacheAside(redis, 'k', SOFT, compute, {
-      now: NOW,
-      scheduleRefresh,
-    });
+    const { data, cached, stale } = await cacheAside(
+      redis,
+      'k',
+      SOFT,
+      compute,
+      {
+        now: NOW,
+        scheduleRefresh,
+      },
+    );
     expect({ cached, stale }).toEqual({ cached: true, stale: false });
     expect(data).toEqual(sample);
     expect(compute).not.toHaveBeenCalled();
@@ -219,10 +225,16 @@ describe('cacheAside (stale-while-revalidate)', () => {
       scheduled = p;
     });
 
-    const { data, cached, stale } = await cacheAside(redis, 'k', SOFT, compute, {
-      now: NOW,
-      scheduleRefresh,
-    });
+    const { data, cached, stale } = await cacheAside(
+      redis,
+      'k',
+      SOFT,
+      compute,
+      {
+        now: NOW,
+        scheduleRefresh,
+      },
+    );
 
     // Served the STALE value immediately.
     expect({ cached, stale }).toEqual({ cached: true, stale: true });
@@ -245,7 +257,9 @@ describe('cacheAside (stale-while-revalidate)', () => {
       throw new Error('redis down');
     });
     const compute = vi.fn(async () => sample);
-    const { cached } = await cacheAside(redis, 'k', SOFT, compute, { now: NOW });
+    const { cached } = await cacheAside(redis, 'k', SOFT, compute, {
+      now: NOW,
+    });
     expect(cached).toBe(false);
     expect(compute).toHaveBeenCalledOnce();
   });

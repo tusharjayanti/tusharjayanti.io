@@ -136,8 +136,15 @@ describe('applyEvalScope (toggle filters from shared raw)', () => {
   const t = (id: string, tags: string[]) => ({ id, tags });
 
   it('drops eval-source by default and keeps it when includeEvals', () => {
-    const traces = [t('r1', []), t('e1', ['eval-source']), t('r2', ['grounded'])];
-    expect(applyEvalScope(traces, false).map((x) => x.id)).toEqual(['r1', 'r2']);
+    const traces = [
+      t('r1', []),
+      t('e1', ['eval-source']),
+      t('r2', ['grounded']),
+    ];
+    expect(applyEvalScope(traces, false).map((x) => x.id)).toEqual([
+      'r1',
+      'r2',
+    ]);
     expect(applyEvalScope(traces, true)).toHaveLength(3);
   });
 
