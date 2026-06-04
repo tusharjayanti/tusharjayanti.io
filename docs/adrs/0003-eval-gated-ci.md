@@ -99,7 +99,7 @@ This is in the `actions/checkout` documentation, but the failure mode is opaque 
 
 GitHub offers two ways to protect a branch: legacy "branch protection rules" and the newer "rulesets". They look interchangeable in the UI. They are not.
 
-Classic branch protection's "Require status checks to pass before merging" cannot be bypassed by admins, even with "Allow administrators to bypass" enabled — that toggle only affects the *merge button*, not direct pushes from automated workflows. A direct push from `baseline.yml` to `main` while classic protection was active would fail with GH006 even with admin credentials and a valid PAT.
+Classic branch protection's "Require status checks to pass before merging" cannot be bypassed by admins, even with "Allow administrators to bypass" enabled — that toggle only affects the _merge button_, not direct pushes from automated workflows. A direct push from `baseline.yml` to `main` while classic protection was active would fail with GH006 even with admin credentials and a valid PAT.
 
 Rulesets, by contrast, support a "Bypass list" with a per-actor permission level (`Always` / `Pull request only`). Setting `Repository admin` with `Always` bypass on the `main_protection` ruleset is what allows `baseline.yml`'s bot push to succeed.
 
