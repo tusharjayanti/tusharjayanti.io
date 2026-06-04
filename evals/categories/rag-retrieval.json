@@ -420,12 +420,12 @@
         {
           "source": "readme",
           "source_id": "tusharjayanti/tusharjayanti.io",
-          "chunk_index": 6
+          "chunk_index": 13
         },
         {
           "source": "readme",
           "source_id": "tusharjayanti/tusharjayanti.io",
-          "chunk_index": 7
+          "chunk_index": 14
         }
       ],
       "tags": ["realistic", "architecture", "readme"]
@@ -440,7 +440,7 @@
         {
           "source": "readme",
           "source_id": "tusharjayanti/tusharjayanti.io",
-          "chunk_index": 8
+          "chunk_index": 9
         }
       ],
       "tags": ["realistic", "architecture", "readme"]
@@ -470,27 +470,12 @@
         {
           "source": "readme",
           "source_id": "tusharjayanti/tusharjayanti.io",
-          "chunk_index": 4
+          "chunk_index": 7
         },
         {
           "source": "readme",
           "source_id": "tusharjayanti/tusharjayanti.io",
-          "chunk_index": 5
-        }
-      ],
-      "tags": ["realistic", "architecture", "readme"]
-    },
-    {
-      "id": "arch-005",
-      "query": "What's planned for the /ops dashboard?",
-      "result_type": "retrieval",
-      "category": "rag-retrieval",
-      "target_source": "readme",
-      "correct_chunks": [
-        {
-          "source": "readme",
-          "source_id": "tusharjayanti/tusharjayanti.io",
-          "chunk_index": 10
+          "chunk_index": 8
         }
       ],
       "tags": ["realistic", "architecture", "readme"]
@@ -505,27 +490,7 @@
         {
           "source": "readme",
           "source_id": "tusharjayanti/tusharjayanti.io",
-          "chunk_index": 12
-        },
-        {
-          "source": "readme",
-          "source_id": "tusharjayanti/tusharjayanti.io",
-          "chunk_index": 14
-        }
-      ],
-      "tags": ["realistic", "architecture", "readme"]
-    },
-    {
-      "id": "arch-007",
-      "query": "Why is there no admin dashboard or feature flag system?",
-      "result_type": "retrieval",
-      "category": "rag-retrieval",
-      "target_source": "readme",
-      "correct_chunks": [
-        {
-          "source": "readme",
-          "source_id": "tusharjayanti/tusharjayanti.io",
-          "chunk_index": 13
+          "chunk_index": 2
         }
       ],
       "tags": ["realistic", "architecture", "readme"]

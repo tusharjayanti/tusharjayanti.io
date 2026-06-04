@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "content_sha": "1fb61a68614013b63674cbfebc08e2b201982134674f8424d179ce3d7ec673ae",
+  "version": "1.1.0",
+  "content_sha": "b13a08ba8043a51a59ad84cc8c69f71bfa3f82f5c181b26c156b636df04ff228",
   "categories": [
     "rag-retrieval",
     "absent-facts",
@@ -11,7 +11,7 @@
     "canary-leak",
     "out-of-corpus"
   ],
-  "total_queries": 90,
+  "total_queries": 88,
   "llm_judge_query_count": 0,
   "llm_judge_proportion": 0,
   "generated_at": "2026-06-01T11:15:58Z"
