@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react';
+import { lazy, Suspense, useLayoutEffect, useState } from 'react';
 import {
   createBrowserRouter,
   Navigate,
@@ -13,6 +13,11 @@ import { CV } from './modes/cv/CV';
 import { Terminal } from './modes/terminal/Terminal';
 import { Privacy } from './pages/Privacy';
 import { useIsMobile } from './lib/viewMode';
+
+// Lazy — keeps the private dashboard (+ its CSS) out of the public bundle.
+const Ops = lazy(() =>
+  import('./modes/ops/Ops').then((m) => ({ default: m.Ops })),
+);
 
 function RootRedirect() {
   const [target, setTarget] = useState<string | null>(null);
@@ -51,6 +56,16 @@ function AppShell() {
 }
 
 export const router = createBrowserRouter([
+  {
+    // Bare full-bleed private dashboard — mounted outside AppShell so it
+    // gets no wordmark / mode-toggle / footer chrome.
+    path: '/ops',
+    element: (
+      <Suspense fallback={null}>
+        <Ops />
+      </Suspense>
+    ),
+  },
   {
     element: <AppShell />,
     children: [

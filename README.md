@@ -230,6 +230,24 @@ Visitor count, chat turns, total token spend, the fraction of turns where retrie
 
 Cost covers Sonnet and Haiku (Anthropic). Voyage embedding calls are recorded as generations but report `calculatedTotalCost: 0` because Langfuse doesn't carry Voyage pricing data — at the true per-query cost of ~$0.0000024, they sit well below the HUD's two-decimal display precision, so this omission is invisible at current traffic.
 
+### Private ops dashboard
+
+The HUD is the public headline; `/ops` is the operator view behind it — a private six-tab dashboard (Overview, Conversations, RAG, Defense, Evals, System) over the same Langfuse data, auth-gated and `noindex`.
+
+- **Honest metrics by default.** Every rollup counts _real human conversations only_. Eval/CI traffic (the `eval-source` tag set by the `X-Eval-Bypass` path) and bot/defense short-circuits (`rate-limited`, `injection-detected`, `streamed-error`) are excluded unless a "test traffic" toggle opts them back in. One definition of "a conversation" drives the public HUD, `cost:measure`, and every dashboard tab — without it the headline inflates with CI noise, since a single eval batch landing in-window can multiply the raw 7-day trace count several-fold over the real-human number.
+- **Read path.** A shared `opsQuery` fully paginates Langfuse for the window (no silent top-N truncation), and each endpoint is cache-aside on Upstash (`ops:rollup:{window}:{includeEvals}`, ~5-min TTL) so concurrent tab loads collapse to one upstream sweep. The Evals tab reads the committed per-commit result JSON for a baseline-_history_ trend — retrieval@1 and pass-rate over commits, with the same `gate.ts` verdict CI enforces — not a single snapshot.
+- **Auth.** Single-user signed session: a constant-time password check issues an HMAC-signed, expiring `ops_session` cookie (httpOnly, Secure, SameSite=Strict); every `/api/ops/*` endpoint verifies it server-side.
+
+<!-- TODO(tushar): capture these screenshots before publishing this section.
+     Dark Catppuccin Mocha, the Overview and Evals tabs ONLY — never Conversations
+     (it renders raw visitor questions). Drop the PNGs at docs/ops-overview.png and
+     docs/ops-evals.png. Until then these two <img> tags render as broken-image alt text. -->
+
+<img src="docs/ops-overview.png" width="500" alt="Private /ops dashboard, Overview tab: KPI row, cost-by-model and latency-by-step panels, and a conversations-per-day chart in Catppuccin Mocha" />
+<img src="docs/ops-evals.png" width="500" alt="Private /ops dashboard, Evals tab: gate verdict, retrieval@1 and pass-rate trend over commits, and per-category pass-rate bars" />
+
+_Private — auth-gated and `noindex`. The public HUD above is the only outward-facing telemetry._
+
 ---
 
 ## Eval gate

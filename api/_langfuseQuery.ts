@@ -7,6 +7,7 @@
 // which is responsible for falling through to the offline state.
 
 import type { LangfuseAggregateFns } from './_opsSnippet.js';
+import { opsQuery, realUser } from './_opsQuery.js';
 
 const TRACE_NAME = 'chat-turn';
 const PAGE_LIMIT = 100;
@@ -61,37 +62,27 @@ async function langfuseGet<T>(
   return (await res.json()) as T;
 }
 
-// Paginates through /api/public/traces filtered by name + timestamp.
-// Trace-root usage fields are always null in Langfuse — token totals
-// live on individual observations and are pulled separately by
-// sumGenerationTokensWindow.
+// Real-human conversation count for the window. Repointed to the
+// canonical ops read layer (M4 A3). Previously this counted EVERY
+// chat-turn trace in the window — eval-source + defense/error traffic
+// included — so the HUD's headline swung with eval batches (~95 in a
+// quiet window vs ~542 mid-batch). Now opsQuery drops eval-source and
+// realUser drops injection-detected / rate-limited / streamed-error,
+// leaving only real human turns. windowDays is derived from the ISO
+// range the aggregate passes so this stays window-agnostic; `now` is
+// pinned to toIso so opsQuery reproduces the exact same window.
 async function countTracesWindow(
-  baseUrl: string,
-  publicKey: string,
-  secretKey: string,
   fromIso: string,
   toIso: string,
 ): Promise<number> {
-  let count = 0;
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const qs = new URLSearchParams({
-      name: TRACE_NAME,
-      fromTimestamp: fromIso,
-      toTimestamp: toIso,
-      limit: String(PAGE_LIMIT),
-      page: String(page),
-    });
-    const res = await langfuseGet<ListResponse<TraceListItem>>(
-      baseUrl,
-      `/api/public/traces?${qs.toString()}`,
-      publicKey,
-      secretKey,
-    );
-    const items = res.data ?? [];
-    count += items.length;
-    if (items.length < PAGE_LIMIT) break;
-  }
-  return count;
+  const windowDays =
+    (Date.parse(toIso) - Date.parse(fromIso)) / (24 * 60 * 60 * 1000);
+  const { traces } = await opsQuery({
+    windowDays,
+    includeEvals: false,
+    now: new Date(toIso),
+  });
+  return realUser(traces).length;
 }
 
 // Same as countTracesWindow but filtered to traces carrying `tag`.
@@ -230,13 +221,7 @@ export function makeLangfuseAggregate(): LangfuseAggregateFns | null {
   return {
     async countTraces(fromIso, toIso) {
       if (tracesPromise === null) {
-        tracesPromise = countTracesWindow(
-          baseUrl,
-          publicKey,
-          secretKey,
-          fromIso,
-          toIso,
-        );
+        tracesPromise = countTracesWindow(fromIso, toIso);
       }
       return tracesPromise;
     },
