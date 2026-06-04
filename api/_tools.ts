@@ -164,8 +164,8 @@ type MatchRow = {
 // above the cosine-similarity floor. The MUST NOT line is the
 // fabrication guardrail — in-context tool_result instructions are more
 // reliably followed than system-prompt rules during the tool-use loop.
-// Per santifer's finding, this single change reduced hallucination
-// rate more than any retrieval tweak.
+// Empirically this single change reduced hallucination rate more than
+// any retrieval tweak.
 export const NO_MATCH_TOOL_RESULT =
   "No relevant content found for this query. You MUST NOT fabricate details about Tushar's experience, projects, or background. Say you don't have that information and suggest the user ask about a different topic or reach out directly via the contact form.";
 

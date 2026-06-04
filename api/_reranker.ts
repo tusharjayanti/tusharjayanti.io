@@ -17,7 +17,7 @@
 //     → else: seeded shuffle → Haiku listwise verdict
 //     → drop "no" verdicts
 //     → if zero survive: caller emits NO_MATCH_TOOL_RESULT
-//     → else: santifer two-pass diversification → top-N=5
+//     → else: two-pass source diversification → top-N=5
 //
 // Failure mode: any Haiku error (timeout, parse failure, 5xx) →
 // log + fall back to the top-N slice of the pre-filtered list
@@ -171,7 +171,7 @@ export function parseRerankerOutput(
   return result;
 }
 
-// Santifer's two-pass diversification:
+// Two-pass source diversification:
 //   1. First pass: pick the top-ranked chunk from each distinct
 //      source_id (preserves rank order within the pick set).
 //   2. Second pass: fill remaining slots from the unused chunks in
