@@ -1,7 +1,7 @@
 {
   "crons": [{ "path": "/api/cron/digest", "schedule": "0 0 * * *" }],
   "functions": {
-    "api/ops/evals.ts": {
+    "api/ops/[...path].ts": {
       "includeFiles": "evals/results/**"
     }
   },

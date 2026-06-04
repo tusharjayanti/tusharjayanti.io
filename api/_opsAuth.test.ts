@@ -24,9 +24,14 @@ const {
   requireSession,
   SESSION_TTL_SECONDS,
 } = await import('./_opsAuth.js');
-const loginHandler = (await import('./ops/login.js')).default;
-const meHandler = (await import('./ops/me.js')).default;
-const logoutHandler = (await import('./ops/logout.js')).default;
+// Handlers now live in the consolidated dispatcher's handler module
+// (the per-route files were collapsed behind api/ops/[...path].ts).
+const { handleLogin, handleMe, handleLogout } = await import(
+  './_opsRouteHandlers.js'
+);
+const loginHandler = handleLogin;
+const meHandler = handleMe;
+const logoutHandler = handleLogout;
 
 const PASSWORD = 'correct-horse-battery-staple';
 const SECRET = 'test-hmac-key';
