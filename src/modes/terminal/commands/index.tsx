@@ -459,7 +459,7 @@ const dontHireMe: Command = {
               "If you want someone who just ships and never asks why, I'm the wrong guy.",
               "I ask a lot of questions when I'm ramping up. If you read that as slow, you'll miss the impact once I have the full context.",
               "I have opinions about architecture. I'll make my case passionately, then commit. Even to the call I argued against.",
-              "\"We've always done it this way\" is not a design doc.",
+              '"We\'ve always done it this way" is not a design doc.',
               "I don't do hero culture. If shipping only works when everyone burns the weekend, I'll call the plan broken, not rally the troops.",
               "I won't give you the estimate you want to hear. You'll get the realistic one, even when it's inconvenient.",
               "I'm a coffee nerd. Ask about espresso, cortados or pour-overs only if you have fifteen minutes you won't get back.",
