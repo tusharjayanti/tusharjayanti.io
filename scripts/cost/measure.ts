@@ -34,6 +34,12 @@ import { existsSync } from 'node:fs';
 import { dirname, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// Canonical ops read layer. opsQuery owns the trace fetch + pagination
+// + eval-source axis; realUser owns the defense/error-tag exclusion.
+// This script pulls EVERYTHING (includeEvals:true) and partitions
+// locally, so it can still report the eval-source vs real-user split.
+import { opsQuery, realUser, type OpsTrace } from '../../api/_opsQuery.js';
+
 const PUBLIC_KEY = process.env.LANGFUSE_PUBLIC_KEY;
 const SECRET_KEY = process.env.LANGFUSE_SECRET_KEY;
 const BASE_URL =
@@ -67,13 +73,12 @@ const CACHE_DIR = resolvePath(
 
 // ---- Langfuse fetch helpers ----
 
-type Trace = {
-  id: string;
-  name: string;
-  timestamp: string;
-  tags: string[] | null;
-  totalCost?: number;
-};
+// The trace shape is now the canonical OpsTrace (api/_opsQuery.ts):
+// { id, name, timestamp, tags: string[], totalCost: number }. This
+// script only reads id / timestamp / tags off it (cost comes from the
+// observation join below), so the alias keeps the rest of the file
+// unchanged.
+type Trace = OpsTrace;
 
 type Observation = {
   id: string;
@@ -105,27 +110,6 @@ async function fetchJson<T>(url: URL): Promise<T> {
     return (await resp.json()) as T;
   }
   throw new Error(`exhausted retries on ${url.pathname}`);
-}
-
-async function listAllTraces(from: Date): Promise<Trace[]> {
-  const all: Trace[] = [];
-  let page = 1;
-  while (true) {
-    const url = new URL(`${BASE_URL}/api/public/traces`);
-    url.searchParams.set('name', 'chat-turn');
-    url.searchParams.set('fromTimestamp', from.toISOString());
-    url.searchParams.set('page', String(page));
-    url.searchParams.set('limit', '100');
-    const body = await fetchJson<{
-      data: Trace[];
-      meta: { totalPages: number };
-    }>(url);
-    all.push(...body.data);
-    if (page >= body.meta.totalPages) break;
-    page++;
-    await sleep(150);
-  }
-  return all;
 }
 
 async function listAllObservations(from: Date): Promise<Observation[]> {
@@ -197,12 +181,6 @@ type Bucket = {
   retrievalFired: boolean;
 };
 
-const EXCLUDE_TAGS = new Set([
-  'rate-limited',
-  'injection-detected',
-  'streamed-error',
-]);
-
 function buildBuckets(
   traces: Trace[],
   observations: Observation[],
@@ -215,16 +193,16 @@ function buildBuckets(
     obsByTrace.set(o.traceId, list);
   }
 
-  let refusedEarly = 0;
+  // realUser drops the defense/error-tagged traces (injection-detected /
+  // rate-limited / streamed-error) — the same set this script used to
+  // hand-roll as EXCLUDE_TAGS. refusedEarly is the count it removed.
+  const kept = realUser(traces);
+  const refusedEarly = traces.length - kept.length;
   let noObs = 0;
   const buckets: Bucket[] = [];
 
-  for (const t of traces) {
+  for (const t of kept) {
     const tags = t.tags ?? [];
-    if (tags.some((tag) => EXCLUDE_TAGS.has(tag))) {
-      refusedEarly++;
-      continue;
-    }
     const obs = obsByTrace.get(t.id) ?? [];
     if (obs.length === 0) {
       noObs++;
@@ -329,7 +307,11 @@ function summarize(label: string, b: Bucket[]) {
     console.error(
       `[cost:measure] fetching traces + observations since ${from.toISOString()}`,
     );
-    traces = await listAllTraces(from);
+    // includeEvals:true — this script needs eval-source traces in the
+    // set so it can report the eval-vs-real-user split below. The
+    // defense/error-tag exclusion happens in buildBuckets via realUser.
+    traces = (await opsQuery({ windowDays: WINDOW_DAYS, includeEvals: true }))
+      .traces;
     observations = await listAllObservations(from);
     await saveCache({
       fetchedAt: new Date().toISOString(),
@@ -349,12 +331,17 @@ function summarize(label: string, b: Bucket[]) {
   console.log(`  no observations linked:          ${noObs}`);
   console.log(`  buckets built:                   ${buckets.length}`);
 
-  const realUser = buckets.filter((b) => !b.tags.includes('eval-source'));
+  const realUserBuckets = buckets.filter(
+    (b) => !b.tags.includes('eval-source'),
+  );
   const evalSource = buckets.filter((b) => b.tags.includes('eval-source'));
 
   console.log('');
   console.log('===== KEPT-TRACE COST STATS, 30d window =====');
-  summarize('Real-user (eval-bypass excluded — README headline)', realUser);
+  summarize(
+    'Real-user (eval-bypass excluded — README headline)',
+    realUserBuckets,
+  );
   summarize('All kept (real-user + eval-source — for HUD compare)', buckets);
   summarize('Eval-source only (reference)', evalSource);
 
@@ -380,10 +367,10 @@ function summarize(label: string, b: Bucket[]) {
   );
 
   // Monthly projection from real-user avg
-  const realAvg = realUser.length
-    ? realUser.reduce((a, x) => a + x.total, 0) / realUser.length
+  const realAvg = realUserBuckets.length
+    ? realUserBuckets.reduce((a, x) => a + x.total, 0) / realUserBuckets.length
     : 0;
-  const realDaily = realUser.length / WINDOW_DAYS;
+  const realDaily = realUserBuckets.length / WINDOW_DAYS;
   console.log('');
   console.log('===== MONTHLY PROJECTION (real-user basis) =====');
   console.log(`real-user avg cost/turn:           ${usd(realAvg)}`);
@@ -400,21 +387,21 @@ function summarize(label: string, b: Bucket[]) {
   // pulled from the window-end timestamp. When the README's numbers
   // get stale, run this script and replace the subsection wholesale
   // with the block below.
-  const realFiredCount = realUser.filter((x) => x.retrievalFired).length;
+  const realFiredCount = realUserBuckets.filter((x) => x.retrievalFired).length;
   const realFiredAvg = realFiredCount
-    ? realUser
+    ? realUserBuckets
         .filter((x) => x.retrievalFired)
         .reduce((a, x) => a + x.total, 0) / realFiredCount
     : 0;
-  const realSkippedCount = realUser.length - realFiredCount;
+  const realSkippedCount = realUserBuckets.length - realFiredCount;
   const realSkippedAvg = realSkippedCount
-    ? realUser
+    ? realUserBuckets
         .filter((x) => !x.retrievalFired)
         .reduce((a, x) => a + x.total, 0) / realSkippedCount
     : 0;
-  const realSumS = realUser.reduce((a, x) => a + x.sonnet, 0);
-  const realSumR = realUser.reduce((a, x) => a + x.rerank, 0);
-  const realSumTotal = realUser.reduce((a, x) => a + x.total, 0);
+  const realSumS = realUserBuckets.reduce((a, x) => a + x.sonnet, 0);
+  const realSumR = realUserBuckets.reduce((a, x) => a + x.rerank, 0);
+  const realSumTotal = realUserBuckets.reduce((a, x) => a + x.total, 0);
   const sonnetPct = realSumTotal
     ? ((realSumS / realSumTotal) * 100).toFixed(0)
     : '0';
@@ -433,14 +420,16 @@ function summarize(label: string, b: Bucket[]) {
   const m200 = (realAvg * 200 * 30).toFixed(0);
   const m1000 = (realAvg * 1000 * 30).toFixed(0);
   const mActual = (realAvg * realDaily * 30).toFixed(2);
-  const firedRate = ((realFiredCount / realUser.length) * 100).toFixed(1);
+  const firedRate = ((realFiredCount / realUserBuckets.length) * 100).toFixed(
+    1,
+  );
   console.log('');
   console.log(
     '===== README BULLETS (paste to refresh `### Per-turn cost`) =====',
   );
   console.log('');
   console.log(
-    `- **~$${dollarAvg} per chat turn** at production traffic. Sonnet 4.6 (tool_use decision + streaming generation) accounts for ~${sonnetPct}% of cost; Haiku 4.5 reranking the other ~${haikuPct}%; Voyage embeddings round to <0.01%. Measured over ${realUser.length} real-user production traces in the ${WINDOW_DAYS} days ending ${windowEnd}; eval-source CI traffic excluded.`,
+    `- **~$${dollarAvg} per chat turn** at production traffic. Sonnet 4.6 (tool_use decision + streaming generation) accounts for ~${sonnetPct}% of cost; Haiku 4.5 reranking the other ~${haikuPct}%; Voyage embeddings round to <0.01%. Measured over ${realUserBuckets.length} real-user production traces in the ${WINDOW_DAYS} days ending ${windowEnd}; eval-source CI traffic excluded.`,
   );
   console.log(
     `- **Cost shape depends on RAG firing.** Retrieval fires on ${firedRate}% of real-user turns; those cost ~$${dollarFired}. Skipped-retrieval turns cost ~$${dollarSkipped}. The delta is the Haiku rerank pass + the Voyage embed round-trip.`,

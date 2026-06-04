@@ -21,7 +21,7 @@
  * to a remote attacker. The byte loop runs to completion for the
  * equal-length case, so character-position timing reveals nothing.
  */
-function constantTimeStringEqual(a: string, b: string): boolean {
+export function constantTimeStringEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let acc = 0;
   for (let i = 0; i < a.length; i++) {

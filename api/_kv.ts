@@ -36,6 +36,23 @@ export async function checkRateLimit(
   return { ok: count <= RATE_MAX, count };
 }
 
+// Ops dashboard login throttle: 5 attempts per minute per IP. Separate
+// key namespace + minute-bucket from the chat rate-limiter; the window
+// lives in the key's minute stamp, the 2-minute TTL just garbage-collects
+// the bucket (same pattern as checkRateLimit's hour bucket).
+const OPS_LOGIN_MAX = 5;
+export async function checkOpsLoginRateLimit(
+  ipHash: string,
+): Promise<{ ok: boolean; count: number }> {
+  const minute = new Date().toISOString().slice(0, 16); // "YYYY-MM-DDTHH:MM"
+  const key = `rl:ops-login:${ipHash}:${minute}`;
+  const count = await redis.incr(key);
+  if (count === 1) {
+    await redis.expire(key, 120);
+  }
+  return { ok: count <= OPS_LOGIN_MAX, count };
+}
+
 export type LogTurnArgs = {
   ipHash: string;
   q: string;
