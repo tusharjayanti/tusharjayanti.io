@@ -17,7 +17,10 @@ describe('parseOpsPath', () => {
 
   it('distinguishes traces (list) from trace/:id (detail)', () => {
     expect(parseOpsPath('/api/ops/traces')).toEqual(['traces']);
-    expect(parseOpsPath('/api/ops/trace/abc-123')).toEqual(['trace', 'abc-123']);
+    expect(parseOpsPath('/api/ops/trace/abc-123')).toEqual([
+      'trace',
+      'abc-123',
+    ]);
   });
 
   it('decodes segments and drops trailing slashes', () => {

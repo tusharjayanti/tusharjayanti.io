@@ -218,7 +218,11 @@ export async function handleTraces(
 
   const cacheKey = `ops:conv:${windowDays}:${includeEvals}`;
   try {
-    const { data: all, cached, stale } = await cacheAside<{
+    const {
+      data: all,
+      cached,
+      stale,
+    } = await cacheAside<{
       items: ConversationListItem[];
     }>(
       r,

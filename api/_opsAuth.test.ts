@@ -26,9 +26,8 @@ const {
 } = await import('./_opsAuth.js');
 // Handlers now live in the consolidated dispatcher's handler module
 // (the per-route files were collapsed behind api/ops/[...path].ts).
-const { handleLogin, handleMe, handleLogout } = await import(
-  './_opsRouteHandlers.js'
-);
+const { handleLogin, handleMe, handleLogout } =
+  await import('./_opsRouteHandlers.js');
 const loginHandler = handleLogin;
 const meHandler = handleMe;
 const logoutHandler = handleLogout;
