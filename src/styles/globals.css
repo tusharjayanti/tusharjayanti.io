@@ -732,6 +732,88 @@ button:hover {
   padding-block: 0.15rem;
 }
 
+/* hire-me / dont-hire-me pitch blocks */
+.term-banner {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  margin: 0;
+  white-space: pre;
+  line-height: 1;
+  overflow-x: hidden;
+  font-size: clamp(0.4rem, 1.8vw, 0.8rem);
+}
+
+.term-banner-dark {
+  color: var(--ctp-red);
+}
+
+/* full-body Vader art rendered small so it sits at roughly Yoda's scale */
+.term-vader {
+  font-family: var(--font-mono);
+  color: var(--ctp-red);
+  margin: 0.25rem 0 0;
+  white-space: pre;
+  line-height: 1;
+  overflow-x: hidden;
+  font-size: clamp(0.18rem, 0.7vw, 0.38rem);
+}
+
+.term-tag {
+  display: inline-block;
+  padding: 0 0.45rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ctp-crust);
+}
+
+.term-tag-hire {
+  background: var(--ctp-green);
+}
+
+.term-tag-nope {
+  background: var(--ctp-red);
+}
+
+.term-tag-bonus {
+  background: var(--ctp-yellow);
+}
+
+.term-pitch-bullet {
+  display: flex;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.term-pitch-bullet .term-arrow {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* lightsaber flourish under the hire-me / dont-hire-me subtitle */
+.term-saber {
+  font-family: var(--font-mono);
+  white-space: pre;
+  overflow: hidden;
+  line-height: 1.2;
+  letter-spacing: -1px;
+}
+
+.term-saber-hilt {
+  color: var(--fg-dim);
+}
+
+.term-saber-jedi {
+  color: var(--ctp-green);
+  text-shadow: 0 0 6px var(--ctp-green);
+}
+
+.term-saber-dark {
+  color: var(--ctp-red);
+  text-shadow: 0 0 6px var(--ctp-red);
+}
+
 .term-prompt-row {
   display: flex;
   align-items: baseline;

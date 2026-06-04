@@ -13,6 +13,9 @@ import { whoami as whoamiText } from '../../../content/bio';
 import { experience } from '../../../content/experience';
 import { projects } from '../../../content/projects';
 import { version } from '../../../../package.json';
+import hireMeBanner from '../banners/hire-me.txt?raw';
+import dontHireMeBanner from '../banners/dont-hire-me.txt?raw';
+import vaderArt from '../banners/vader.txt?raw';
 
 export type ScrollbackEntry =
   | { kind: 'command'; text: string }
@@ -212,6 +215,14 @@ const help: Command = {
               show this session's commands; <code>history -c</code> clears
             </span>
           </div>
+          <div className="term-line">
+            <span className="term-cmd">hire-me</span>
+            <span className="term-dim"> the case for</span>
+          </div>
+          <div className="term-line">
+            <span className="term-cmd">dont-hire-me</span>
+            <span className="term-dim"> the case against</span>
+          </div>
           <div className="term-line">&nbsp;</div>
           <div className="term-line">
             for anything else, just ask. I am trained well, and can answer
@@ -301,6 +312,189 @@ const status: Command = {
   },
 };
 
+// Shared renderer for the hire-me / dont-hire-me pitch blocks. Each
+// group is a colored tag chip, an optional dim caption, and a list of
+// arrow bullets. Footer is free-form JSX (contact + cross-link).
+type PitchGroup = {
+  tag: string;
+  variant: 'hire' | 'nope' | 'bonus';
+  note?: string;
+  bullets: string[];
+};
+
+// A horizontal lightsaber: dim hilt, glowing colored blade. 'jedi' is
+// the green hire-me beam, 'dark' the red dont-hire-me beam.
+function saber(variant: 'jedi' | 'dark'): ReactNode {
+  return (
+    <div className="term-saber">
+      <span className="term-saber-hilt">▐█▌</span>
+      <span className={`term-saber-${variant}`}>{'━'.repeat(42)}▸</span>
+    </div>
+  );
+}
+
+function renderPitch(
+  banner: string,
+  subtitle: string,
+  flourish: ReactNode,
+  groups: PitchGroup[],
+  footer: ReactNode,
+  intro?: ReactNode,
+  dark?: boolean,
+  postBanner?: ReactNode,
+): ReactNode {
+  return (
+    <div className="term-block">
+      <pre className={`term-banner${dark ? ' term-banner-dark' : ''}`}>
+        {banner}
+      </pre>
+      {postBanner}
+      {intro ? (
+        <>
+          {intro}
+          <div className="term-line">&nbsp;</div>
+        </>
+      ) : null}
+      <div className="term-line term-comment">{subtitle}</div>
+      {flourish}
+      <div className="term-line">&nbsp;</div>
+      {groups.map((g, gi) => (
+        <div key={gi} className="term-block">
+          <div className="term-line">
+            <span className={`term-tag term-tag-${g.variant}`}>{g.tag}</span>
+          </div>
+          {g.note
+            ? g.note.split('\n').map((line, ni) => (
+                <div key={ni} className="term-line term-comment">
+                  {line}
+                </div>
+              ))
+            : null}
+          <div className="term-line">&nbsp;</div>
+          {g.bullets.map((b, bi) => (
+            <div key={bi} className="term-pitch-bullet">
+              <span className="term-arrow">→</span>
+              <span>{b}</span>
+            </div>
+          ))}
+          <div className="term-line">&nbsp;</div>
+        </div>
+      ))}
+      {footer}
+    </div>
+  );
+}
+
+const hireMe: Command = {
+  name: 'hire-me',
+  summary: 'the honest pitch',
+  run: ({ append }) => {
+    append({
+      kind: 'output',
+      node: renderPitch(
+        hireMeBanner,
+        '// the jedi side',
+        saber('jedi'),
+        [
+          {
+            tag: 'THE FORCE IS STRONG',
+            variant: 'hire',
+            bullets: [
+              "I push back on the requirement before I build it. 'Do we actually need this?' has saved more time than any framework.",
+              "I'll raise the awkward question in the room. A minute now beats a week of postmortem later.",
+              "When I think a call is wrong, you'll hear it. Directly, respectfully, not in a back-channel.",
+              'I reproduce the bug with a failing test before I touch the fix.',
+              "I build for the load I have, with one eye on the load I'll have. I learned where that line sits the expensive way, not from a blog post.",
+              "I hunt down the mundane, repetitive process and automate it off the team's plate.",
+              "I hit my deadlines. On the rare miss you'll hear it from me early. I'd rather flag a slip than quietly ship something half-built.",
+              'I build for the people stuck using the thing, not just the people signing off on it.',
+              'I mentor. Best outcome: they ship it without me and I hear about it in standup.',
+            ],
+          },
+          {
+            tag: 'JEDI MIND TRICKS',
+            variant: 'bonus',
+            note: "// the tiebreakers, if you're on the fence\n// you don't need to see other candidates",
+            bullets: [
+              "I'm an engineer who's also good with people. We exist. It's not a typo.",
+              'I write the limitation down before anyone trips over it. The known bug goes in the README, not in my head.',
+              "I name things so the version of me six months from now isn't cursing the version writing this.",
+            ],
+          },
+        ],
+        <>
+          <div className="term-line">
+            Sound like your kind of hire?{' '}
+            <span className="term-cmd">tj@tusharjayanti.io</span>
+          </div>
+          <div className="term-line term-comment">
+            // or skip the pitch and just ask me something in the chat
+          </div>
+          <div className="term-line">&nbsp;</div>
+          <div className="term-line term-comment">
+            // every jedi has a dark side. run{' '}
+            <span className="term-cmd">dont-hire-me</span> for mine.
+          </div>
+        </>,
+      ),
+    });
+  },
+};
+
+const dontHireMe: Command = {
+  name: 'dont-hire-me',
+  summary: 'the other side',
+  run: ({ append }) => {
+    append({
+      kind: 'output',
+      node: renderPitch(
+        dontHireMeBanner,
+        '// the dark side',
+        saber('dark'),
+        [
+          {
+            tag: 'DARK SIDE TENDENCIES',
+            variant: 'nope',
+            bullets: [
+              "If you want someone who just ships and never asks why, I'm the wrong guy.",
+              "I ask a lot of questions when I'm ramping up. If you read that as slow, you'll miss the impact once I have the full context.",
+              "I have opinions about architecture. I'll make my case passionately, then commit. Even to the call I argued against.",
+              '"We\'ve always done it this way" is not a design doc.',
+              "I don't do hero culture. If shipping only works when everyone burns the weekend, I'll call the plan broken, not rally the troops.",
+              "I won't give you the estimate you want to hear. You'll get the realistic one, even when it's inconvenient.",
+              "I'm a coffee nerd. Ask about espresso, cortados or pour-overs only if you have fifteen minutes you won't get back.",
+              "I drum, so classic-rock references will sneak into standup. It's not a phase.",
+            ],
+          },
+          {
+            tag: 'SITH HABITS',
+            variant: 'bonus',
+            note: '// in everyone, a little dark side there is',
+            bullets: [
+              "Leave a vague variable name near me and I'll rename it. It's an involuntary reflex. A `data2` causes me genuine physical discomfort.",
+              'I underestimate the last 10%. Every. Single. Time.',
+              'I go deep on the interesting problem and resurface with a working thing and no memory of the hours.',
+              'I find "done" genuinely hard to declare. There is always one more trace to add. ¯\\_(ツ)_/¯',
+            ],
+          },
+        ],
+        <>
+          <div className="term-line">Read all that and still here?</div>
+          <div className="term-line">
+            <span className="term-cmd">tj@tusharjayanti.io</span>
+          </div>
+          <div className="term-line term-comment">
+            // bold move. let's talk.
+          </div>
+        </>,
+        <div className="term-line term-cmd">oh? a curious one, are we?</div>,
+        true,
+        <pre className="term-vader">{vaderArt}</pre>,
+      ),
+    });
+  },
+};
+
 export const commands: Record<string, Command> = {
   whoami,
   ls,
@@ -309,6 +503,8 @@ export const commands: Record<string, Command> = {
   clear,
   status,
   history,
+  'hire-me': hireMe,
+  'dont-hire-me': dontHireMe,
 };
 
 export const commandNames = Object.keys(commands);
