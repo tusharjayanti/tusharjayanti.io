@@ -238,12 +238,8 @@ The HUD is the public headline; `/ops` is the operator view behind it — a priv
 - **Read path.** A shared `opsQuery` fully paginates Langfuse for the window (no silent top-N truncation), and each endpoint is cache-aside on Upstash (`ops:rollup:{window}:{includeEvals}`, ~5-min TTL) so concurrent tab loads collapse to one upstream sweep. The Evals tab reads the committed per-commit result JSON for a baseline-_history_ trend — retrieval@1 and pass-rate over commits, with the same `gate.ts` verdict CI enforces — not a single snapshot.
 - **Auth.** Single-user signed session: a constant-time password check issues an HMAC-signed, expiring `ops_session` cookie (httpOnly, Secure, SameSite=Strict); every `/api/ops/*` endpoint verifies it server-side.
 
-<!-- TODO(tushar): capture these screenshots before publishing this section.
-     Dark Catppuccin Mocha, the Overview and Evals tabs ONLY — never Conversations
-     (it renders raw visitor questions). Drop the PNGs at docs/ops-overview.png and
-     docs/ops-evals.png. Until then these two <img> tags render as broken-image alt text. -->
-
 <img src="docs/ops-overview.png" width="500" alt="Private /ops dashboard, Overview tab: KPI row, cost-by-model and latency-by-step panels, and a conversations-per-day chart in Catppuccin Mocha" />
+
 <img src="docs/ops-evals.png" width="500" alt="Private /ops dashboard, Evals tab: gate verdict, retrieval@1 and pass-rate trend over commits, and per-category pass-rate bars" />
 
 _Private — auth-gated and `noindex`. The public HUD above is the only outward-facing telemetry._
