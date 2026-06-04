@@ -4,11 +4,17 @@
 // absent from the hand-written `help` block. We drive run() through a
 // minimal ctx that collects appended entries, then render the resulting
 // nodes to static markup to assert on the visible copy. No DOM needed.
+//
+// Eggs now reveal their lines as a timed sequence (cumulative setTimeout),
+// so the whole suite runs under fake timers and run() drains them.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ReactElement } from 'react';
 import { commands } from './index';
 import type { ScrollbackEntry, CommandContext } from './index';
+
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => vi.useRealTimers());
 
 function harness(line: string) {
   const entries: ScrollbackEntry[] = [];
@@ -53,11 +59,14 @@ function text(entries: ScrollbackEntry[]): string {
 }
 
 // Run a command line through its registered handler and return the text.
+// Drains the reveal timers so assertions see the full sequence; sync
+// commands schedule no timers, so runAllTimers is a no-op for them.
 function run(line: string): string {
   const { entries, ctx, name } = harness(line);
   const cmd = commands[name];
   expect(cmd, `command "${name}" is registered`).toBeDefined();
   cmd.run(ctx);
+  vi.runAllTimers();
   return text(entries);
 }
 
@@ -95,9 +104,14 @@ describe('egg registration and help hiding', () => {
 });
 
 describe('sudo', () => {
-  it('denies regardless of args', () => {
-    expect(run('sudo rm -rf /')).toContain('Permission denied.');
-    expect(run('sudo')).toContain("you're talking to him");
+  it('plays the escalation theater and grants nothing', () => {
+    const out = run('sudo');
+    expect(out).toContain('verifying identity');
+    expect(out).toContain('elevated smart-ass permissions');
+    expect(out).toContain('you feel powerful');
+  });
+  it('ignores args — sudo <anything> runs the same gag', () => {
+    expect(run('sudo rm -rf /')).toContain('elevated smart-ass permissions');
   });
 });
 
@@ -112,36 +126,43 @@ describe('rm', () => {
     expect(run('rm somefile')).toContain('rm?');
   });
 
-  it('denies on rm -rf and its target variants', () => {
+  it('fake-nukes then no-ops on rm -rf and its target variants', () => {
     for (const line of ['rm -rf', 'rm -rf /', 'rm -rf ~', 'rm -rf *']) {
       const out = run(line);
-      expect(out, line).toContain('Permission denied.');
-      expect(out, line).toContain('working tree');
+      expect(out, line).toContain('nuking everything');
+      expect(out, line).toContain('really? you think that works here?');
+      expect(out, line).toContain('version-control my mistakes');
     }
   });
 });
 
 describe('vim / emacs', () => {
   it('vim is a one-way door', () => {
-    expect(run('vim')).toContain(':q! is theoretical');
+    const out = run('vim');
+    expect(out).toContain('opening vim');
+    expect(out).toContain('0 idea how to leave');
+    expect(out).toContain('you live here now');
   });
-  it('emacs ribs the vim user', () => {
-    expect(run('emacs')).toContain('vim user next door');
+  it('emacs ribs the user', () => {
+    const out = run('emacs');
+    expect(out).toContain('M-x doctor');
+    expect(out).toContain('pinky has already filed a complaint');
   });
 });
 
 describe('tushar', () => {
-  it('--version prints the changelog', () => {
+  it('--version resolves metadata then prints the changelog', () => {
     const out = run('tushar --version');
+    expect(out).toContain('resolving build metadata');
     expect(out).toContain('tushar 7.x (latest)');
     expect(out).toContain('production');
-    expect(out).toContain('known issue');
+    expect(out).toContain('wontfix');
   });
 
   it('bare tushar does not print the changelog', () => {
     const out = run('tushar');
     expect(out).toContain("that's me");
-    expect(out).not.toContain('known issue');
+    expect(out).not.toContain('wontfix');
   });
 });
 
@@ -152,8 +173,11 @@ describe('man / 42', () => {
   it('bare man asks which page', () => {
     expect(run('man')).toContain('What manual page do you want?');
   });
-  it('42 answers', () => {
-    expect(run('42')).toContain('the answer. now what was your question?');
+  it('42 counts down to the punchline', () => {
+    const out = run('42');
+    expect(out).toContain('computing the answer');
+    expect(out).toContain('7.5 million years');
+    expect(out).toContain('now what was the question?');
   });
 });
 
@@ -166,6 +190,8 @@ describe('whoami', () => {
 
   it('fires the recruiter pitch on the piped grep pattern', () => {
     const out = run('whoami | grep recruiter');
+    expect(out).toContain('scanning for recruiters');
+    expect(out).toContain('match found');
     expect(out).toContain('matching "recruiter"');
     expect(out).toContain('Since you grepped for it');
     expect(out).toContain('hire-me');
@@ -177,19 +203,21 @@ describe('whoami', () => {
 });
 
 describe('coffee', () => {
-  beforeEach(() => vi.useFakeTimers());
-  afterEach(() => vi.useRealTimers());
-
-  it('appends the cup immediately and the punchline after a delay', () => {
+  it('reveals the cup and brew steps on timers, punchline last', () => {
     const { entries, ctx } = harness('coffee');
     commands.coffee.run(ctx);
-    // Immediate: cup + brewing line in one output entry.
-    expect(entries).toHaveLength(1);
-    expect(text(entries)).toContain('brewing...');
-    expect(text(entries)).not.toContain('refuse to mock');
-    // Delayed: the punchline lands on the timer.
+    // Nothing synchronous — the whole sequence is on cumulative timers.
+    expect(entries).toHaveLength(0);
     vi.runAllTimers();
-    expect(entries).toHaveLength(2);
-    expect(text(entries)).toContain('the only dependency I refuse to mock');
+    expect(entries).toHaveLength(5);
+    const out = text(entries);
+    expect(out).toContain('grinding beans');
+    expect(out).toContain('brewing...');
+    expect(out).toContain('still brewing');
+    expect(out).toContain('the build finished before this did');
+    // The punchline is the LAST entry, not an earlier one.
+    expect(text(entries.slice(0, -1))).not.toContain(
+      'the build finished before this did',
+    );
   });
 });

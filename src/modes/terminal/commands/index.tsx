@@ -67,36 +67,42 @@ const whoami: Command = {
       args.some((a) => a.includes('grep')) &&
       args.some((a) => a.includes('recruiter'));
     if (grepsRecruiter) {
-      append({
-        kind: 'output',
-        node: (
-          <div className="term-block">
-            <div className="term-line term-comment">matching "recruiter":</div>
-            <div className="term-line">&nbsp;</div>
-            <div className="term-line">
-              Hi. Since you grepped for it, here's what I'd lead with:
-            </div>
-            <div className="term-line">&nbsp;</div>
-            {[
-              'Senior backend engineer, ~7 years, now building production AI systems.',
-              'I ship real LLMOps, not demos. This site is the evidence.',
-              "I communicate like someone you'd put in front of a customer.",
-              'Bengaluru-based, open to senior AI/backend roles.',
-            ].map((b, i) => (
-              <div key={i} className="term-pitch-bullet">
-                <span className="term-arrow">→</span>
-                <span>{b}</span>
+      playSequence(append, [
+        { node: eggLine('scanning for recruiters...'), gap: 200 },
+        { node: eggLine('match found.'), gap: 300 },
+        {
+          node: (
+            <div className="term-block">
+              <div className="term-line term-comment">
+                matching "recruiter":
               </div>
-            ))}
-            <div className="term-line">&nbsp;</div>
-            <div className="term-line">
-              full pitch: type <span className="term-cmd">hire-me</span>
-              {'   '}reach me:{' '}
-              <span className="term-cmd">tj@tusharjayanti.io</span>
+              <div className="term-line">&nbsp;</div>
+              <div className="term-line">
+                Hi. Since you grepped for it, here's what I'd lead with:
+              </div>
+              <div className="term-line">&nbsp;</div>
+              {[
+                'Senior backend engineer, ~7 years, now building production AI systems.',
+                'I ship real LLMOps, not demos. This site is the evidence.',
+                "I communicate like someone you'd put in front of a customer.",
+                'Bengaluru-based, open to senior AI/backend roles.',
+              ].map((b, i) => (
+                <div key={i} className="term-pitch-bullet">
+                  <span className="term-arrow">→</span>
+                  <span>{b}</span>
+                </div>
+              ))}
+              <div className="term-line">&nbsp;</div>
+              <div className="term-line">
+                full pitch: type <span className="term-cmd">hire-me</span>
+                {'   '}reach me:{' '}
+                <span className="term-cmd">tj@tusharjayanti.io</span>
+              </div>
             </div>
-          </div>
-        ),
-      });
+          ),
+          gap: 320,
+        },
+      ]);
       return;
     }
     const paragraphs = whoamiText.split('\n\n');
@@ -550,17 +556,47 @@ function quip(main: ReactNode, aside?: string): ReactNode {
   );
 }
 
+// One easter-egg line: plain status text, or a comment-styled aside.
+function eggLine(content: string, comment = false): ReactNode {
+  return (
+    <div className={comment ? 'term-line term-comment' : 'term-line'}>
+      {content}
+    </div>
+  );
+}
+
+// Reveal a sequence of nodes one at a time — presentation only. `gap` is the
+// pause BEFORE each step in ms (~150-350 for a normal beat, ~600 for a
+// comedic pause). Each step is just an append on a cumulative timer, so the
+// lines land in order and the final punchline always arrives last.
+function playSequence(
+  append: (entry: ScrollbackEntry) => void,
+  steps: ReadonlyArray<{ node: ReactNode; gap: number }>,
+): void {
+  let elapsed = 0;
+  for (const step of steps) {
+    elapsed += step.gap;
+    setTimeout(() => append({ kind: 'output', node: step.node }), elapsed);
+  }
+}
+
 const sudo: Command = {
   name: 'sudo',
   summary: 'elevate privileges',
   run: ({ append }) => {
-    append({
-      kind: 'output',
-      node: quip(
-        'Permission denied.',
-        "// there's one root here, and you're talking to him.",
-      ),
-    });
+    playSequence(append, [
+      { node: eggLine('[sudo] verifying identity...'), gap: 200 },
+      { node: eggLine('consulting the sudoers file...'), gap: 280 },
+      { node: eggLine('escalating...'), gap: 280 },
+      { node: eggLine('→ granted: elevated smart-ass permissions.'), gap: 320 },
+      {
+        node: eggLine(
+          "(does nothing. but you feel powerful, and that's what matters.)",
+          true,
+        ),
+        gap: 220,
+      },
+    ]);
   },
 };
 
@@ -573,15 +609,27 @@ const rm: Command = {
     const forced = args.some(
       (a) => a.startsWith('-') && /r/i.test(a) && /f/i.test(a),
     );
-    append({
-      kind: 'output',
-      node: forced
-        ? quip(
-            'Permission denied.',
-            "// I lost a working tree once. we don't talk about it.",
-          )
-        : quip('rm?', "// really? where's the -rf? go on, I dare you."),
-    });
+    if (!forced) {
+      append({
+        kind: 'output',
+        node: quip('rm?', "// really? where's the -rf? go on, I dare you."),
+      });
+      return;
+    }
+    playSequence(append, [
+      { node: eggLine('nuking everything Tushar ever built...'), gap: 220 },
+      { node: eggLine('shortlist ... gone'), gap: 260 },
+      { node: eggLine('vox-agent ... gone'), gap: 260 },
+      { node: eggLine('tusharjayanti.io ... gon-'), gap: 260 },
+      { node: eggLine('really? you think that works here?'), gap: 600 },
+      {
+        node: eggLine(
+          "nothing was touched. I version-control my mistakes, I don't delete them.",
+          true,
+        ),
+        gap: 320,
+      },
+    ]);
   },
 };
 
@@ -589,13 +637,13 @@ const vim: Command = {
   name: 'vim',
   summary: 'text editor',
   run: ({ append }) => {
-    append({
-      kind: 'output',
-      node: quip(
-        "vim: entered. good news, you're in. bad news, you're in.",
-        '// :q! is theoretical.',
-      ),
-    });
+    playSequence(append, [
+      { node: eggLine('opening vim...'), gap: 200 },
+      { node: eggLine('loaded. 1 buffer. 0 idea how to leave.'), gap: 300 },
+      { node: eggLine(':q ... nothing.'), gap: 260 },
+      { node: eggLine(':q! ... nothing.'), gap: 260 },
+      { node: eggLine('you live here now. we all do.', true), gap: 320 },
+    ]);
   },
 };
 
@@ -603,13 +651,17 @@ const emacs: Command = {
   name: 'emacs',
   summary: 'text editor',
   run: ({ append }) => {
-    append({
-      kind: 'output',
-      node: quip(
-        'emacs: somewhere in here is a text editor.',
-        '// the vim user next door left an hour ago.',
-      ),
-    });
+    playSequence(append, [
+      { node: eggLine('launching emacs...'), gap: 200 },
+      { node: eggLine('loading mail client...'), gap: 250 },
+      { node: eggLine('loading file manager...'), gap: 250 },
+      { node: eggLine('loading psychotherapist (M-x doctor)...'), gap: 250 },
+      { node: eggLine('loading a text editor... eventually.'), gap: 280 },
+      {
+        node: eggLine('ready. your pinky has already filed a complaint.', true),
+        gap: 320,
+      },
+    ]);
   },
 };
 
@@ -624,26 +676,16 @@ const coffee: Command = {
   name: 'coffee',
   summary: 'brew a cup',
   run: ({ append }) => {
-    append({
-      kind: 'output',
-      node: (
-        <div className="term-block">
-          <pre className="term-egg">{coffeeCup}</pre>
-          <div className="term-line">brewing...</div>
-        </div>
-      ),
-    });
-    // The punchline lands a beat later, like a real pour.
-    setTimeout(() => {
-      append({
-        kind: 'output',
-        node: (
-          <div className="term-line term-comment">
-            // the only dependency I refuse to mock.
-          </div>
-        ),
-      });
-    }, 900);
+    playSequence(append, [
+      { node: <pre className="term-egg">{coffeeCup}</pre>, gap: 150 },
+      { node: eggLine('grinding beans...'), gap: 280 },
+      { node: eggLine('brewing...'), gap: 280 },
+      { node: eggLine('still brewing...'), gap: 350 },
+      {
+        node: eggLine('the build finished before this did. priorities.', true),
+        gap: 320,
+      },
+    ]);
   },
 };
 
@@ -652,36 +694,37 @@ const tushar: Command = {
   summary: 'the maintainer',
   run: ({ args, append }) => {
     if (args.includes('--version')) {
-      append({
-        kind: 'output',
-        node: (
-          <div className="term-block">
-            <div className="term-line">tushar 7.x (latest)</div>
-            <div className="term-line">
-              {'  '}
-              <span className="term-status-shipped">+ added:</span> production
-              AI systems
+      playSequence(append, [
+        { node: eggLine('resolving build metadata...'), gap: 220 },
+        {
+          node: (
+            <div className="term-block">
+              <div className="term-line">tushar 7.x (latest)</div>
+              <div className="term-line">
+                {'  '}
+                <span className="term-status-shipped">+ added:</span> production
+                AI systems
+              </div>
+              <div className="term-line">
+                {'  '}
+                <span className="term-status-shipped">+ improved:</span>{' '}
+                explaining things to people who don't write code
+              </div>
+              <div className="term-line">
+                {'  '}
+                <span className="term-error">- removed:</span> the reflex to say
+                yes to everything
+              </div>
+              <div className="term-line">
+                {'  '}
+                <span className="term-status-in-progress">wontfix:</span> still
+                cannot mark anything "done"
+              </div>
             </div>
-            <div className="term-line">
-              {'  '}
-              <span className="term-status-shipped">+ improved:</span>{' '}
-              explaining things to people who don't write code
-            </div>
-            <div className="term-line">
-              {'  '}
-              <span className="term-error">- removed:</span> the reflex to say
-              yes to everything
-            </div>
-            <div className="term-line">
-              {'  '}
-              <span className="term-status-in-progress">
-                ! known issue:
-              </span>{' '}
-              still cannot mark anything "done"
-            </div>
-          </div>
-        ),
-      });
+          ),
+          gap: 320,
+        },
+      ]);
       return;
     }
     append({
@@ -736,10 +779,15 @@ const fortyTwo: Command = {
   name: '42',
   summary: 'the answer',
   run: ({ append }) => {
-    append({
-      kind: 'output',
-      node: quip('the answer. now what was your question?'),
-    });
+    playSequence(append, [
+      { node: eggLine('computing the answer...'), gap: 200 },
+      {
+        node: eggLine('(estimated time remaining: 7.5 million years)', true),
+        gap: 300,
+      },
+      { node: eggLine('...'), gap: 300 },
+      { node: eggLine('42. now what was the question?'), gap: 600 },
+    ]);
   },
 };
 
