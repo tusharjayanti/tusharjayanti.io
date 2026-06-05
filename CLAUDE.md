@@ -82,11 +82,12 @@ Every trace can carry zero or more of these tags:
 - `streamed-error` — Streaming failed partway. Partial response preserved in trace.
 - `canary-leak` — `detectOutputLeak(accumulated)` hit. Post-stream; redaction applied to log preview.
 - `model-refused` — Heuristic match against refusal phrase templates from system prompt. Post-stream.
+- `empty-output` — The turn produced no model text (e.g. tool-only rounds, or the forced final round returned nothing); a voice-consistent fallback reply was streamed in its place. Post-loop backstop.
 
 Precedence:
 
 - `rate-limited` and `injection-detected` are exclusive (short-circuit return before any other tag can fire)
-- `streamed-error`, `canary-leak`, `model-refused` can co-exist on the same trace
+- `streamed-error`, `canary-leak`, `model-refused`, `empty-output` can co-exist on the same trace
 
 ### Commit conventions
 

@@ -44,11 +44,22 @@ const MAX_TOKENS = 1024;
 // Cap on tool-use rounds per turn. 3 rounds = initial + 2 tool follow-ups,
 // which is more than Sonnet ever needs for the two RAG tools and guards
 // against runaway loops if a future tool returns ambiguous results.
-const MAX_TOOL_ROUNDS = 3;
+export const MAX_TOOL_ROUNDS = 3;
 
 const REFUSAL_TEXT = 'Not how this works. Want to know what I built at DISCO?';
 const RATE_LIMIT_TEXT =
   "You've hit the chat limit for this hour. Try again in a bit, or drop me an email at tj@tusharjayanti.io.";
+// Streamed when a turn produces no model text at all (the empty-output
+// guard below). Voice-consistent, first-person, answers the answerable
+// framing while declining live/out-of-scope data.
+export const EMPTY_OUTPUT_FALLBACK =
+  "I can tell you about my experience and what I've built, but I don't have live data like stock prices. Ask me about the work itself.";
+// Final-round tool gate: on the last permitted round we forbid new tool
+// calls so Sonnet must answer from what's already retrieved instead of
+// emitting another tool_use block the loop has no round left to consume.
+const FINAL_ROUND_TOOL_CHOICE: Anthropic.Messages.ToolChoice = {
+  type: 'none',
+};
 
 const NDJSON_HEADERS = {
   'content-type': 'application/x-ndjson',
@@ -497,6 +508,12 @@ export default async function handler(
           console.error('[langfuse] generation create failed:', err);
         }
 
+        // Last permitted round: disable tool use so the model is forced to
+        // produce a text answer from what's already been retrieved. `tools`
+        // stays defined (cached system+tools prefix unchanged); tool_choice
+        // just forbids new calls. This is what guarantees the loop never
+        // exits on a tool round with nothing to say.
+        const isFinalRound = roundIndex === MAX_TOOL_ROUNDS - 1;
         const anthropicStream = await anthropic.messages.create({
           model: MODEL_ID,
           max_tokens: MAX_TOKENS,
@@ -509,6 +526,7 @@ export default async function handler(
           ],
           messages,
           tools: TOOLS,
+          ...(isFinalRound ? { tool_choice: FINAL_ROUND_TOOL_CHOICE } : {}),
           stream: true,
         });
 
@@ -795,6 +813,17 @@ export default async function handler(
 
           messages.push({ role: 'user', content: toolResults });
           // Loop continues for the next round.
+        }
+
+        // Defensive backstop: the loop must never yield an empty turn. If
+        // nothing was streamed (e.g. only tool_use blocks across every
+        // round, or the forced final round returned no content), send a
+        // voice-consistent fallback so the user always gets a reply and the
+        // trace output is never empty/undefined.
+        if (accumulated.trim().length === 0) {
+          accumulated = EMPTY_OUTPUT_FALLBACK;
+          tags.push('empty-output');
+          emit(controller, { type: 'delta', text: accumulated });
         }
 
         emit(controller, {
