@@ -33,6 +33,7 @@ describe('makeLangfuseAggregate', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
     process.env.LANGFUSE_PUBLIC_KEY = originalEnv.LANGFUSE_PUBLIC_KEY;
     process.env.LANGFUSE_SECRET_KEY = originalEnv.LANGFUSE_SECRET_KEY;
     process.env.LANGFUSE_BASE_URL = originalEnv.LANGFUSE_BASE_URL;
@@ -236,5 +237,92 @@ describe('makeLangfuseAggregate', () => {
       String(url).includes('type=GENERATION'),
     );
     expect(generationCalls).toHaveLength(1);
+  });
+
+  // The HUD regression that prompted the merge: tokens and cost used to
+  // drive two byte-identical observation paginations, doubling the
+  // request burst that tripped Langfuse's rate limit. They must now share
+  // ONE pass over the GENERATION endpoint.
+  it('sumTokens + sumCost share ONE observation pagination', async () => {
+    const fetchMock = vi.fn(async (_url: string) =>
+      jsonResponse({
+        data: [{ id: 'o1', totalTokens: 100, calculatedTotalCost: 0.01 }],
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const lf = makeLangfuseAggregate()!;
+    const [tokens, cost] = await Promise.all([
+      lf.sumTokens('2026-05-15T00:00:00Z', '2026-05-22T00:00:00Z'),
+      lf.sumCost('2026-05-15T00:00:00Z', '2026-05-22T00:00:00Z'),
+    ]);
+    expect(tokens).toBe(100);
+    expect(cost).toBeCloseTo(0.01, 6);
+    const obsCalls = fetchMock.mock.calls.filter(([url]) =>
+      String(url).includes('/api/public/observations'),
+    );
+    expect(obsCalls).toHaveLength(1);
+  });
+
+  it('retries on a transient 429 and then succeeds', async () => {
+    vi.useFakeTimers();
+    let call = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        call += 1;
+        if (call === 1) return new Response('rate limited', { status: 429 });
+        return jsonResponse({
+          data: [{ id: 'o1', totalTokens: 100, calculatedTotalCost: 0.01 }],
+        });
+      }),
+    );
+    const lf = makeLangfuseAggregate()!;
+    const p = lf.sumTokens('2026-05-15T00:00:00Z', '2026-05-22T00:00:00Z');
+    await vi.runAllTimersAsync();
+    expect(await p).toBe(100);
+    expect(call).toBe(2);
+  });
+
+  it('honors a Retry-After header before retrying', async () => {
+    vi.useFakeTimers();
+    let call = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        call += 1;
+        if (call === 1) {
+          return new Response('', {
+            status: 429,
+            headers: { 'retry-after': '1' },
+          });
+        }
+        return jsonResponse({ data: [] });
+      }),
+    );
+    const lf = makeLangfuseAggregate()!;
+    const p = lf.countGroundedTraces(
+      '2026-05-15T00:00:00Z',
+      '2026-05-22T00:00:00Z',
+      'grounded',
+    );
+    // Not yet retried — the 1s Retry-After delay hasn't elapsed.
+    await vi.advanceTimersByTimeAsync(999);
+    expect(call).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await p).toBe(0);
+    expect(call).toBe(2);
+  });
+
+  it('throws after exhausting retries on a persistent 429', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async () => new Response('nope', { status: 429 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const lf = makeLangfuseAggregate()!;
+    const p = lf.sumCost('2026-05-15T00:00:00Z', '2026-05-22T00:00:00Z');
+    const assertion = expect(p).rejects.toThrow(/returned 429/);
+    await vi.runAllTimersAsync();
+    await assertion;
+    // 1 initial attempt + 3 backoff retries.
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });
