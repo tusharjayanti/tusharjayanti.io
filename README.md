@@ -4,7 +4,7 @@
 [![CI](https://github.com/tusharjayanti/tusharjayanti.io/actions/workflows/ci.yml/badge.svg)](https://github.com/tusharjayanti/tusharjayanti.io/actions/workflows/ci.yml)
 [![Built with Claude Code](https://img.shields.io/badge/built%20with-Claude%20Code-blueviolet?style=flat-square)](https://claude.ai/code)
 
-> A terminal-style portfolio with an AI chat assistant, doubling as an LLMOps testbed.
+> A terminal-style portfolio with an AI chat assistant, and a production LLMOps system in its own right.
 
 ---
 

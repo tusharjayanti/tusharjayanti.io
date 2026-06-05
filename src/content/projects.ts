@@ -14,21 +14,32 @@ export interface Project {
 
 export const projects: Project[] = [
   {
-    slug: 'calculator-agent',
-    name: 'calculator-agent',
-    oneLiner: 'Tool-calling agent. First production AI project.',
+    slug: 'portfolio',
+    name: 'tusharjayanti.io (portfolio)',
+    oneLiner: 'You are here. A production LLMOps system.',
     description:
-      'Multi-step tool-calling agent that decomposes natural-language math problems into discrete operations. Demonstrates Claude tool use, error recovery, and structured output handling.',
-    stack: ['Python', 'Claude API', 'Tool use'],
-    github: 'https://github.com/tusharjayanti/calculator-agent',
+      'Terminal-aesthetic portfolio with a grounded AI chat agent (Tarvis): agentic RAG over my own work, Langfuse-traced per turn, eval-gated CI, prompt-injection defense, and a private /ops observability dashboard. Vite + React + TypeScript on Vercel Edge, on free tiers.',
+    stack: [
+      'Vite',
+      'React',
+      'TypeScript',
+      'Vercel',
+      'Claude API',
+      'Voyage',
+      'Supabase',
+      'pgvector',
+      'Langfuse',
+    ],
+    github: 'https://github.com/tusharjayanti/tusharjayanti.io',
     status: 'shipped',
+    highlight: true,
   },
   {
     slug: 'vox-agent',
     name: 'vox-agent',
     oneLiner: 'Text customer support agent + inline hallucination evals.',
     description:
-      'Customer support AI with an inline hallucination-detection eval loop. Claude Sonnet generates responses, Claude Haiku acts as LLM judge. FastAPI + asyncpg + pgvector. Built as my LLMOps reference project.',
+      'Customer support AI with an inline hallucination-detection eval loop. Claude Sonnet generates responses, Claude Haiku acts as LLM judge. FastAPI + asyncpg + pgvector. An early agentic build; its inline-judge loop is the same eval-first instinct this site now runs at production scale.',
     stack: [
       'Python',
       'FastAPI',
@@ -38,9 +49,7 @@ export const projects: Project[] = [
       'pgvector',
     ],
     github: 'https://github.com/tusharjayanti/vox-agent',
-    roadmap: 'v0.2: adding RAG over product docs + closed-loop eval generation',
     status: 'shipped',
-    highlight: true,
   },
   {
     slug: 'shortlist',
@@ -53,12 +62,23 @@ export const projects: Project[] = [
     status: 'shipped',
   },
   {
-    slug: 'portfolio',
-    name: 'portfolio (this site)',
-    oneLiner: 'You are here.',
+    slug: 'tensorflow-chatbot',
+    name: 'TensorFlow Chatbot',
+    oneLiner: 'Seq2seq chatbot on the Cornell movie-dialogue corpus.',
     description:
-      'Terminal-aesthetic portfolio with dual-mode rendering (terminal + CV) and an AI chat command. Vite + React + TypeScript on Vercel. Eventually a production LLMOps reference.',
-    stack: ['Vite', 'React', 'TypeScript', 'Vercel', 'Claude API'],
-    status: 'in-progress',
+      'A sequence-to-sequence (encoder-decoder) chatbot in TensorFlow, trained on the Cornell Movie Dialogue corpus. An early class project from the pre-LLM era; chunked the dataset to train on local hardware.',
+    stack: ['Python', 'TensorFlow', 'seq2seq'],
+    github: 'https://github.com/tusharjayanti/TensorflowChatbot',
+    status: 'archived',
+  },
+  {
+    slug: 'ocr',
+    name: 'OCR',
+    oneLiner: 'Character recognition from scratch with classical ML.',
+    description:
+      'Optical character recognition with classical ML: histogram features from vertical and horizontal projections, KNN for foreground/background segmentation, and logistic regression for character classification. An early, pre-deep-learning project.',
+    stack: ['Python', 'KNN', 'logistic regression'],
+    github: 'https://github.com/tusharjayanti/OpticalCharacterRecognition',
+    status: 'archived',
   },
 ];
