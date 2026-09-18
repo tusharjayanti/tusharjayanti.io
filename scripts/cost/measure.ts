@@ -24,7 +24,7 @@
 //
 // ---- Exit codes ----
 // 0 — all stats computed, HUD sanity check within tolerance
-// 1 — HUD sanity check diverged >20% from HUD_REFERENCE_AVG_USD
+// 1 — cost sanity check diverged >20% from HUD_REFERENCE_AVG_USD
 //     (defaults to $0.01074, the 2026-06-01 HUD snapshot the spec
 //      anchored against)
 // 2 — fatal error (missing env, Langfuse unreachable after retries)
@@ -54,14 +54,28 @@ if (!PUBLIC_KEY || !SECRET_KEY) {
 
 const AUTH = `Basic ${Buffer.from(`${PUBLIC_KEY}:${SECRET_KEY}`).toString('base64')}`;
 
-// HUD sanity-check reference. The HUD on the live site displays a
-// 7-day rolling cost-per-turn. The 30d kept-trace avg this script
-// computes must stay within ±20% of that value; otherwise something
-// is wrong (filter bug, observation-binning bug, or upstream Langfuse
-// regression). Override via env when the HUD's headline shifts
-// materially.
+// Cost-per-turn sanity reference: the 30d REAL-USER average this script
+// computes must stay within +/-20%, otherwise something is wrong (filter
+// bug, observation-binning bug, or upstream Langfuse regression).
+//
+// This anchors on the real-user bucket, NOT the "all kept" bucket, because
+// the latter is dominated by eval-source CI traffic whose per-turn cost is
+// ~3.5x cheaper (short model-refused turns, no RAG). Measured 2026-09-18:
+// all-kept 7d was 334 traces of which 330 were eval-source, averaging
+// $0.0049, while the 4 real-user turns averaged $0.0178. Whether a CI batch
+// happens to sit inside the window therefore swung the all-kept average by
+// 3.6x -- no fixed anchor can survive that, and the previous $0.01074 value
+// sat between the two states and failed in both directions.
+//
+// (The name is historical. The live HUD publishes a 7-day TOTAL spend plus
+// a real-user query count; it does not publish a cost-per-turn, so there is
+// no HUD figure to mirror directly. The env var keeps its old name so any
+// existing override keeps working.)
+//
+// Re-baseline when the real-user per-turn cost genuinely shifts -- the
+// README paste block this script emits carries the current value.
 const HUD_REF = Number.parseFloat(
-  process.env.HUD_REFERENCE_AVG_USD ?? '0.01074',
+  process.env.HUD_REFERENCE_AVG_USD ?? '0.0182',
 );
 const HUD_TOLERANCE = 0.2;
 
@@ -359,31 +373,37 @@ function summarize(label: string, b: Bucket[]) {
   summarize('All kept (real-user + eval-source — for HUD compare)', buckets);
   summarize('Eval-source only (reference)', evalSource);
 
-  // HUD sanity check — 7d slice
+  // Cost sanity check — 30d real-user slice (see HUD_REF).
+  const realAvg = realUserBuckets.length
+    ? realUserBuckets.reduce((a, x) => a + x.total, 0) / realUserBuckets.length
+    : 0;
+
+  // 7d kept figures stay in the output for context — they are what the
+  // live HUD's total-spend headline is drawn from — but they are NOT what
+  // the check compares.
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const sevenDay = buckets.filter((b) => new Date(b.timestamp) >= sevenDaysAgo);
   const sevenDayTotal = sevenDay.reduce((a, x) => a + x.total, 0);
   const sevenDayAvg = sevenDay.length ? sevenDayTotal / sevenDay.length : 0;
 
   console.log('');
-  console.log('===== HUD SANITY CHECK =====');
+  console.log('===== COST SANITY CHECK =====');
   console.log(`7d kept-trace count:               ${sevenDay.length}`);
   console.log(`7d total cost (kept):              ${usd(sevenDayTotal)}`);
-  console.log(`7d avg cost/turn (kept):           ${usd(sevenDayAvg)}`);
-  console.log(`HUD reference (anchor):            ${usd(HUD_REF)}`);
-  const div = HUD_REF === 0 ? 0 : Math.abs(sevenDayAvg - HUD_REF) / HUD_REF;
+  console.log(`7d avg cost/turn (kept, context):  ${usd(sevenDayAvg)}`);
+  console.log(`30d real-user trace count:         ${realUserBuckets.length}`);
+  console.log(`30d real-user avg cost/turn:       ${usd(realAvg)}`);
+  console.log(`anchor (real-user basis):          ${usd(HUD_REF)}`);
+  const div = HUD_REF === 0 ? 0 : Math.abs(realAvg - HUD_REF) / HUD_REF;
   const divLabel =
     div <= HUD_TOLERANCE
       ? `OK (≤${HUD_TOLERANCE * 100}%)`
       : `OUT OF BAND (>${HUD_TOLERANCE * 100}%)`;
   console.log(
-    `divergence vs HUD anchor:          ${(div * 100).toFixed(1)}%  ${divLabel}`,
+    `divergence vs anchor:              ${(div * 100).toFixed(1)}%  ${divLabel}`,
   );
 
-  // Monthly projection from real-user avg
-  const realAvg = realUserBuckets.length
-    ? realUserBuckets.reduce((a, x) => a + x.total, 0) / realUserBuckets.length
-    : 0;
+  // Monthly projection from real-user avg (computed above).
   const realDaily = realUserBuckets.length / WINDOW_DAYS;
   console.log('');
   console.log('===== MONTHLY PROJECTION (real-user basis) =====');
@@ -454,10 +474,10 @@ function summarize(label: string, b: Bucket[]) {
 
   if (div > HUD_TOLERANCE) {
     console.error(
-      `\n[cost:measure] FAIL — HUD divergence ${(div * 100).toFixed(1)}% exceeds ±${HUD_TOLERANCE * 100}% tolerance.`,
+      `\n[cost:measure] FAIL — real-user cost/turn diverged ${(div * 100).toFixed(1)}% from the anchor, exceeding ±${HUD_TOLERANCE * 100}%.`,
     );
     console.error(
-      'Either the script binning drifted from production behavior, or the HUD anchor in HUD_REFERENCE_AVG_USD is stale.',
+      'Either the script binning drifted from production behavior, or the anchor in HUD_REFERENCE_AVG_USD needs re-baselining.',
     );
     process.exit(1);
   }
