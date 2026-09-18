@@ -19,7 +19,8 @@ vi.mock('@anthropic-ai/sdk', () => ({
 }));
 
 vi.mock('../../api/_langfuse.js', () => ({
-  getLangfuse: () => null,
+  initTracing: () => false,
+  flushTracing: async () => {},
   makeSystemPromptHandle: () => null,
 }));
 

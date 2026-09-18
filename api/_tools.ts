@@ -13,7 +13,7 @@
 // `executeTool` performs the embed + RPC round-trip per call and is the
 // only callsite outside scripts/ that hits Voyage at retrieval time.
 
-import type { LangfuseSpanClient, LangfuseGenerationClient } from 'langfuse';
+import type { LangfuseSpan, LangfuseGeneration } from '@langfuse/tracing';
 import { embed } from './_voyage.js';
 import { getSupabaseClient } from './_supabase.js';
 import { fetchUrl } from './_webFetch.js';
@@ -29,7 +29,7 @@ import {
 // a plain span (Supabase RPC, duration only). chat.ts owns the
 // tool-execution span and passes it down; null when Langfuse isn't wired
 // (tests, missing env).
-type ToolParentSpan = LangfuseSpanClient | LangfuseGenerationClient | null;
+type ToolParentSpan = LangfuseSpan | LangfuseGeneration | null;
 
 export const SEARCH_EXPERIENCE = 'search_experience';
 export const SEARCH_RESUME = 'search_resume';
@@ -273,12 +273,14 @@ async function executeSearch(
   let embeddingGen = null;
   try {
     embeddingGen =
-      parentSpan?.generation({
-        name: 'embedding',
-        model: 'voyage-3',
-        input: { query },
-        startTime: new Date(),
-      }) ?? null;
+      parentSpan?.startObservation(
+        'embedding',
+        {
+          model: 'voyage-3',
+          input: { query },
+        },
+        { asType: 'generation' },
+      ) ?? null;
   } catch (err) {
     console.error('[langfuse] embedding generation create failed:', err);
   }
@@ -287,10 +289,11 @@ async function executeSearch(
     tokens: embedTokens,
   } = await embed([query], 'query');
   try {
-    embeddingGen?.end({
+    embeddingGen?.update({
       output: { dimension: queryEmbedding.length },
       usageDetails: { input: embedTokens, total: embedTokens },
     });
+    embeddingGen?.end();
   } catch (err) {
     console.error('[langfuse] embedding generation end failed:', err);
   }
@@ -301,10 +304,8 @@ async function executeSearch(
   let retrievalSpan = null;
   try {
     retrievalSpan =
-      parentSpan?.span({
-        name: 'retrieval',
+      parentSpan?.startObservation('retrieval', {
         input: { match_count: MATCH_COUNT, source },
-        startTime: new Date(),
       }) ?? null;
   } catch (err) {
     console.error('[langfuse] retrieval span create failed:', err);
@@ -322,7 +323,8 @@ async function executeSearch(
 
   const rows = (data ?? []) as MatchRow[];
   try {
-    retrievalSpan?.end({ output: { rows_returned: rows.length } });
+    retrievalSpan?.update({ output: { rows_returned: rows.length } });
+    retrievalSpan?.end();
   } catch (err) {
     console.error('[langfuse] retrieval span end failed:', err);
   }
@@ -337,16 +339,18 @@ async function executeSearch(
   let rerankGen = null;
   try {
     rerankGen =
-      parentSpan?.generation({
-        name: 'rerank',
-        model: HAIKU_MODEL,
-        modelParameters: {
-          temperature: HAIKU_TEMPERATURE,
-          max_tokens: HAIKU_MAX_TOKENS,
+      parentSpan?.startObservation(
+        'rerank',
+        {
+          model: HAIKU_MODEL,
+          modelParameters: {
+            temperature: HAIKU_TEMPERATURE,
+            max_tokens: HAIKU_MAX_TOKENS,
+          },
+          input: { candidates: rows.length },
         },
-        input: { candidates: rows.length },
-        startTime: new Date(),
-      }) ?? null;
+        { asType: 'generation' },
+      ) ?? null;
   } catch (err) {
     console.error('[langfuse] rerank generation create failed:', err);
   }
@@ -356,7 +360,7 @@ async function executeSearch(
     tokensOut: rerankTokensOut,
   } = await rerankChunks(query, rows);
   try {
-    rerankGen?.end({
+    rerankGen?.update({
       output: { survived: reranked.length },
       usageDetails: {
         input: rerankTokensIn,
@@ -364,6 +368,7 @@ async function executeSearch(
         total: rerankTokensIn + rerankTokensOut,
       },
     });
+    rerankGen?.end();
   } catch (err) {
     console.error('[langfuse] rerank generation end failed:', err);
   }

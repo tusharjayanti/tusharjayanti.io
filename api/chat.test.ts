@@ -42,10 +42,11 @@ vi.mock('./_kv.js', () => ({
   updateLeakLastAlertedAt: vi.fn(async () => {}),
 }));
 
-// Disable Langfuse entirely (getLangfuse -> null short-circuits every
-// trace/generation/span call in the handler).
+// Disable Langfuse entirely (initTracing -> false short-circuits every
+// observation call in the handler).
 vi.mock('./_langfuse.js', () => ({
-  getLangfuse: vi.fn(() => null),
+  initTracing: vi.fn(() => false),
+  flushTracing: vi.fn(async () => {}),
   makeSystemPromptHandle: vi.fn(() => null),
 }));
 

@@ -1,18 +1,29 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  LangfuseCtor: vi.fn(),
+  SpanProcessorCtor: vi.fn(),
+  setLangfuseTracerProvider: vi.fn(),
 }));
 
-vi.mock('langfuse', () => ({
-  Langfuse: class {
+// v5 is OTEL-based: there is no `new Langfuse()` client to assert on any
+// more. The equivalent construction site is the LangfuseSpanProcessor, so
+// that is what these tests pin — including `exportMode: 'immediate'`, which
+// carries over the intent of v3's `flushAt: 1` on Edge.
+vi.mock('@langfuse/otel', () => ({
+  LangfuseSpanProcessor: class {
     constructor(opts: unknown) {
-      mocks.LangfuseCtor(opts);
+      mocks.SpanProcessorCtor(opts);
     }
+    async forceFlush() {}
   },
 }));
 
-const { getLangfuse, __resetLangfuseForTests } = await import('./_langfuse.js');
+vi.mock('@langfuse/tracing', () => ({
+  setLangfuseTracerProvider: mocks.setLangfuseTracerProvider,
+}));
+
+const { initTracing, makeSystemPromptHandle } = await import('./_langfuse.js');
+const { __resetTracingForTests } = await import('./_otel.js');
 
 const originalEnv = {
   LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY,
@@ -27,10 +38,17 @@ function restoreEnv() {
   }
 }
 
-describe('getLangfuse', () => {
+function setEnv() {
+  process.env.LANGFUSE_PUBLIC_KEY = 'pk-test';
+  process.env.LANGFUSE_SECRET_KEY = 'sk-test';
+  process.env.LANGFUSE_BASE_URL = 'https://jp.cloud.langfuse.com';
+}
+
+describe('initTracing', () => {
   beforeEach(() => {
-    __resetLangfuseForTests();
-    mocks.LangfuseCtor.mockClear();
+    __resetTracingForTests();
+    mocks.SpanProcessorCtor.mockClear();
+    mocks.setLangfuseTracerProvider.mockClear();
     delete process.env.LANGFUSE_PUBLIC_KEY;
     delete process.env.LANGFUSE_SECRET_KEY;
     delete process.env.LANGFUSE_BASE_URL;
@@ -40,43 +58,51 @@ describe('getLangfuse', () => {
     restoreEnv();
   });
 
-  it('returns null when env vars are missing', () => {
+  it('returns false when env vars are missing', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    expect(getLangfuse()).toBeNull();
+    expect(initTracing()).toBe(false);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('langfuse'));
-    expect(mocks.LangfuseCtor).not.toHaveBeenCalled();
+    expect(mocks.SpanProcessorCtor).not.toHaveBeenCalled();
     warn.mockRestore();
   });
 
-  it('returns a client when all three env vars are set', () => {
-    process.env.LANGFUSE_PUBLIC_KEY = 'pk-test';
-    process.env.LANGFUSE_SECRET_KEY = 'sk-test';
-    process.env.LANGFUSE_BASE_URL = 'https://jp.cloud.langfuse.com';
-    const client = getLangfuse();
-    expect(client).not.toBeNull();
-    expect(mocks.LangfuseCtor).toHaveBeenCalledTimes(1);
+  it('installs a tracer provider when all three env vars are set', () => {
+    setEnv();
+    expect(initTracing()).toBe(true);
+    expect(mocks.SpanProcessorCtor).toHaveBeenCalledTimes(1);
+    expect(mocks.setLangfuseTracerProvider).toHaveBeenCalledTimes(1);
   });
 
-  it('returns the same instance on repeat calls (singleton)', () => {
-    process.env.LANGFUSE_PUBLIC_KEY = 'pk-test';
-    process.env.LANGFUSE_SECRET_KEY = 'sk-test';
-    process.env.LANGFUSE_BASE_URL = 'https://jp.cloud.langfuse.com';
-    const a = getLangfuse();
-    const b = getLangfuse();
-    expect(a).toBe(b);
-    expect(mocks.LangfuseCtor).toHaveBeenCalledTimes(1);
+  it('initialises once on repeat calls (singleton)', () => {
+    setEnv();
+    expect(initTracing()).toBe(true);
+    expect(initTracing()).toBe(true);
+    expect(mocks.SpanProcessorCtor).toHaveBeenCalledTimes(1);
   });
 
-  it('passes flushAt: 1 and the right baseUrl to the constructor', () => {
-    process.env.LANGFUSE_PUBLIC_KEY = 'pk-test';
-    process.env.LANGFUSE_SECRET_KEY = 'sk-test';
-    process.env.LANGFUSE_BASE_URL = 'https://jp.cloud.langfuse.com';
-    getLangfuse();
-    expect(mocks.LangfuseCtor).toHaveBeenCalledWith({
+  it('passes exportMode immediate and the right baseUrl to the processor', () => {
+    setEnv();
+    initTracing();
+    expect(mocks.SpanProcessorCtor).toHaveBeenCalledWith({
       publicKey: 'pk-test',
       secretKey: 'sk-test',
       baseUrl: 'https://jp.cloud.langfuse.com',
-      flushAt: 1,
+      exportMode: 'immediate',
+    });
+  });
+});
+
+describe('makeSystemPromptHandle', () => {
+  it('returns null when no real Langfuse version is available', () => {
+    expect(makeSystemPromptHandle('tarvis-system-prompt', 0)).toBeNull();
+    expect(makeSystemPromptHandle('tarvis-system-prompt', -1)).toBeNull();
+  });
+
+  it('returns a plain prompt handle for a real version', () => {
+    expect(makeSystemPromptHandle('tarvis-system-prompt', 7)).toEqual({
+      name: 'tarvis-system-prompt',
+      version: 7,
+      isFallback: false,
     });
   });
 });

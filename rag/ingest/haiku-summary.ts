@@ -17,8 +17,9 @@
 // shouldn't fail when Langfuse is unconfigured.
 
 import Anthropic from '@anthropic-ai/sdk';
+import { startObservation, type LangfuseGeneration } from '@langfuse/tracing';
 
-import { getLangfuse } from '../../api/_langfuse.js';
+import { initTracing, flushTracing } from '../../api/_langfuse.js';
 
 export const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 // Char cap is now a safety net: max_tokens does the real length
@@ -142,22 +143,23 @@ export async function summarizeChunk(
   const client = getClient();
   const userMessage = buildUserMessage(opts);
 
-  const lf = getLangfuse();
-  let generation: ReturnType<
-    NonNullable<ReturnType<typeof getLangfuse>>['generation']
-  > | null = null;
+  const tracingEnabled = initTracing();
+  let generation: LangfuseGeneration | null = null;
   try {
-    generation =
-      lf?.generation({
-        name: 'haiku-readme-summary',
-        model: HAIKU_MODEL,
-        input: userMessage,
-        startTime: new Date(),
-        metadata: {
-          repo: opts.repo ?? null,
-          chunk_order: opts.chunkOrder ?? null,
-        },
-      }) ?? null;
+    generation = tracingEnabled
+      ? startObservation(
+          'haiku-readme-summary',
+          {
+            model: HAIKU_MODEL,
+            input: userMessage,
+            metadata: {
+              repo: opts.repo ?? null,
+              chunk_order: opts.chunkOrder ?? null,
+            },
+          },
+          { asType: 'generation' },
+        )
+      : null;
   } catch (err) {
     console.error('[haiku-summary] langfuse generation create failed:', err);
   }
@@ -181,7 +183,7 @@ export async function summarizeChunk(
   const outputTokens = response.usage?.output_tokens ?? 0;
 
   try {
-    generation?.end({
+    generation?.update({
       output: summary,
       usageDetails: {
         input: inputTokens,
@@ -189,7 +191,8 @@ export async function summarizeChunk(
         total: inputTokens + outputTokens,
       },
     });
-    if (lf) await lf.flushAsync();
+    generation?.end();
+    await flushTracing();
   } catch (err) {
     console.error('[haiku-summary] langfuse generation end failed:', err);
   }

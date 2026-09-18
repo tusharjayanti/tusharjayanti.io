@@ -223,17 +223,23 @@ describe('executeTool — span wiring', () => {
   });
 
   it('creates embedding/retrieval/rerank children with the right usageDetails', async () => {
-    const children: Record<string, { end: ReturnType<typeof vi.fn> }> = {};
-    // embedding + rerank are generations (carry tokens); retrieval is a
-    // plain span. The stub records both factory methods by child name.
-    const makeChild = (body: { name: string }) => {
-      const child = { end: vi.fn() };
-      children[body.name] = child;
-      return child;
-    };
+    const children: Record<
+      string,
+      { update: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn> }
+    > = {};
+    // v5 collapses generation()/span() into one startObservation(name,
+    // attrs, { asType }) factory, and end() no longer takes attributes —
+    // update() carries them. The stub records calls by child name.
+    const calls: Array<{ name: string; asType: string }> = [];
     const parentSpan = {
-      generation: vi.fn(makeChild),
-      span: vi.fn(makeChild),
+      startObservation: vi.fn(
+        (name: string, _attrs: unknown, options?: { asType?: string }) => {
+          calls.push({ name, asType: options?.asType ?? 'span' });
+          const child = { update: vi.fn(), end: vi.fn() };
+          children[name] = child;
+          return child;
+        },
+      ),
     };
 
     await executeTool(
@@ -243,21 +249,22 @@ describe('executeTool — span wiring', () => {
     );
 
     // Three child observations total: two generations + one span.
-    expect(parentSpan.generation).toHaveBeenCalledTimes(2);
-    expect(parentSpan.span).toHaveBeenCalledTimes(1);
-    const genNames = parentSpan.generation.mock.calls.map((c) => c[0]!.name);
-    expect(genNames).toEqual(['embedding', 'rerank']);
-    expect(parentSpan.span.mock.calls[0]![0].name).toBe('retrieval');
+    expect(parentSpan.startObservation).toHaveBeenCalledTimes(3);
+    expect(calls).toEqual([
+      { name: 'embedding', asType: 'generation' },
+      { name: 'retrieval', asType: 'span' },
+      { name: 'rerank', asType: 'generation' },
+    ]);
 
     // embedding + rerank carry token usage; retrieval (Supabase RPC)
     // does not.
-    expect(children.embedding!.end).toHaveBeenCalledWith(
+    expect(children.embedding!.update).toHaveBeenCalledWith(
       expect.objectContaining({ usageDetails: expect.any(Object) }),
     );
-    expect(children.rerank!.end).toHaveBeenCalledWith(
+    expect(children.rerank!.update).toHaveBeenCalledWith(
       expect.objectContaining({ usageDetails: expect.any(Object) }),
     );
-    const retrievalArg = children.retrieval!.end.mock.calls[0]![0];
+    const retrievalArg = children.retrieval!.update.mock.calls[0]![0];
     expect(retrievalArg).not.toHaveProperty('usageDetails');
   });
 });
