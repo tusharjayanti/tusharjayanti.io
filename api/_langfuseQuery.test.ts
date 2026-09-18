@@ -11,6 +11,25 @@ const ENV = {
   LANGFUSE_BASE_URL: 'https://example.langfuse.test',
 };
 
+// A ROOT observation row in the v2 shape. Trace-level fields (traceName,
+// tags) live on the row whose parentObservationId is null; the read layer
+// groups rows by traceId and reconstructs the trace from it.
+function rootRow(id: string, tags: string[] = []) {
+  return {
+    id: `obs-${id}`,
+    traceId: id,
+    parentObservationId: null,
+    type: 'SPAN',
+    name: 'chat-turn',
+    traceName: 'chat-turn',
+    startTime: '2026-05-20T00:00:00Z',
+    endTime: '2026-05-20T00:00:01Z',
+    tags,
+    totalCost: 0,
+    latency: 1,
+  };
+}
+
 function jsonResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status: 200,
@@ -44,13 +63,13 @@ describe('makeLangfuseAggregate', () => {
     expect(makeLangfuseAggregate()).toBeNull();
   });
 
-  it('sumTokens hits /api/public/observations?type=GENERATION (not the traces endpoint)', async () => {
+  it('sumTokens hits /v2/observations?type=GENERATION (not a trace endpoint)', async () => {
     const calls: string[] = [];
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
         calls.push(url);
-        if (url.includes('/api/public/observations')) {
+        if (url.includes('/api/public/v2/observations')) {
           return jsonResponse({
             data: [
               { id: 'o1', totalTokens: 1915, usage: { total: 1915 } },
@@ -70,7 +89,7 @@ describe('makeLangfuseAggregate', () => {
     );
     expect(total).toBe(1915 + 392 + 1058);
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toContain('/api/public/observations');
+    expect(calls[0]).toContain('/api/public/v2/observations');
     expect(calls[0]).toContain('type=GENERATION');
     // Token aggregation must NOT be routed through the traces endpoint.
     expect(calls[0]).not.toContain('/api/public/traces');
@@ -97,14 +116,14 @@ describe('makeLangfuseAggregate', () => {
     expect(total).toBe(700);
   });
 
-  it('countTraces hits /api/public/traces filtered by name=chat-turn', async () => {
+  it('countTraces routes through the canonical ops read layer (/v2/observations)', async () => {
     const calls: string[] = [];
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
         calls.push(url);
         return jsonResponse({
-          data: [{ id: 't1' }, { id: 't2' }, { id: 't3' }],
+          data: [rootRow('t1'), rootRow('t2'), rootRow('t3')],
         });
       }),
     );
@@ -114,17 +133,25 @@ describe('makeLangfuseAggregate', () => {
       '2026-05-22T00:00:00Z',
     );
     expect(count).toBe(3);
-    expect(calls[0]).toContain('/api/public/traces');
-    expect(calls[0]).toContain('name=chat-turn');
+    expect(calls[0]).toContain('/api/public/v2/observations');
+    expect(calls[0]).toContain('limit=1000');
   });
 
-  it('countGroundedTraces hits /api/public/traces with name=chat-turn and the tag filter', async () => {
+  it('countGroundedTraces filters on the ROOT observation tags', async () => {
     const calls: string[] = [];
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
         calls.push(url);
-        return jsonResponse({ data: [{ id: 't1' }, { id: 't2' }] });
+        return jsonResponse({
+          data: [
+            rootRow('t1', ['grounded']),
+            rootRow('t2', ['grounded']),
+            // Not grounded — must be excluded by the client-side root-tag
+            // filter that replaces v1's server-side `tags=` param.
+            rootRow('t3', []),
+          ],
+        });
       }),
     );
     const lf = makeLangfuseAggregate()!;
@@ -134,24 +161,27 @@ describe('makeLangfuseAggregate', () => {
       'grounded',
     );
     expect(count).toBe(2);
-    expect(calls[0]).toContain('/api/public/traces');
-    expect(calls[0]).toContain('name=chat-turn');
-    expect(calls[0]).toContain('tags=grounded');
+    expect(calls[0]).toContain('/api/public/v2/observations');
   });
 
-  it('countGroundedTraces paginates and sums counts across pages', async () => {
-    // First page returns a full PAGE_LIMIT (100) so the loop fetches a
-    // second page; the short second page stops it.
-    const fullPage = {
-      data: Array.from({ length: 100 }, (_, i) => ({ id: `t${i}` })),
+  it('countGroundedTraces follows the v2 cursor across pages', async () => {
+    // Page 1 returns a cursor so the loop continues; page 2 returns none.
+    // In v2 a full page is NOT a continue signal — only a cursor is.
+    const firstPage = {
+      data: Array.from({ length: 100 }, (_, i) =>
+        rootRow(`t${i}`, ['grounded']),
+      ),
+      meta: { cursor: 'CUR1' },
     };
-    const lastPage = { data: [{ id: 'tail1' }, { id: 'tail2' }] };
+    const lastPage = {
+      data: [rootRow('tail1', ['grounded']), rootRow('tail2', ['grounded'])],
+    };
     let call = 0;
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => {
         call += 1;
-        return jsonResponse(call === 1 ? fullPage : lastPage);
+        return jsonResponse(call === 1 ? firstPage : lastPage);
       }),
     );
     const lf = makeLangfuseAggregate()!;
@@ -187,7 +217,7 @@ describe('makeLangfuseAggregate', () => {
       '2026-05-22T00:00:00Z',
     );
     expect(total).toBeCloseTo(0.0115, 6);
-    expect(calls[0]).toContain('/api/public/observations');
+    expect(calls[0]).toContain('/api/public/v2/observations');
     expect(calls[0]).toContain('type=GENERATION');
   });
 
@@ -195,10 +225,11 @@ describe('makeLangfuseAggregate', () => {
     const fullPage = {
       data: Array.from({ length: 100 }, (_, i) => ({
         id: `o${i}`,
-        calculatedTotalCost: 0.01,
+        totalCost: 0.01,
       })),
+      meta: { cursor: 'CUR1' },
     };
-    const lastPage = { data: [{ id: 'tail', calculatedTotalCost: 0.5 }] };
+    const lastPage = { data: [{ id: 'tail', totalCost: 0.5 }] };
     let call = 0;
     vi.stubGlobal(
       'fetch',
@@ -258,7 +289,7 @@ describe('makeLangfuseAggregate', () => {
     expect(tokens).toBe(100);
     expect(cost).toBeCloseTo(0.01, 6);
     const obsCalls = fetchMock.mock.calls.filter(([url]) =>
-      String(url).includes('/api/public/observations'),
+      String(url).includes('/api/public/v2/observations'),
     );
     expect(obsCalls).toHaveLength(1);
   });
@@ -300,11 +331,10 @@ describe('makeLangfuseAggregate', () => {
       }),
     );
     const lf = makeLangfuseAggregate()!;
-    const p = lf.countGroundedTraces(
-      '2026-05-15T00:00:00Z',
-      '2026-05-22T00:00:00Z',
-      'grounded',
-    );
+    // Retry-After is honored by THIS module's langfuseGet, which now backs
+    // only the observation sums; the trace counts delegate to
+    // api/_opsQuery.ts and use its jittered backoff instead.
+    const p = lf.sumCost('2026-05-15T00:00:00Z', '2026-05-22T00:00:00Z');
     // Not yet retried — the 1s Retry-After delay hasn't elapsed.
     await vi.advanceTimersByTimeAsync(999);
     expect(call).toBe(1);

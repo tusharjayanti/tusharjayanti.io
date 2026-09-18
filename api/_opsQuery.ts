@@ -22,13 +22,28 @@
 // traces. Real-human count = realUser(opsQuery({includeEvals:false}).traces).
 
 const TRACE_NAME = 'chat-turn';
-const PAGE_LIMIT = 100;
-// Hard cap: 20 pages × 100 = 2000 items. Well above the real 7-day
-// volume (hundreds incl. an eval batch); a runaway-loop backstop, not
-// a working ceiling. The paginator THROWS if it hits the cap rather
-// than silently truncating — a truncated count is the failure mode
-// we're trying to eliminate, so it must be loud.
-const MAX_PAGES = 20;
+// Observations API v2 raises the page ceiling from 100 to 1,000. Measured
+// against the real project, a 30-DAY window is 468 rows — a single page,
+// with no cursor returned. The v1 page-parallel machinery (and its
+// MAX_PAGES truncation guard) existed to collapse ~3 serial round-trips at
+// limit=100; at limit=1000 there is nothing left to parallelise, so it was
+// removed rather than adapted. v2 pagination is cursor-based and therefore
+// inherently serial: page N+1 needs page N's cursor.
+const PAGE_LIMIT = 1000;
+
+// Field groups. v2 omits any field whose group was not requested (absent,
+// not null), so each call site asks for exactly what it consumes:
+//   core          id/traceId/parent/type/name/startTime/endTime
+//   basic         level/latency/cost/model
+//   io            input/output (RAW STRINGS in v2 — v1 auto-parsed JSON)
+//   trace_context traceName/tags/userId/sessionId
+//   metadata      the rag_* trace metadata the RAG tab reads
+//   usage         token counts AND totalCost — cost is NOT in `basic`.
+//                 Omitting it makes every cost silently 0 (the field is
+//                 absent, `?? 0` fills in, nothing throws). The parity
+//                 harness caught exactly this.
+const FIELDS_TRACE_LIST = 'core,basic,io,trace_context,metadata,usage';
+const FIELDS_OBSERVATIONS = 'core,basic,trace_context,usage';
 
 // The literal tag producers attach to trusted eval-runner traffic
 // (api/chat.ts: `tags.push('eval-source')` once X-Eval-Bypass matches).
@@ -114,36 +129,39 @@ async function runLimited<T>(fn: () => Promise<T>): Promise<T> {
 
 // ---- raw Langfuse shapes (subset we consume) ----
 
-interface RawTrace {
-  id: string;
-  name: string;
-  timestamp: string;
-  tags: string[] | null;
-  totalCost?: number | null;
-  latency?: number | null; // seconds
-  // Heavier fields — surfaced only via opsQueryRaw (Conversations / RAG /
-  // Defense tabs), never in the lean OpsTrace the stats rollup caches.
-  metadata?: Record<string, unknown> | null;
-  input?: unknown;
-  output?: unknown;
-  htmlPath?: string | null;
-  projectId?: string | null;
-  scores?: unknown[] | null;
-}
-
-interface RawObservation {
+// One row from GET /v2/observations. v4 is observations-first: there is no
+// trace object any more, so a "trace" is reconstructed by grouping rows on
+// traceId and reading trace-level fields off the ROOT row
+// (parentObservationId == null).
+interface V2Row {
   id: string;
   traceId: string;
+  parentObservationId?: string | null;
+  type?: string | null;
   name?: string | null;
-  model?: string | null;
-  calculatedTotalCost?: number | null;
-  latency?: number | null; // seconds
   startTime?: string | null;
+  endTime?: string | null;
+  level?: string | null;
+  model?: string | null;
+  // NOTE: v1 called this `calculatedTotalCost`. The rename is silent — a
+  // stale read yields undefined, then `?? 0`, and costs become zero without
+  // throwing. The parity harness diffs total cost per window to catch it.
+  totalCost?: number | null;
+  latency?: number | null; // seconds (same unit as v1 trace.latency)
+  // RAW STRINGS in v2; v1 handed back parsed JSON.
+  input?: string | null;
+  output?: string | null;
+  // trace_context group — trace-level attributes joined onto each row.
+  traceName?: string | null;
+  tags?: string[] | null;
+  projectId?: string | null;
+  // metadata group
+  metadata?: Record<string, unknown> | null;
 }
 
 interface ListResponse<T> {
   data: T[];
-  meta?: { totalItems?: number; totalPages?: number };
+  meta?: { cursor?: string | null };
 }
 
 // ---- normalized shapes returned to callers ----
@@ -184,7 +202,6 @@ export interface OpsRawTrace {
   output: unknown;
   htmlPath: string | null;
   projectId: string | null;
-  scores: unknown[];
 }
 
 export interface OpsQueryOptions {
@@ -256,56 +273,126 @@ async function langfuseGet<T>(url: string, authHeader: string): Promise<T> {
   throw new Error('langfuse request exhausted 429 retries');
 }
 
-// Fully paginated list fetch. Fetches page 1 to learn meta.totalPages, then
-// pulls pages 2..N in PARALLEL through the global limiter (so ~N serial
-// round-trips collapse into ~ceil(N/3) waves). When Langfuse omits
-// totalPages it falls back to serial short-page detection. THROWS rather
-// than returning a truncated result if the window exceeds MAX_PAGES.
-async function paginate<T>(
-  buildUrl: (page: number) => string,
+// Fully paginated cursor fetch. v2 pagination is serial by construction —
+// page N+1 needs the cursor returned by page N — so there is no parallel
+// variant to keep. At limit=1000 this loop almost always runs exactly once
+// for our real windows.
+async function paginateV2(
+  buildUrl: (cursor: string | null) => string,
   authHeader: string,
-): Promise<T[]> {
-  const first = await langfuseGet<ListResponse<T>>(buildUrl(1), authHeader);
-  const all: T[] = [...(first.data ?? [])];
-  const totalPages = first.meta?.totalPages;
-
-  // Serial fallback: no page count, so stop on the first short page.
-  if (typeof totalPages !== 'number') {
-    if ((first.data?.length ?? 0) < PAGE_LIMIT) return all;
-    let page = 2;
-    for (; page <= MAX_PAGES; page++) {
-      const body = await langfuseGet<ListResponse<T>>(
-        buildUrl(page),
-        authHeader,
-      );
-      const items = body.data ?? [];
-      all.push(...items);
-      if (items.length < PAGE_LIMIT) break;
-    }
-    if (page > MAX_PAGES) {
-      throw new Error(
-        `opsQuery: window exceeded ${MAX_PAGES * PAGE_LIMIT}-item cap, refusing to return a truncated result`,
-      );
-    }
-    return all;
-  }
-
-  // Known total: cap-guard up front (before fetching the rest), then pull
-  // pages 2..totalPages in parallel. Promise.all preserves page order.
-  if (totalPages > MAX_PAGES) {
-    throw new Error(
-      `opsQuery: window has ${totalPages} pages, exceeds the ${MAX_PAGES}-page cap, refusing to return a truncated result`,
+): Promise<V2Row[]> {
+  const all: V2Row[] = [];
+  let cursor: string | null = null;
+  // Runaway guard only: a window would need >1,000,000 rows to reach this.
+  for (let page = 0; page < 1000; page++) {
+    const body: ListResponse<V2Row> = await langfuseGet<ListResponse<V2Row>>(
+      buildUrl(cursor),
+      authHeader,
     );
+    all.push(...(body.data ?? []));
+    cursor = body.meta?.cursor ?? null;
+    if (!cursor) return all;
   }
-  if (totalPages <= 1) return all;
+  throw new Error('opsQuery: cursor pagination did not terminate');
+}
 
-  const rest = await Promise.all(
-    Array.from({ length: totalPages - 1 }, (_, i) =>
-      langfuseGet<ListResponse<T>>(buildUrl(i + 2), authHeader),
-    ),
-  );
-  for (const body of rest) all.push(...(body.data ?? []));
-  return all;
+// v2 returns input/output as raw strings; v1 auto-parsed JSON. Downstream
+// consumers (questionText/answerText in _opsConversations) branch on
+// object-vs-string, so handing them an unparsed JSON string would render
+// the literal `{"q":"..."}` to the operator. Parse when it looks like JSON,
+// otherwise pass the plain string through unchanged.
+function parseIo(value: string | null | undefined): unknown {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  if (trimmed === '') return null;
+  if (!/^[[{"]/.test(trimmed)) return value;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+}
+
+// Trace latency, in seconds.
+//
+// The root row carries `latency` for traces written by the v5 OTEL SDK
+// (verified 68/68). Traces ingested by the legacy v3 SDK were backfilled
+// server-side into the observations model WITHOUT an endTime on their
+// synthesized root (0/200 carry latency), so for those we derive the span
+// from the widest start/end across the trace's rows. Legacy traces age out
+// of every window within 30 days, after which this fallback is dead weight
+// and can be deleted.
+function traceLatencySeconds(rows: V2Row[], root: V2Row | undefined): number {
+  if (root && typeof root.latency === 'number') return root.latency;
+  let min = Infinity;
+  let max = -Infinity;
+  for (const r of rows) {
+    if (r.startTime) min = Math.min(min, Date.parse(r.startTime));
+    if (r.endTime) max = Math.max(max, Date.parse(r.endTime));
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return 0;
+  return (max - min) / 1000;
+}
+
+// Group v2 observation rows into trace-shaped records.
+//
+// Trace-level fields come from the ROOT row; totalCost is summed across
+// every row in the trace (v1's trace.totalCost was the same roll-up).
+// Rows whose trace has no root row are dropped: without a root there is no
+// input/output/tags to reconstruct from.
+function groupIntoTraces(rows: V2Row[]): OpsRawTrace[] {
+  const byTrace = new Map<string, V2Row[]>();
+  for (const r of rows) {
+    const list = byTrace.get(r.traceId);
+    if (list) list.push(r);
+    else byTrace.set(r.traceId, [r]);
+  }
+
+  const out: OpsRawTrace[] = [];
+  for (const [traceId, group] of byTrace) {
+    const root = group.find((r) => !r.parentObservationId);
+    if (!root) continue;
+    let totalCost = 0;
+    for (const r of group) totalCost += r.totalCost ?? 0;
+    out.push({
+      id: traceId,
+      name: root.traceName ?? root.name ?? '',
+      timestamp: root.startTime ?? '',
+      tags: root.tags ?? [],
+      totalCost,
+      latency: traceLatencySeconds(group, root),
+      metadata: root.metadata ?? {},
+      input: parseIo(root.input),
+      output: parseIo(root.output),
+      htmlPath: null,
+      projectId: root.projectId ?? null,
+    });
+  }
+
+  // v2 has no orderBy; rows arrive startTime DESC but grouping does not
+  // preserve that, so sort explicitly. v1 returned traces newest-first.
+  out.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  return out;
+}
+
+// Shared URL builder for a window-scoped /v2/observations sweep.
+function v2WindowUrl(
+  baseUrl: string,
+  fromIso: string,
+  toIso: string,
+  fields: string,
+  cursor: string | null,
+  extra?: Record<string, string>,
+): string {
+  const qs = new URLSearchParams({
+    fromStartTime: fromIso,
+    toStartTime: toIso,
+    fields,
+    limit: String(PAGE_LIMIT),
+    ...(extra ?? {}),
+  });
+  if (cursor) qs.set('cursor', cursor);
+  return `${baseUrl}/api/public/v2/observations?${qs.toString()}`;
 }
 
 function windowIso(
@@ -324,39 +411,26 @@ function windowIso(
 
 // Fully paginated, eval-aware trace fetch for the window.
 export async function opsQuery(opts: OpsQueryOptions): Promise<OpsQueryResult> {
-  const { baseUrl, authHeader } = resolveLangfuse();
-  const now = opts.now ?? new Date();
-  const { fromIso, toIso } = windowIso(now, opts.windowDays);
-  const includeEvals = opts.includeEvals ?? false;
-
-  const raw = await paginate<RawTrace>((page) => {
-    const qs = new URLSearchParams({
-      name: TRACE_NAME,
-      fromTimestamp: fromIso,
-      toTimestamp: toIso,
-      limit: String(PAGE_LIMIT),
-      page: String(page),
-    });
-    return `${baseUrl}/api/public/traces?${qs.toString()}`;
-  }, authHeader);
-
-  const traces: OpsTrace[] = raw
-    .map((t) => ({
-      id: t.id,
-      name: t.name,
-      timestamp: t.timestamp,
-      tags: t.tags ?? [],
-      totalCost: t.totalCost ?? 0,
-      latency: t.latency ?? 0,
-    }))
-    .filter((t) => includeEvals || !t.tags.includes(EVAL_SOURCE_TAG));
-
+  const raw = await opsQueryRaw(opts);
+  const traces: OpsTrace[] = raw.map((t) => ({
+    id: t.id,
+    name: t.name,
+    timestamp: t.timestamp,
+    tags: t.tags,
+    totalCost: t.totalCost,
+    latency: t.latency,
+  }));
   return { traces, count: traces.length };
 }
 
 // Like opsQuery but returns the richer raw trace (metadata + previews +
 // Langfuse deep-link). Same eval-source exclusion. Used by the tabs that
 // need more than the lean rollup shape.
+//
+// The eval-source filter runs AFTER grouping, against the ROOT row's tags.
+// v2 joins trace-level tags onto every row, but not consistently (59 of 235
+// traces in a 7d sample disagreed between root and children), so the root is
+// the single source of truth — and it matches v1's trace-level semantics.
 export async function opsQueryRaw(
   opts: OpsQueryOptions,
 ): Promise<OpsRawTrace[]> {
@@ -365,84 +439,60 @@ export async function opsQueryRaw(
   const { fromIso, toIso } = windowIso(now, opts.windowDays);
   const includeEvals = opts.includeEvals ?? false;
 
-  const raw = await paginate<RawTrace>((page) => {
-    const qs = new URLSearchParams({
-      name: TRACE_NAME,
-      fromTimestamp: fromIso,
-      toTimestamp: toIso,
-      limit: String(PAGE_LIMIT),
-      page: String(page),
-    });
-    return `${baseUrl}/api/public/traces?${qs.toString()}`;
-  }, authHeader);
+  const rows = await paginateV2(
+    (cursor) => v2WindowUrl(baseUrl, fromIso, toIso, FIELDS_TRACE_LIST, cursor),
+    authHeader,
+  );
 
-  return raw
-    .map((t) => ({
-      id: t.id,
-      name: t.name,
-      timestamp: t.timestamp,
-      tags: t.tags ?? [],
-      totalCost: t.totalCost ?? 0,
-      latency: t.latency ?? 0,
-      metadata: t.metadata ?? {},
-      input: t.input ?? null,
-      output: t.output ?? null,
-      htmlPath: t.htmlPath ?? null,
-      projectId: t.projectId ?? null,
-      scores: t.scores ?? [],
-    }))
+  return groupIntoTraces(rows)
+    .filter((t) => t.name === TRACE_NAME)
     .filter((t) => includeEvals || !t.tags.includes(EVAL_SOURCE_TAG));
 }
 
-// Fetch a single trace's detail: the trace plus its observations and
-// scores, in parallel. Returns null pieces tolerated by callers.
+// Fetch a single trace's detail: the trace plus its observations.
+//
+// v1 needed three calls (trace + observations + scores); v2 needs one —
+// every row of the trace comes back together, and the root row carries the
+// trace-level fields. The /scores call was dropped outright rather than
+// ported to /v3/scores: this project has never written a score
+// (GET /v2/scores reports 0 items) and no UI surface rendered them.
 export async function opsTraceById(id: string): Promise<{
   trace: OpsRawTrace | null;
   observations: OpsObservation[];
-  scores: unknown[];
 }> {
   const { baseUrl, authHeader } = resolveLangfuse();
-  const enc = encodeURIComponent(id);
-  const [traceRaw, obsRaw, scoreRaw] = await Promise.all([
-    langfuseGet<RawTrace>(`${baseUrl}/api/public/traces/${enc}`, authHeader),
-    langfuseGet<ListResponse<RawObservation>>(
-      `${baseUrl}/api/public/observations?traceId=${enc}&limit=${PAGE_LIMIT}`,
-      authHeader,
-    ),
-    langfuseGet<ListResponse<unknown>>(
-      `${baseUrl}/api/public/scores?traceId=${enc}&limit=${PAGE_LIMIT}`,
-      authHeader,
-    ),
-  ]);
+  const qs = new URLSearchParams({
+    traceId: id,
+    fields: FIELDS_TRACE_LIST,
+    limit: String(PAGE_LIMIT),
+  });
+  const rows = await paginateV2((cursor) => {
+    const q = new URLSearchParams(qs);
+    if (cursor) q.set('cursor', cursor);
+    return `${baseUrl}/api/public/v2/observations?${q.toString()}`;
+  }, authHeader);
 
-  const trace: OpsRawTrace | null = traceRaw
-    ? {
-        id: traceRaw.id,
-        name: traceRaw.name,
-        timestamp: traceRaw.timestamp,
-        tags: traceRaw.tags ?? [],
-        totalCost: traceRaw.totalCost ?? 0,
-        latency: traceRaw.latency ?? 0,
-        metadata: traceRaw.metadata ?? {},
-        input: traceRaw.input ?? null,
-        output: traceRaw.output ?? null,
-        htmlPath: traceRaw.htmlPath ?? null,
-        projectId: traceRaw.projectId ?? null,
-        scores: traceRaw.scores ?? [],
-      }
-    : null;
+  const trace = groupIntoTraces(rows)[0] ?? null;
+  const observations = rows
+    .filter((o) => o.type === 'GENERATION')
+    .map(toOpsObservation);
 
-  const observations = (obsRaw.data ?? []).map((o) => ({
+  return { trace, observations };
+}
+
+// Map a v2 row to the normalized observation shape. `totalCost` is v2's
+// name for what v1 called `calculatedTotalCost`; the public OpsObservation
+// field keeps the old name so downstream aggregation code is untouched.
+function toOpsObservation(o: V2Row): OpsObservation {
+  return {
     id: o.id,
     traceId: o.traceId,
     name: o.name ?? '',
     model: o.model ?? '',
-    calculatedTotalCost: o.calculatedTotalCost ?? 0,
+    calculatedTotalCost: o.totalCost ?? 0,
     latency: o.latency ?? 0,
     startTime: o.startTime ?? '',
-  }));
-
-  return { trace, observations, scores: scoreRaw.data ?? [] };
+  };
 }
 
 // Fully paginated GENERATION-observation fetch for the window. Returns
@@ -457,26 +507,15 @@ export async function opsObservations(opts: {
   const now = opts.now ?? new Date();
   const { fromIso, toIso } = windowIso(now, opts.windowDays);
 
-  const raw = await paginate<RawObservation>((page) => {
-    const qs = new URLSearchParams({
-      type: 'GENERATION',
-      fromStartTime: fromIso,
-      toStartTime: toIso,
-      limit: String(PAGE_LIMIT),
-      page: String(page),
-    });
-    return `${baseUrl}/api/public/observations?${qs.toString()}`;
-  }, authHeader);
+  const rows = await paginateV2(
+    (cursor) =>
+      v2WindowUrl(baseUrl, fromIso, toIso, FIELDS_OBSERVATIONS, cursor, {
+        type: 'GENERATION',
+      }),
+    authHeader,
+  );
 
-  return raw.map((o) => ({
-    id: o.id,
-    traceId: o.traceId,
-    name: o.name ?? '',
-    model: o.model ?? '',
-    calculatedTotalCost: o.calculatedTotalCost ?? 0,
-    latency: o.latency ?? 0,
-    startTime: o.startTime ?? '',
-  }));
+  return rows.map(toOpsObservation);
 }
 
 // Real-human filter: drops defense/error-tagged traces (injection-detected,
@@ -543,7 +582,11 @@ export async function getWindowRaw(
   windowDays: number,
   now: Date = new Date(),
 ): Promise<WindowRaw> {
-  const key = `ops:raw:${windowDays}`;
+  // v2 bump: the cached blob's shape changed with the Observations v2
+  // migration (reconstructed traces, renamed cost field, parsed I/O). Old
+  // v1-shaped blobs would deserialize into subtly wrong objects, so the key
+  // changes and stale entries simply expire within the 5-minute TTL.
+  const key = `ops:raw:v2:${windowDays}`;
 
   // 1. Warm Upstash blob?
   try {

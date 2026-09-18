@@ -129,7 +129,6 @@ export interface ConversationDetail {
   question: string;
   answer: string;
   spans: TraceSpan[];
-  scores: unknown[];
   rag: {
     retrieved: boolean;
     no_match: boolean;
@@ -141,7 +140,6 @@ export interface ConversationDetail {
 export function buildDetail(
   trace: OpsRawTrace,
   observations: OpsObservation[],
-  scores: unknown[],
   host: string,
 ): ConversationDetail {
   const md = trace.metadata ?? {};
@@ -154,7 +152,6 @@ export function buildDetail(
     question: questionText(trace.input),
     answer: answerText(trace.output),
     spans: buildSpans(observations),
-    scores,
     rag: {
       retrieved: md.rag_retrieved === true,
       no_match: md.rag_no_match === true,

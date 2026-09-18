@@ -25,17 +25,35 @@ function jsonResponse(body: unknown): Response {
   });
 }
 
-// A page of `n` traces, each with the given tags. `meta` is omitted so
-// the loop falls back to the short-page heuristic (items < PAGE_LIMIT).
-function tracePage(n: number, tags: string[] = []) {
+// One ROOT observation row per trace, in the v2 shape. v4 is
+// observations-first: a "trace" is the group of rows sharing a traceId,
+// with trace-level fields read off the row whose parentObservationId is
+// null. `meta` omitted => no cursor => single page.
+function rootRow(
+  id: string,
+  tags: string[] = [],
+  extra: Record<string, unknown> = {},
+) {
   return {
-    data: Array.from({ length: n }, (_, i) => ({
-      id: `t${i}`,
-      name: 'chat-turn',
-      timestamp: '2026-05-20T00:00:00Z',
-      tags,
-      totalCost: 0.01,
-    })),
+    id: `obs-${id}`,
+    traceId: id,
+    parentObservationId: null,
+    type: 'SPAN',
+    name: 'chat-turn',
+    traceName: 'chat-turn',
+    startTime: '2026-05-20T00:00:00Z',
+    endTime: '2026-05-20T00:00:01Z',
+    tags,
+    totalCost: 0.01,
+    latency: 1,
+    ...extra,
+  };
+}
+
+function tracePage(n: number, tags: string[] = [], cursor?: string) {
+  return {
+    data: Array.from({ length: n }, (_, i) => rootRow(`t${i}`, tags)),
+    ...(cursor ? { meta: { cursor } } : {}),
   };
 }
 
@@ -67,7 +85,7 @@ describe('opsQuery', () => {
     );
   });
 
-  it('hits /api/public/traces filtered by name=chat-turn with a window', async () => {
+  it('hits /v2/observations with a time-bounded window and field groups', async () => {
     const calls: string[] = [];
     vi.stubGlobal(
       'fetch',
@@ -82,56 +100,66 @@ describe('opsQuery', () => {
     });
     expect(res.count).toBe(3);
     expect(res.traces).toHaveLength(3);
-    expect(calls[0]).toContain('/api/public/traces');
-    expect(calls[0]).toContain('name=chat-turn');
-    expect(calls[0]).toContain('fromTimestamp=2026-05-15'); // 7d before the 22nd
-    expect(calls[0]).toContain('toTimestamp=2026-05-22');
+    expect(calls[0]).toContain('/api/public/v2/observations');
+    expect(calls[0]).toContain('limit=1000');
+    expect(calls[0]).toContain('fromStartTime=2026-05-15'); // 7d before the 22nd
+    expect(calls[0]).toContain('toStartTime=2026-05-22');
+    // v2 omits any field group not asked for; the trace list needs io +
+    // trace_context (tags) + metadata (rag_*).
+    expect(decodeURIComponent(calls[0])).toContain(
+      'fields=core,basic,io,trace_context,metadata',
+    );
   });
 
-  it('paginates: a full page triggers a second fetch, a short page stops it', async () => {
+  it('follows meta.cursor serially until the cursor is absent', async () => {
+    const calls: string[] = [];
+    let call = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        calls.push(url);
+        call += 1;
+        // Page 1 returns a cursor; page 2 returns none => stop.
+        return jsonResponse(
+          call === 1
+            ? { data: [rootRow('a')], meta: { cursor: 'CUR1' } }
+            : { data: [rootRow('b')] },
+        );
+      }),
+    );
+    const res = await opsQuery({ windowDays: 7, includeEvals: true });
+    expect(res.count).toBe(2);
+    expect(call).toBe(2);
+    // The second request must carry the cursor from the first response —
+    // this is what makes v2 pagination serial.
+    expect(calls[0]).not.toContain('cursor=');
+    expect(calls[1]).toContain('cursor=CUR1');
+  });
+
+  it('stops after a single request when no cursor is returned', async () => {
     let call = 0;
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => {
         call += 1;
-        // page 1 is full (100) → loop continues; page 2 is short → stop.
-        return jsonResponse(call === 1 ? tracePage(100) : tracePage(2));
+        return jsonResponse(tracePage(100));
       }),
     );
     const res = await opsQuery({ windowDays: 7, includeEvals: true });
-    expect(res.count).toBe(102);
-    expect(call).toBe(2);
-  });
-
-  it('respects meta.totalPages when present', async () => {
-    let call = 0;
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        call += 1;
-        return jsonResponse({ ...tracePage(100), meta: { totalPages: 2 } });
-      }),
-    );
-    const res = await opsQuery({ windowDays: 7, includeEvals: true });
-    // Two full pages, stopped by totalPages=2 rather than a short page.
-    expect(res.count).toBe(200);
-    expect(call).toBe(2);
+    // A full page is NOT a signal to continue in v2; only a cursor is.
+    expect(res.count).toBe(100);
+    expect(call).toBe(1);
   });
 
   it('excludes eval-source by default and includes it when includeEvals=true', async () => {
     // One page: 2 real + 3 eval-source traces.
     const mixed = {
       data: [
-        { id: 'r1', name: 'chat-turn', timestamp: 't', tags: [] },
-        { id: 'r2', name: 'chat-turn', timestamp: 't', tags: ['grounded'] },
-        { id: 'e1', name: 'chat-turn', timestamp: 't', tags: ['eval-source'] },
-        { id: 'e2', name: 'chat-turn', timestamp: 't', tags: ['eval-source'] },
-        {
-          id: 'e3',
-          name: 'chat-turn',
-          timestamp: 't',
-          tags: ['eval-source', 'grounded'],
-        },
+        rootRow('r1', []),
+        rootRow('r2', ['grounded']),
+        rootRow('e1', ['eval-source']),
+        rootRow('e2', ['eval-source']),
+        rootRow('e3', ['eval-source', 'grounded']),
       ],
     };
     vi.stubGlobal(
@@ -141,7 +169,7 @@ describe('opsQuery', () => {
 
     const excluded = await opsQuery({ windowDays: 7 }); // default false
     expect(excluded.count).toBe(2);
-    expect(excluded.traces.map((t) => t.id)).toEqual(['r1', 'r2']);
+    expect(excluded.traces.map((t) => t.id).sort()).toEqual(['r1', 'r2']);
 
     const included = await opsQuery({ windowDays: 7, includeEvals: true });
     expect(included.count).toBe(5);
@@ -152,30 +180,13 @@ describe('opsQuery', () => {
       'fetch',
       vi.fn(async () =>
         jsonResponse({
-          data: [{ id: 'x', name: 'chat-turn', timestamp: 't', tags: null }],
+          data: [rootRow('x', [], { tags: null, totalCost: null })],
         }),
       ),
     );
     const res = await opsQuery({ windowDays: 7 });
     expect(res.traces[0].tags).toEqual([]);
     expect(res.traces[0].totalCost).toBe(0);
-  });
-
-  it('throws (does not truncate) when the window exceeds the 2000-trace cap', async () => {
-    // Every page is full (100) and carries no meta → the loop never sees a
-    // short page and runs past MAX_PAGES (20). Must throw, not return 2000.
-    let call = 0;
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        call += 1;
-        return jsonResponse(tracePage(100));
-      }),
-    );
-    await expect(
-      opsQuery({ windowDays: 7, includeEvals: true }),
-    ).rejects.toThrow(/cap/);
-    expect(call).toBe(20); // exactly MAX_PAGES fetches, then throw
   });
 
   it('retries on 429 with backoff and then succeeds', async () => {
@@ -230,50 +241,6 @@ describe('opsQuery', () => {
     expect(maxInflight).toBeLessThanOrEqual(3);
     expect(maxInflight).toBeGreaterThan(1); // sanity: it is concurrent, just capped
   });
-
-  it('fetches pages 2..N in parallel and preserves page order', async () => {
-    let calls = 0;
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (url: string) => {
-        calls += 1;
-        const page = Number(new URL(url).searchParams.get('page'));
-        return jsonResponse({
-          data: [
-            { id: `p${page}-a`, name: 'chat-turn', timestamp: 't', tags: [] },
-            { id: `p${page}-b`, name: 'chat-turn', timestamp: 't', tags: [] },
-          ],
-          meta: { totalPages: 3 },
-        });
-      }),
-    );
-    const res = await opsQuery({ windowDays: 7, includeEvals: true });
-    // Assembly order matches serial even though 2 + 3 fetch concurrently.
-    expect(res.traces.map((t) => t.id)).toEqual([
-      'p1-a',
-      'p1-b',
-      'p2-a',
-      'p2-b',
-      'p3-a',
-      'p3-b',
-    ]);
-    expect(calls).toBe(3); // page 1, then pages 2 + 3
-  });
-
-  it('throws up-front when meta.totalPages exceeds the cap (fetches only page 1)', async () => {
-    let calls = 0;
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        calls += 1;
-        return jsonResponse({ ...tracePage(100), meta: { totalPages: 25 } });
-      }),
-    );
-    await expect(
-      opsQuery({ windowDays: 7, includeEvals: true }),
-    ).rejects.toThrow(/cap/);
-    expect(calls).toBe(1); // cap-guarded before fetching pages 2..25
-  });
 });
 
 describe('opsObservations', () => {
@@ -294,7 +261,7 @@ describe('opsObservations', () => {
     process.env.LANGFUSE_BASE_URL = originalEnv.LANGFUSE_BASE_URL;
   });
 
-  it('hits /api/public/observations?type=GENERATION and normalizes', async () => {
+  it('hits /v2/observations?type=GENERATION and normalizes totalCost', async () => {
     const calls: string[] = [];
     vi.stubGlobal(
       'fetch',
@@ -307,7 +274,7 @@ describe('opsObservations', () => {
               traceId: 't1',
               name: 'anthropic_first_call',
               model: 'claude-sonnet-4-6',
-              calculatedTotalCost: 0.012,
+              totalCost: 0.012,
               latency: 1.8,
               startTime: '2026-05-20T00:00:00Z',
             },
@@ -329,7 +296,7 @@ describe('opsObservations', () => {
       model: '',
       calculatedTotalCost: 0,
     });
-    expect(calls[0]).toContain('/api/public/observations');
+    expect(calls[0]).toContain('/api/public/v2/observations');
     expect(calls[0]).toContain('type=GENERATION');
   });
 });

@@ -9,9 +9,10 @@
 import type { LangfuseAggregateFns } from './_opsSnippet.js';
 import { opsQuery, realUser } from './_opsQuery.js';
 
-const TRACE_NAME = 'chat-turn';
-const PAGE_LIMIT = 100;
-const MAX_PAGES = 50; // safety — 50 × 100 = 5000 items in 7d window
+// Observations API v2: page ceiling 1,000 and cursor-based pagination.
+// See api/_opsQuery.ts for the measurement that justified dropping the
+// page-parallel machinery.
+const PAGE_LIMIT = 1000;
 
 // Transient statuses worth retrying. 429 is the one we actually hit: the
 // snippet aggregation fires several paginations in parallel and bursts
@@ -43,10 +44,6 @@ function parseRetryAfter(header: string | null): number | null {
   return null;
 }
 
-interface TraceListItem {
-  id: string;
-}
-
 interface GenerationListItem {
   id: string;
   // Verified against Langfuse Cloud (Tokyo) 2026-05-22 — observation
@@ -60,12 +57,17 @@ interface GenerationListItem {
   // is the populated field. Verified 2026-05-25: non-zero for Anthropic
   // generations, 0 for Voyage embeddings (Langfuse carries no voyage-3
   // pricing). Missing/null is treated as 0 by sumGenerationUsageWindow.
+  // v2 renamed v1's `calculatedTotalCost` to `totalCost`. Both are read so
+  // the sum is correct regardless of which shape the endpoint returns.
   calculatedTotalCost?: number | null;
+  totalCost?: number | null;
+  // v2 exposes token counts under usageDetails.
+  usageDetails?: { total?: number | null } | null;
 }
 
 interface ListResponse<T> {
   data: T[];
-  meta?: { totalItems?: number; totalPages?: number };
+  meta?: { cursor?: string | null };
 }
 
 function basicAuthHeader(publicKey: string, secretKey: string): string {
@@ -126,53 +128,39 @@ async function countTracesWindow(
   return realUser(traces).length;
 }
 
-// Same as countTracesWindow but filtered to traces carrying `tag`.
-// Langfuse's /api/public/traces supports a server-side `tags` query
-// param — verified 2026-05-25 that it filters server-side (an unknown
-// tag returns 0, a known tag returns its subset) rather than being
-// ignored. Used for the HUD's queries_grounded % via the `grounded` tag.
-async function countTracesWithTagWindow(
-  baseUrl: string,
-  publicKey: string,
-  secretKey: string,
-  fromIso: string,
-  toIso: string,
-  tag: string,
-): Promise<number> {
-  let count = 0;
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const qs = new URLSearchParams({
-      name: TRACE_NAME,
-      tags: tag,
-      fromTimestamp: fromIso,
-      toTimestamp: toIso,
-      limit: String(PAGE_LIMIT),
-      page: String(page),
-    });
-    const res = await langfuseGet<ListResponse<TraceListItem>>(
-      baseUrl,
-      `/api/public/traces?${qs.toString()}`,
-      publicKey,
-      secretKey,
-    );
-    const items = res.data ?? [];
-    count += items.length;
-    if (items.length < PAGE_LIMIT) break;
-  }
-  return count;
-}
-
 interface GenerationUsage {
   tokens: number;
   cost: number;
 }
 
-// Single paginated pass over GENERATION-type observations in the window,
-// summing BOTH token usage and Langfuse-computed USD cost. Tokens and cost
-// previously drove two byte-identical paginations over this same endpoint;
-// collapsing them halves the request burst (and the latency) that was
-// tipping the parallel snippet aggregation past Langfuse's rate limit.
+// Same as countTracesWindow but filtered to traces carrying `tag`.
 //
+// v1 filtered server-side via /api/public/traces?tags=<tag>. v2 has no
+// trace endpoint; the equivalent is a `filter` expression on the tags
+// column, but the tag values v2 joins onto child rows are not reliably
+// consistent with the root (59 of 235 traces disagreed in a 7d sample).
+// So this counts against the ROOT row's tags via the canonical read layer,
+// which is both the v1 semantic and the single source of truth.
+//
+// includeEvals stays TRUE to preserve the previous behaviour exactly: the
+// v1 query applied no eval-source or defense-tag exclusion. (Note the
+// denominator from countTracesWindow DOES exclude both — that asymmetry
+// predates this migration and is deliberately left untouched here.)
+async function countTracesWithTagWindow(
+  fromIso: string,
+  toIso: string,
+  tag: string,
+): Promise<number> {
+  const windowDays =
+    (Date.parse(toIso) - Date.parse(fromIso)) / (24 * 60 * 60 * 1000);
+  const { traces } = await opsQuery({
+    windowDays,
+    includeEvals: true,
+    now: new Date(toIso),
+  });
+  return traces.filter((t) => t.tags.includes(tag)).length;
+}
+
 // Usage lives on the per-Anthropic-call generation observations — chat-turn
 // trace roots leave it null. We don't filter by trace name (there's no
 // observations-side filter for that), so the sums are total spend in the
@@ -188,26 +176,34 @@ async function sumGenerationUsageWindow(
 ): Promise<GenerationUsage> {
   let tokens = 0;
   let cost = 0;
-  for (let page = 1; page <= MAX_PAGES; page++) {
+  let cursor: string | null = null;
+  // Serial cursor walk; v2 gives no page count and page N+1 needs page N's
+  // cursor. The guard is a runaway backstop, not a working ceiling.
+  for (let page = 0; page < 1000; page++) {
     const qs = new URLSearchParams({
       type: 'GENERATION',
       fromStartTime: fromIso,
       toStartTime: toIso,
+      fields: 'core,basic,usage',
       limit: String(PAGE_LIMIT),
-      page: String(page),
     });
-    const res = await langfuseGet<ListResponse<GenerationListItem>>(
+    if (cursor) qs.set('cursor', cursor);
+    const res: ListResponse<GenerationListItem> = await langfuseGet<
+      ListResponse<GenerationListItem>
+    >(
       baseUrl,
-      `/api/public/observations?${qs.toString()}`,
+      `/api/public/v2/observations?${qs.toString()}`,
       publicKey,
       secretKey,
     );
     const items = res.data ?? [];
     for (const obs of items) {
-      tokens += obs.totalTokens ?? obs.usage?.total ?? 0;
-      cost += obs.calculatedTotalCost ?? 0;
+      tokens +=
+        obs.totalTokens ?? obs.usageDetails?.total ?? obs.usage?.total ?? 0;
+      cost += obs.totalCost ?? obs.calculatedTotalCost ?? 0;
     }
-    if (items.length < PAGE_LIMIT) break;
+    cursor = res.meta?.cursor ?? null;
+    if (!cursor) break;
   }
   return { tokens, cost };
 }
@@ -253,14 +249,7 @@ export function makeLangfuseAggregate(): LangfuseAggregateFns | null {
     },
     async countGroundedTraces(fromIso, toIso, tag) {
       if (groundedPromise === null) {
-        groundedPromise = countTracesWithTagWindow(
-          baseUrl,
-          publicKey,
-          secretKey,
-          fromIso,
-          toIso,
-          tag,
-        );
+        groundedPromise = countTracesWithTagWindow(fromIso, toIso, tag);
       }
       return groundedPromise;
     },

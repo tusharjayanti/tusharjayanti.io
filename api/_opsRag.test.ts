@@ -20,7 +20,6 @@ function t(
     output: null,
     htmlPath: null,
     projectId: null,
-    scores: [],
   };
 }
 

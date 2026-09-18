@@ -24,7 +24,6 @@ function rawTrace(over: Partial<OpsRawTrace> = {}): OpsRawTrace {
     output: 'He ran payments infra at 10k TPS.',
     htmlPath: '/project/p1/traces/t1',
     projectId: 'p1',
-    scores: [],
     ...over,
   };
 }
@@ -149,7 +148,6 @@ describe('buildDetail', () => {
         },
       }),
       [obs({})],
-      [{ name: 'quality', value: 1 }],
       'https://lf.test',
     );
     expect(detail.question).toContain('Tushar');
@@ -159,7 +157,6 @@ describe('buildDetail', () => {
       sources: ['experience'],
     });
     expect(detail.spans).toHaveLength(1);
-    expect(detail.scores).toHaveLength(1);
     expect(detail.langfuse_url).toBe('https://lf.test/project/p1/traces/t1');
   });
 });
