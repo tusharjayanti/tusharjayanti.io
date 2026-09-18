@@ -1,5 +1,16 @@
 # Tushar Jayanti — Experience Corpus
 
+## Stealth Venture (Founder / Engineer)
+
+**Dates:** Jan 2026 – Present  
+**Location:** Remote
+
+### AI content-detection platform
+
+Currently full-time on a stealth venture in the AI content-detection space. Feed it a piece of content and it returns whether it's AI-generated and which model family produced it, with calibrated confidence. The hard part is accuracy under humanizers, which defeat naive perplexity-based detection. Still early, more to share soon.
+
+---
+
 ## DISCO (Senior Software Engineer)
 
 **Dates:** Nov 2023 – Sept 2025  

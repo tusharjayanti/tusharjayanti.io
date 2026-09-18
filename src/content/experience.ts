@@ -17,6 +17,24 @@ export interface Role {
 
 export const experience: Role[] = [
   {
+    slug: 'stealth-ai-detection',
+    company: 'Stealth Venture',
+    title: 'Founder / Engineer',
+    domain: 'AI content detection',
+    location: 'Remote',
+    startDate: 'Jan 2026',
+    endDate: 'Present',
+    current: true,
+    groups: [
+      {
+        bullets: [
+          'Building a platform in the **AI content-detection** space: feed it a piece of content and it returns whether it is **AI-generated** and which **model family** produced it, with **calibrated confidence**.',
+          'The core challenge is holding accuracy up under **humanizers**, which defeat the naive **perplexity-based** detection most tools reach for first. More to share soon.',
+        ],
+      },
+    ],
+  },
+  {
     slug: 'disco',
     company: 'DISCO',
     title: 'Senior Software Engineer (L4)',
