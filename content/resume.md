@@ -4,7 +4,7 @@
 
 ### Senior backend engineer building production agentic AI systems
 
-Senior backend engineer with 7+ years building high-availability distributed systems and production SaaS platforms. Experienced in designing secure multi-tenant backend services, high-performance APIs, and event-driven architectures across Java, Kotlin, and Python. Currently building production agentic AI applications with FastAPI, Anthropic Claude, hybrid retrieval (semantic + BM25 via Reciprocal Rank Fusion) over Supabase pgvector, LLM-as-judge evaluation pipelines, and end-to-end LLM observability via Langfuse. Strong focus on scalable architecture, observability, and shipping reliable systems in fast-paced environments. Based in Bengaluru.
+Senior backend engineer with 7+ years building high-availability distributed systems and production SaaS platforms. Experienced in designing secure multi-tenant backend services, high-performance APIs, and event-driven architectures across Java, Kotlin, and Python. Currently full-time on a stealth venture in the AI content-detection space, and building production agentic AI applications with FastAPI, Anthropic Claude, hybrid retrieval (semantic + BM25 via Reciprocal Rank Fusion) over Supabase pgvector, LLM-as-judge evaluation pipelines, and end-to-end LLM observability via Langfuse. Strong focus on scalable architecture, observability, and shipping reliable systems in fast-paced environments. Based in Bengaluru.
 
 ## Technical Skills
 
@@ -29,6 +29,10 @@ Production AWS experience across compute, messaging, storage, and identity primi
 Production LLMOps work: integrated Anthropic Claude (Sonnet for generation, Haiku for evaluation and reranking) into customer-facing chat agents and customer-support automation. Built hybrid RAG pipelines combining semantic retrieval (Voyage voyage-3 asymmetric embeddings, 1024 dimensions, pgvector cosine) with lexical retrieval (Postgres ts_rank, BM25-family) fused via Reciprocal Rank Fusion. Designed LLM-as-judge evaluation pipelines for hallucination detection — Sonnet generator paired with Haiku judge, with heuristic prefilters reducing judge cost. Built end-to-end LLM observability via Langfuse with prompt versioning, cost computation per turn, and online quality scoring via deferred Haiku scoring. Designed agentic tool-use patterns with the Anthropic SDK including multi-step reasoning loops, structured tool definitions, and conversation state management. Familiar with context window management, prompt caching, and retrieval context compression. Designed eval-gated CI for LLM systems and closed-loop eval generation from production traces. Pre-LLM ML background: seq2seq neural NLP models in TensorFlow (encoder-decoder architectures, attention basics), classical ML with linear and logistic regression for OCR and CAPTCHA recognition — adversarial ML problems that grounded current intuitions around robustness and red-team-style evaluation of LLM systems.
 
 ## Experience
+
+### Founder / Engineer at a stealth venture — building an AI content-detection platform (Jan 2026 – Present)
+
+Currently full-time on a stealth venture in the AI content-detection space, working remotely. Feed it a piece of content and it returns whether it's AI-generated and which model family produced it, with calibrated confidence. The hard part is accuracy under humanizers, which defeat naive perplexity-based detection. Still early, more to share soon.
 
 ### Senior Software Engineer at DISCO — built and migrated identity and authorization platform (Nov 2023 – Sept 2025)
 

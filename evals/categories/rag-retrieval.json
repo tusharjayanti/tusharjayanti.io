@@ -78,11 +78,6 @@
         {
           "source": "experience",
           "source_id": "experience.md",
-          "chunk_index": 0
-        },
-        {
-          "source": "experience",
-          "source_id": "experience.md",
           "chunk_index": 1
         },
         {
@@ -109,6 +104,11 @@
           "source": "experience",
           "source_id": "experience.md",
           "chunk_index": 6
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 7
         }
       ],
       "tags": ["realistic", "experience"]
@@ -228,7 +228,7 @@
         {
           "source": "experience",
           "source_id": "experience.md",
-          "chunk_index": 1
+          "chunk_index": 2
         }
       ],
       "tags": ["realistic", "experience"]
@@ -243,7 +243,7 @@
         {
           "source": "experience",
           "source_id": "experience.md",
-          "chunk_index": 11
+          "chunk_index": 12
         }
       ],
       "tags": ["realistic", "single-source", "experience"]
@@ -258,7 +258,7 @@
         {
           "source": "experience",
           "source_id": "experience.md",
-          "chunk_index": 3
+          "chunk_index": 4
         }
       ],
       "tags": ["realistic", "experience"]
@@ -273,7 +273,7 @@
         {
           "source": "experience",
           "source_id": "experience.md",
-          "chunk_index": 16
+          "chunk_index": 17
         }
       ],
       "tags": ["realistic", "experience"]
@@ -288,11 +288,6 @@
         {
           "source": "experience",
           "source_id": "experience.md",
-          "chunk_index": 7
-        },
-        {
-          "source": "experience",
-          "source_id": "experience.md",
           "chunk_index": 8
         },
         {
@@ -304,6 +299,11 @@
           "source": "experience",
           "source_id": "experience.md",
           "chunk_index": 10
+        },
+        {
+          "source": "experience",
+          "source_id": "experience.md",
+          "chunk_index": 11
         }
       ],
       "tags": ["realistic", "single-source", "experience"]
@@ -318,12 +318,12 @@
         {
           "source": "experience",
           "source_id": "experience.md",
-          "chunk_index": 11
+          "chunk_index": 12
         },
         {
           "source": "experience",
           "source_id": "experience.md",
-          "chunk_index": 16
+          "chunk_index": 17
         }
       ],
       "tags": ["vocabulary-poor", "experience"]
@@ -338,7 +338,7 @@
         {
           "source": "experience",
           "source_id": "experience.md",
-          "chunk_index": 14
+          "chunk_index": 15
         }
       ],
       "tags": ["realistic", "experience"]
@@ -383,9 +383,9 @@
       "category": "rag-retrieval",
       "target_source": "resume",
       "correct_chunks": [
-        { "source": "resume", "source_id": "resume.md", "chunk_index": 10 },
         { "source": "resume", "source_id": "resume.md", "chunk_index": 11 },
-        { "source": "resume", "source_id": "resume.md", "chunk_index": 12 }
+        { "source": "resume", "source_id": "resume.md", "chunk_index": 12 },
+        { "source": "resume", "source_id": "resume.md", "chunk_index": 13 }
       ],
       "tags": ["realistic", "resume"]
     },
@@ -400,12 +400,12 @@
         {
           "source": "experience",
           "source_id": "experience.md",
-          "chunk_index": 2
+          "chunk_index": 3
         },
         {
           "source": "experience",
           "source_id": "experience.md",
-          "chunk_index": 5
+          "chunk_index": 6
         }
       ],
       "tags": ["cross-source", "realistic"]
@@ -600,9 +600,9 @@
         {
           "source": "experience",
           "source_id": "experience.md",
-          "chunk_index": 3
+          "chunk_index": 4
         },
-        { "source": "resume", "source_id": "resume.md", "chunk_index": 10 }
+        { "source": "resume", "source_id": "resume.md", "chunk_index": 11 }
       ],
       "tags": ["multi-facet", "cross-source", "realistic"]
     },
@@ -616,7 +616,7 @@
         {
           "source": "experience",
           "source_id": "experience.md",
-          "chunk_index": 10
+          "chunk_index": 11
         },
         {
           "source": "readme",
@@ -636,7 +636,7 @@
         {
           "source": "experience",
           "source_id": "experience.md",
-          "chunk_index": 11
+          "chunk_index": 12
         },
         {
           "source": "readme",
@@ -656,7 +656,7 @@
         {
           "source": "experience",
           "source_id": "experience.md",
-          "chunk_index": 3
+          "chunk_index": 4
         },
         {
           "source": "docs",
