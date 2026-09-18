@@ -74,32 +74,31 @@ async function pushToLangfuse(promptBody, hash) {
     return 0;
   }
 
-  let Langfuse;
+  let LangfuseClient;
   try {
-    ({ Langfuse } = await import('langfuse'));
+    ({ LangfuseClient } = await import('@langfuse/client'));
   } catch (err) {
     console.warn('[sync-prompt] langfuse SDK not installed; skipping push:', err.message);
     return 0;
   }
 
-  const lf = new Langfuse({ publicKey, secretKey, baseUrl, flushAt: 1 });
+  const lf = new LangfuseClient({ publicKey, secretKey, baseUrl });
 
   try {
-    const existing = await lf.getPrompt(PROMPT_NAME, undefined, {
+    const existing = await lf.prompt.get(PROMPT_NAME, {
       label: hash,
       cacheTtlSeconds: 0,
     });
     console.log(
       `[sync-prompt] Langfuse version exists: ${PROMPT_NAME} @ ${hash} (v${existing.version})`,
     );
-    await lf.flushAsync();
     return existing.version;
   } catch {
-    // getPrompt throws on 404 (no version with this label). Fall through to create.
+    // prompt.get throws on 404 (no version with this label). Fall through to create.
   }
 
   try {
-    const created = await lf.createPrompt({
+    const created = await lf.prompt.create({
       name: PROMPT_NAME,
       type: 'text',
       prompt: promptBody,
@@ -108,15 +107,9 @@ async function pushToLangfuse(promptBody, hash) {
     console.log(
       `[sync-prompt] pushed to Langfuse: ${PROMPT_NAME} @ ${hash} (v${created.version})`,
     );
-    await lf.flushAsync();
     return created.version;
   } catch (err) {
     console.warn('[sync-prompt] Langfuse push failed (non-fatal):', err.message);
-    try {
-      await lf.flushAsync();
-    } catch {
-      /* swallow */
-    }
     return 0;
   }
 }

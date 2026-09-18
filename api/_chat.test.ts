@@ -21,26 +21,39 @@ const lf = vi.hoisted(() => {
     end: vi.fn(),
     update: vi.fn(),
   };
-  // Mock generation. `span()` returns the tool-execution span — the chat
-  // handler attaches tool-execution spans to the round's own generation via
-  // generation.span() (round 0 for parallel turns, the emitting round for
-  // sequential ones).
+  // v5 collapses generation()/span() into one startObservation(name, attrs,
+  // { asType }) factory on every observation. The chat handler attaches
+  // tool-execution spans to the round's own generation (round 0 for
+  // parallel turns, the emitting round for sequential ones).
   const generation = {
     end: vi.fn(),
     update: vi.fn(),
-    span: vi.fn(() => span),
+    startObservation: vi.fn(() => span),
   };
-  const trace = {
-    generation: vi.fn(() => generation),
-    span: vi.fn(() => span),
+  // Trace-level tags no longer ride on an update() payload: they are set on
+  // the still-open root observation's OTel span at finalize.
+  const setAttribute = vi.fn();
+  const root = {
+    end: vi.fn(),
     update: vi.fn(),
+    traceId: 'test-trace-id',
+    otelSpan: { setAttribute },
+    startObservation: vi.fn(() => generation),
   };
-  const client = {
-    trace: vi.fn(() => trace),
-    flushAsync: vi.fn(() => Promise.resolve()),
-    shutdownAsync: vi.fn(() => Promise.resolve()),
+  const startObservation = vi.fn(() => root);
+  const propagateAttributes = vi.fn((_params: unknown, fn: () => unknown) =>
+    fn(),
+  );
+  const flushTracing = vi.fn(async () => {});
+  return {
+    root,
+    generation,
+    span,
+    startObservation,
+    propagateAttributes,
+    setAttribute,
+    flushTracing,
   };
-  return { client, trace, generation, span };
 });
 
 vi.mock('@upstash/redis', () => ({
@@ -106,16 +119,37 @@ vi.mock('./_systemPrompt.js', () => ({
   systemPrompt: 'test system prompt',
 }));
 
+vi.mock('@langfuse/tracing', () => ({
+  startObservation: lf.startObservation,
+  propagateAttributes: lf.propagateAttributes,
+  setLangfuseTracerProvider: vi.fn(),
+  LangfuseOtelSpanAttributes: { TRACE_TAGS: 'langfuse.trace.tags' },
+}));
+
 vi.mock('./_langfuse.js', async () => {
   const actual =
     await vi.importActual<typeof import('./_langfuse.js')>('./_langfuse.js');
   return {
-    getLangfuse: () => lf.client,
+    initTracing: () => true,
+    flushTracing: lf.flushTracing,
     makeSystemPromptHandle: actual.makeSystemPromptHandle,
   };
 });
 
 const { default: handler } = await import('./chat.js');
+
+// Trace-level tags are set on the root observation's OTel span at finalize
+// (see finalizeTrace in chat.ts), not passed to update().
+function lastTags(): string[] {
+  const calls = lf.setAttribute.mock.calls as unknown as Array<
+    [string, string[]]
+  >;
+  const tagCall = [...calls]
+    .reverse()
+    .find(([key]) => key === 'langfuse.trace.tags');
+  return tagCall ? tagCall[1] : [];
+}
+
 const { CANARY_TOKEN } = await import('./_systemPrompt.js');
 
 // Faithful-to-SDK fake. Real Anthropic streams emit content_block_start
@@ -329,46 +363,51 @@ describe('chat handler — Langfuse tracing', () => {
     await drainStream(res);
     await Promise.all(captured);
 
-    expect(lf.client.trace).toHaveBeenCalledTimes(1);
-    const traceArg = lastCallArg<{
-      name: string;
-      input: { q: string };
-      userId: string;
-    }>(lf.client.trace);
-    expect(traceArg.name).toBe('chat-turn');
-    expect(traceArg.input).toEqual({ q: 'hello' });
-    expect(typeof traceArg.userId).toBe('string');
-    expect(traceArg.userId.length).toBeGreaterThan(0);
+    expect(lf.startObservation).toHaveBeenCalledTimes(1);
+    const rootCall = lf.startObservation.mock.calls[0] as unknown as [
+      string,
+      { input: { q: string } },
+    ];
+    expect(rootCall[0]).toBe('chat-turn');
+    expect(rootCall[1].input).toEqual({ q: 'hello' });
+    // userId / traceName now propagate via propagateAttributes rather than
+    // being passed to the trace constructor.
+    const propArg = lastCallArg<{ traceName: string; userId: string }>(
+      lf.propagateAttributes,
+    );
+    expect(propArg.traceName).toBe('chat-turn');
+    expect(typeof propArg.userId).toBe('string');
+    expect(propArg.userId.length).toBeGreaterThan(0);
 
-    expect(lf.trace.generation).toHaveBeenCalledTimes(1);
-    const genArg = lastCallArg<{
-      name: string;
-      model: string;
-      input: Array<{ role: string; content: string }>;
-    }>(lf.trace.generation);
-    expect(genArg.name).toBe('anthropic_first_call');
-    expect(genArg.model).toBe('claude-sonnet-4-6');
-    expect(genArg.input).toEqual([{ role: 'user', content: 'hello' }]);
+    expect(lf.root.startObservation).toHaveBeenCalledTimes(1);
+    const genCall = lf.root.startObservation.mock.calls[0] as unknown as [
+      string,
+      { model: string; input: Array<{ role: string; content: string }> },
+      { asType: string },
+    ];
+    expect(genCall[0]).toBe('anthropic_first_call');
+    expect(genCall[1].model).toBe('claude-sonnet-4-6');
+    expect(genCall[1].input).toEqual([{ role: 'user', content: 'hello' }]);
+    expect(genCall[2].asType).toBe('generation');
 
     expect(lf.generation.end).toHaveBeenCalledTimes(1);
     const endArg = lastCallArg<{
       output: string;
       usageDetails: Record<string, number>;
       metadata: { latencyMs: number };
-    }>(lf.generation.end);
+    }>(lf.generation.update);
     expect(endArg.output).toBe('hello back');
     expect(endArg.usageDetails.input).toBe(5);
     expect(endArg.usageDetails.output).toBe(10);
     expect(endArg.usageDetails.total).toBe(15);
     expect(typeof endArg.metadata.latencyMs).toBe('number');
 
-    const finalUpdate = lastCallArg<{ output: string; tags: string[] }>(
-      lf.trace.update,
-    );
+    const finalUpdate = lastCallArg<{ output: string }>(lf.root.update);
     expect(finalUpdate.output).toBe('hello back');
-    expect(finalUpdate.tags).toEqual([]); // no RAG → not grounded
-    expect(finalUpdate.tags).not.toContain('grounded');
-    expect(lf.client.shutdownAsync).toHaveBeenCalled();
+    expect(lastTags()).toEqual([]); // no RAG → not grounded
+    expect(lastTags()).not.toContain('grounded');
+    expect(lf.root.end).toHaveBeenCalledTimes(1);
+    expect(lf.flushTracing).toHaveBeenCalled();
   });
 
   it('on rate limit, tags the trace and skips generation', async () => {
@@ -378,14 +417,12 @@ describe('chat handler — Langfuse tracing', () => {
     await Promise.all(captured);
 
     expect(res.status).toBe(429);
-    expect(lf.client.trace).toHaveBeenCalledTimes(1);
-    expect(lf.trace.generation).not.toHaveBeenCalled();
-    const finalUpdate = lastCallArg<{ output: string; tags: string[] }>(
-      lf.trace.update,
-    );
-    expect(finalUpdate.tags).toEqual(['rate-limited']);
+    expect(lf.startObservation).toHaveBeenCalledTimes(1);
+    expect(lf.root.startObservation).not.toHaveBeenCalled();
+    const finalUpdate = lastCallArg<{ output: string }>(lf.root.update);
+    expect(lastTags()).toEqual(['rate-limited']);
     expect(typeof finalUpdate.output).toBe('string');
-    expect(lf.client.shutdownAsync).toHaveBeenCalled();
+    expect(lf.flushTracing).toHaveBeenCalled();
   });
 
   it('on injection detection, tags the trace and skips generation', async () => {
@@ -396,14 +433,11 @@ describe('chat handler — Langfuse tracing', () => {
     await drainStream(res);
     await Promise.all(captured);
 
-    expect(lf.client.trace).toHaveBeenCalledTimes(1);
-    expect(lf.trace.generation).not.toHaveBeenCalled();
+    expect(lf.startObservation).toHaveBeenCalledTimes(1);
+    expect(lf.root.startObservation).not.toHaveBeenCalled();
     expect(mocks.messagesCreate).not.toHaveBeenCalled();
-    const finalUpdate = lastCallArg<{ output: string; tags: string[] }>(
-      lf.trace.update,
-    );
-    expect(finalUpdate.tags).toEqual(['injection-detected']);
-    expect(lf.client.shutdownAsync).toHaveBeenCalled();
+    expect(lastTags()).toEqual(['injection-detected']);
+    expect(lf.flushTracing).toHaveBeenCalled();
   });
 
   it('on a successful chat, the generation includes the prompt linkage', async () => {
@@ -412,10 +446,13 @@ describe('chat handler — Langfuse tracing', () => {
     await drainStream(res);
     await Promise.all(captured);
 
-    expect(lf.trace.generation).toHaveBeenCalledTimes(1);
-    const genArg = lastCallArg<{
-      prompt: { name: string; version: number; isFallback: boolean };
-    }>(lf.trace.generation);
+    expect(lf.root.startObservation).toHaveBeenCalledTimes(1);
+    const genArg = (
+      lf.root.startObservation.mock.calls[0] as unknown as [
+        string,
+        { prompt: { name: string; version: number; isFallback: boolean } },
+      ]
+    )[1];
     expect(genArg.prompt).toEqual({
       name: 'tarvis-system-prompt',
       version: TEST_PROMPT_VERSION_NUMBER,
@@ -433,10 +470,7 @@ describe('chat handler — Langfuse tracing', () => {
     await drainStream(res);
     await Promise.all(captured);
 
-    const finalUpdate = lastCallArg<{ output: string; tags: string[] }>(
-      lf.trace.update,
-    );
-    expect(finalUpdate.tags).toEqual(['model-refused']);
+    expect(lastTags()).toEqual(['model-refused']);
   });
 
   it('on a streaming failure, tags the trace with streamed-error and preserves the partial response', async () => {
@@ -469,10 +503,8 @@ describe('chat handler — Langfuse tracing', () => {
     await drainStream(res);
     await Promise.all(captured);
 
-    const finalUpdate = lastCallArg<{ output: string; tags: string[] }>(
-      lf.trace.update,
-    );
-    expect(finalUpdate.tags).toContain('streamed-error');
+    const finalUpdate = lastCallArg<{ output: string }>(lf.root.update);
+    expect(lastTags()).toContain('streamed-error');
     expect(finalUpdate.output).toBe('partial ');
   });
 
@@ -487,11 +519,9 @@ describe('chat handler — Langfuse tracing', () => {
     await drainStream(res);
     await Promise.all(captured);
 
-    expect(lf.trace.generation).toHaveBeenCalledTimes(1);
-    const finalUpdate = lastCallArg<{ output: string; tags: string[] }>(
-      lf.trace.update,
-    );
-    expect(finalUpdate.tags).toEqual(['canary-leak']);
+    expect(lf.root.startObservation).toHaveBeenCalledTimes(1);
+    const finalUpdate = lastCallArg<{ output: string }>(lf.root.update);
+    expect(lastTags()).toEqual(['canary-leak']);
     expect(finalUpdate.output).toContain('[REDACTED]');
     expect(finalUpdate.output).not.toContain(CANARY_TOKEN);
   });
@@ -611,41 +641,39 @@ describe('chat handler — tool-use', () => {
     // Two generations (one per Anthropic round): anthropic_first_call
     // then anthropic_second_call. Tool-execution span is a child of the
     // first generation per the trace taxonomy.
-    expect(lf.trace.generation).toHaveBeenCalledTimes(2);
+    expect(lf.root.startObservation).toHaveBeenCalledTimes(2);
     expect(lf.generation.end).toHaveBeenCalledTimes(2);
-    const generationCalls = lf.trace.generation.mock
+    expect(lf.generation.update).toHaveBeenCalledTimes(2);
+    const generationCalls = lf.root.startObservation.mock
       .calls as unknown as unknown[][];
-    const generationNames = generationCalls.map(
-      (c) => (c[0] as { name: string }).name,
-    );
+    const generationNames = generationCalls.map((c) => c[0] as string);
     expect(generationNames).toEqual([
       'anthropic_first_call',
       'anthropic_second_call',
     ]);
-    expect(lf.generation.span).toHaveBeenCalledTimes(1);
+    expect(lf.generation.startObservation).toHaveBeenCalledTimes(1);
     expect(lf.span.end).toHaveBeenCalledTimes(1);
-    const spanCalls = lf.generation.span.mock.calls as unknown as unknown[][];
-    const spanArg = spanCalls[0]![0] as {
-      name: string;
+    const spanCalls = lf.generation.startObservation.mock
+      .calls as unknown as unknown[][];
+    expect(spanCalls[0]![0]).toBe('tool-execution');
+    const spanArg = spanCalls[0]![1] as {
       input: { tool: string; query: string };
     };
-    expect(spanArg.name).toBe('tool-execution');
     expect(spanArg.input.tool).toBe('search_experience');
 
     // Final trace update carries the rag metadata.
     const finalUpdate = lastCallArg<{
       output: string;
-      tags: string[];
       metadata: {
         rag_retrieved: boolean;
         rag_queries: string[];
         rag_sources: string[];
         rag_top_chunk_ids: string[];
       };
-    }>(lf.trace.update);
+    }>(lf.root.update);
     expect(finalUpdate.metadata.rag_retrieved).toBe(true);
     // Grounded turn: RAG fired and chunks survived (no no_match) → tagged.
-    expect(finalUpdate.tags).toContain('grounded');
+    expect(lastTags()).toContain('grounded');
     expect(finalUpdate.metadata.rag_queries).toEqual([
       'identity platform migration',
     ]);
@@ -694,12 +722,11 @@ describe('chat handler — tool-use', () => {
     await Promise.all(captured);
 
     const finalUpdate = lastCallArg<{
-      tags: string[];
       metadata: { rag_retrieved: boolean; rag_no_match: boolean };
-    }>(lf.trace.update);
+    }>(lf.root.update);
     expect(finalUpdate.metadata.rag_retrieved).toBe(true);
     expect(finalUpdate.metadata.rag_no_match).toBe(true);
-    expect(finalUpdate.tags).not.toContain('grounded');
+    expect(lastTags()).not.toContain('grounded');
   });
 
   it('executes both tools when Sonnet calls search_experience and search_resume in one round', async () => {
@@ -791,7 +818,7 @@ describe('chat handler — tool-use', () => {
     expect(mocks.executeTool.mock.calls[0]![0]).toBe('search_experience');
     expect(mocks.executeTool.mock.calls[1]![0]).toBe('search_resume');
     // Both tool spans are children of the first generation.
-    expect(lf.generation.span).toHaveBeenCalledTimes(2);
+    expect(lf.generation.startObservation).toHaveBeenCalledTimes(2);
 
     const finalUpdate = lastCallArg<{
       metadata: {
@@ -800,7 +827,7 @@ describe('chat handler — tool-use', () => {
         rag_sources: string[];
         rag_top_chunk_ids: string[];
       };
-    }>(lf.trace.update);
+    }>(lf.root.update);
     expect(finalUpdate.metadata.rag_retrieved).toBe(true);
     expect(finalUpdate.metadata.rag_queries).toEqual([
       'latency optimization story',
@@ -845,13 +872,6 @@ function parseNdjson(
 }
 
 describe('chat handler — Phase 4a eval-bypass auth (D2)', () => {
-  function lastCallArg<T = Record<string, unknown>>(fn: {
-    mock: { calls: unknown[][] };
-  }): T {
-    const calls = fn.mock.calls;
-    return calls[calls.length - 1]![0] as T;
-  }
-
   let captured: Promise<unknown>[];
   let ctx: { waitUntil: (p: Promise<unknown>) => void };
   let prevSecret: string | undefined;
@@ -900,8 +920,7 @@ describe('chat handler — Phase 4a eval-bypass auth (D2)', () => {
     )) as Response;
     await drainStream(res);
     await Promise.all(captured);
-    const finalUpdate = lastCallArg<{ tags: string[] }>(lf.trace.update);
-    expect(finalUpdate.tags).toContain('eval-source');
+    expect(lastTags()).toContain('eval-source');
   });
 
   it('matching bypass header + X-Eval-Query-Id attaches eval_query_id to trace metadata', async () => {
@@ -916,7 +935,7 @@ describe('chat handler — Phase 4a eval-bypass auth (D2)', () => {
     // The handler calls trace.update twice: once with the metadata
     // (during bypass setup) and once at finalize. Find the metadata
     // call.
-    const updateCalls = lf.trace.update.mock.calls as unknown as Array<
+    const updateCalls = lf.root.update.mock.calls as unknown as Array<
       [{ metadata?: { eval_query_id?: string } }]
     >;
     const metadataCall = updateCalls.find(
@@ -937,8 +956,7 @@ describe('chat handler — Phase 4a eval-bypass auth (D2)', () => {
 
     expect(res.status).toBe(429);
     // No eval-source tag — secret didn't match.
-    const finalUpdate = lastCallArg<{ tags: string[] }>(lf.trace.update);
-    expect(finalUpdate.tags).not.toContain('eval-source');
+    expect(lastTags()).not.toContain('eval-source');
   });
 
   it('fails closed when EVAL_BYPASS_SECRET is unset (any bypass header rejected)', async () => {
@@ -972,9 +990,8 @@ describe('chat handler — Phase 4a eval-bypass auth (D2)', () => {
 
     // LLM not called → injection regex caught the probe.
     expect(mocks.messagesCreate).not.toHaveBeenCalled();
-    const finalUpdate = lastCallArg<{ tags: string[] }>(lf.trace.update);
-    expect(finalUpdate.tags).toContain('injection-detected');
-    expect(finalUpdate.tags).toContain('eval-source');
+    expect(lastTags()).toContain('injection-detected');
+    expect(lastTags()).toContain('eval-source');
     // The injection-caught response still emits the canned refusal.
     expect(raw).toContain('Not how this works');
   });
@@ -983,8 +1000,7 @@ describe('chat handler — Phase 4a eval-bypass auth (D2)', () => {
     const res = (await handler(makeRequest('hi'), ctx)) as Response;
     await drainStream(res);
     await Promise.all(captured);
-    const finalUpdate = lastCallArg<{ tags: string[] }>(lf.trace.update);
-    expect(finalUpdate.tags).not.toContain('eval-source');
+    expect(lastTags()).not.toContain('eval-source');
   });
 });
 
