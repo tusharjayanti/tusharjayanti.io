@@ -56,23 +56,31 @@ describe('getWindowRaw', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
-        if (url.includes('/api/public/traces')) {
-          traceFetches += 1;
-          return jsonResponse({
-            data: [
-              { id: 'r1', name: 'chat-turn', timestamp: 't', tags: [] },
-              {
-                id: 'e1',
-                name: 'chat-turn',
-                timestamp: 't',
-                tags: ['eval-source'],
-              },
-            ],
-          });
-        }
-        if (url.includes('/api/public/observations')) {
+        // Both sweeps now hit /v2/observations; the GENERATION-typed one is
+        // the observation fetch, the untyped one is the trace-list fetch.
+        if (url.includes('type=GENERATION')) {
           obsFetches += 1;
           return jsonResponse({ data: [] });
+        }
+        if (url.includes('/api/public/v2/observations')) {
+          traceFetches += 1;
+          const root = (id: string, tags: string[]) => ({
+            id: `obs-${id}`,
+            traceId: id,
+            parentObservationId: null,
+            type: 'SPAN',
+            name: 'chat-turn',
+            traceName: 'chat-turn',
+            startTime:
+              id === 'r1' ? '2026-09-18T00:00:01Z' : '2026-09-18T00:00:00Z',
+            endTime: '2026-09-18T00:00:02Z',
+            tags,
+            totalCost: 0,
+            latency: 1,
+          });
+          return jsonResponse({
+            data: [root('r1', []), root('e1', ['eval-source'])],
+          });
         }
         throw new Error(`unexpected fetch: ${url}`);
       }),
@@ -112,7 +120,6 @@ describe('getWindowRaw', () => {
           output: null,
           htmlPath: null,
           projectId: null,
-          scores: [],
         },
       ],
       observations: [],

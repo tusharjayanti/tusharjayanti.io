@@ -1,6 +1,6 @@
 // Conversations tab — master/detail. Left: paginated, newest-first list
 // (load-more, merge-deduped). Right: the selected trace's detail with a
-// span waterfall, RAG outcome, scores, and an open-in-Langfuse link.
+// span waterfall, RAG outcome, and an open-in-Langfuse link.
 
 import { useEffect, useState } from 'react';
 import { useOpsApi } from '../../../lib/opsApi';
@@ -32,7 +32,6 @@ interface Detail {
   question: string;
   answer: string;
   spans: TraceSpan[];
-  scores: unknown[];
   rag: { retrieved: boolean; no_match: boolean; sources: unknown[] };
   langfuse_url: string | null;
 }

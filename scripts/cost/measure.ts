@@ -8,11 +8,11 @@
 //
 // ---- Why bulk pagination, not per-trace fetches ----
 // Earlier versions fetched observations per trace via
-// /api/public/observations?traceId=<id>. That breaks on the Hobby
+// /api/public/v2/observations?traceId=<id>. That breaks on the Hobby
 // tier: Langfuse rate-limits per-trace fetches and ~80% of requests
 // returned HTTP 429 above a few dozen traces. This script uses
-// /api/public/traces (paginated trace list, gives totalCost +
-// tags + timestamp) plus /api/public/observations with
+// the canonical ops read layer (gives totalCost +
+// tags + timestamp) plus /api/public/v2/observations with
 // fromStartTime (single paginated sweep over all generations in the
 // window) and bins observations by trace id in memory. One pass
 // fetches everything the report needs.
@@ -112,22 +112,36 @@ async function fetchJson<T>(url: URL): Promise<T> {
   throw new Error(`exhausted retries on ${url.pathname}`);
 }
 
+// Observations API v2. Three deltas from v1 that matter here:
+//   - cursor pagination replaces page numbers (serial by construction)
+//   - limit ceiling 100 -> 1,000, so real windows are a single request
+//   - `calculatedTotalCost` was renamed `totalCost`; reading the old name
+//     silently yields undefined -> 0 and zeroes the whole cost report, so
+//     both names are read and the parity harness diffs the total.
 async function listAllObservations(from: Date): Promise<Observation[]> {
   const all: Observation[] = [];
-  let page = 1;
-  while (true) {
-    const url = new URL(`${BASE_URL}/api/public/observations`);
+  let cursor: string | null = null;
+  // Runaway guard only; a window would need >1,000,000 rows to reach it.
+  for (let page = 0; page < 1000; page++) {
+    const url = new URL(`${BASE_URL}/api/public/v2/observations`);
     url.searchParams.set('type', 'GENERATION');
     url.searchParams.set('fromStartTime', from.toISOString());
-    url.searchParams.set('page', String(page));
-    url.searchParams.set('limit', '100');
+    url.searchParams.set('toStartTime', new Date().toISOString());
+    url.searchParams.set('fields', 'core,basic,usage,model');
+    url.searchParams.set('limit', '1000');
+    if (cursor) url.searchParams.set('cursor', cursor);
     const body = await fetchJson<{
-      data: Observation[];
-      meta: { totalPages: number };
+      data: Array<Observation & { totalCost?: number | null }>;
+      meta?: { cursor?: string | null };
     }>(url);
-    all.push(...body.data);
-    if (page >= body.meta.totalPages) break;
-    page++;
+    for (const o of body.data ?? []) {
+      all.push({
+        ...o,
+        calculatedTotalCost: o.totalCost ?? o.calculatedTotalCost ?? null,
+      });
+    }
+    cursor = body.meta?.cursor ?? null;
+    if (!cursor) break;
     await sleep(150);
   }
   return all;

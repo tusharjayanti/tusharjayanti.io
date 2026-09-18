@@ -504,7 +504,7 @@ export async function handleTraceDetail(
   }
   const host = process.env.LANGFUSE_BASE_URL ?? LANGFUSE_DEFAULT_BASE;
   try {
-    const { trace, observations, scores } = await opsTraceById(id);
+    const { trace, observations } = await opsTraceById(id);
     if (!trace) {
       res.status(404).json({ error: 'trace not found' });
       return;
@@ -512,7 +512,7 @@ export async function handleTraceDetail(
     res
       .setHeader('cache-control', 'no-store')
       .status(200)
-      .json(buildDetail(trace, observations, scores, host));
+      .json(buildDetail(trace, observations, host));
   } catch (err) {
     console.error('[ops/trace] detail failed:', err);
     res.status(502).json({ error: 'detail failed' });
